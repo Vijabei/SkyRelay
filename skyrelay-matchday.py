@@ -366,8 +366,16 @@ def fetch_team_matches(weeks_back=1, weeks_forward=1):
 def describe_match(kickoff_local, match):
     """Baut (kickoff_local, beschreibung, hashtag, kurzinfo) aus einem OpenLigaDB-Spiel."""
     desc = f'{match["team1"]["teamName"]} - {match["team2"]["teamName"]} ({match["leagueName"]})'
-    hashtag = team_code(match["team1"]) + team_code(match["team2"])  # team1 = Heimteam
-    return kickoff_local, desc, hashtag, match_info_text(match)
+    heim, gast = team_code(match["team1"]), team_code(match["team2"])  # team1 = Heimteam
+    if heim == gast:
+        # Kommt vor, wenn zwei Vereine dasselbe Kürzel führen (z.B. tragen sowohl
+        # Werder Bremen als auch Waldhof Mannheim "SVW"). Der Hashtag wäre unbrauchbar.
+        log(f'⚠️ Beide Mannschaften führen das Kürzel "{heim}" - der Hashtag #{heim}{gast} '
+            f'ergibt keinen Sinn.')
+        log(f'   Bitte eines der Kürzel in [team_codes] anpassen: Team-Nummern '
+            f'{match["team1"]["teamId"]} ({match["team1"]["teamName"]}) und '
+            f'{match["team2"]["teamId"]} ({match["team2"]["teamName"]}).')
+    return kickoff_local, desc, heim + gast, match_info_text(match)
 
 
 def get_todays_match():

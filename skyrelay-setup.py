@@ -49,23 +49,73 @@ EMPFOHLENE_LIGEN = [
 ]
 
 # Gebräuchliche Kürzel je OpenLigaDB-Team-Nummer, wie sie in Ergebnisdiensten
-# und Hashtags verwendet werden. Bewusst nur Einträge, die belegt sind - für
-# alle übrigen Mannschaften schlägt der Assistent eine Ableitung aus dem Namen
-# vor, die erkennbar ein Vorschlag ist. Stand: Saison 2026/27.
-# Ergänzungen sind willkommen: Team-Nummer über die OpenLigaDB-Adresse
-# getavailableteams/<liga>/<saison> ermitteln.
+# und Fernsehgrafiken verwendet werden. Es gibt dafür keinen offiziellen
+# Standard - und OpenLigaDB liefert selbst keine Kürzel (nur den Kurznamen,
+# also "Bielefeld" statt "DSC"). Deshalb diese Tabelle.
+# Für Mannschaften ohne Eintrag schlägt der Assistent eine Ableitung aus dem
+# Namen vor, die im Dialog erkennbar als Vorschlag markiert ist ("?").
+#
+# Sortiert nach Vereinsnamen, nicht nach Liga: So bleiben Einträge bei Auf-
+# und Abstieg an derselben Stelle stehen.
+# Ergänzen: Team-Nummer über getavailableteams/<liga>/<saison> ermitteln.
+# Stand: Saison 2026/27.
 BEKANNTE_KUERZEL = {
-    # 1. Bundesliga
-    6: "B04", 7: "BVB", 9: "S04", 16: "VFB", 31: "SCP", 40: "FCB", 65: "KOE",
-    80: "FCU", 81: "M05", 87: "BMG", 91: "SGE", 95: "FCA", 100: "HSV",
-    112: "SCF", 134: "SVW", 175: "TSG", 198: "SVE", 1635: "RBL",
-    # 2. Bundesliga
-    36: "OSN", 54: "BSC", 55: "H96", 74: "EBS", 76: "FCK", 78: "FCM",
-    79: "FCN", 83: "DSC", 93: "FCE", 98: "STP", 104: "KSV", 105: "KSC",
-    115: "SGF", 118: "SVD", 129: "BOC", 131: "WOB", 177: "SGD", 199: "FCH",
-    # 3. Liga (nur belegte Kürzel)
-    23: "AAC", 102: "HRO", 107: "MSV", 109: "RWE", 114: "SCV", 171: "FCI",
-    174: "SVWW", 185: "F95", 188: "PRM", 417: "FCS", 553: "SVW",
+    199: "FCH",       # 1. FC Heidenheim 1846
+    76: "FCK",        # 1. FC Kaiserslautern
+    65: "KOE",        # 1. FC Köln
+    78: "FCM",        # 1. FC Magdeburg
+    79: "FCN",        # 1. FC Nürnberg
+    417: "FCS",       # 1. FC Saarbrücken
+    80: "FCU",        # 1. FC Union Berlin
+    81: "M05",        # 1. FSV Mainz 05
+    23: "AAC",        # Alemannia Aachen
+    6: "B04",         # Bayer 04 Leverkusen
+    7: "BVB",         # Borussia Dortmund
+    1714: "BVB2",     # Borussia Dortmund II
+    87: "BMG",        # Borussia Mönchengladbach
+    83: "DSC",        # DSC Arminia Bielefeld
+    177: "SGD",       # Dynamo Dresden
+    74: "EBS",        # Eintracht Braunschweig
+    91: "SGE",        # Eintracht Frankfurt
+    93: "FCE",        # Energie Cottbus
+    95: "FCA",        # FC Augsburg
+    40: "FCB",        # FC Bayern München
+    171: "FCI",       # FC Ingolstadt 04
+    9: "S04",         # FC Schalke 04
+    98: "STP",        # FC St. Pauli
+    185: "F95",       # Fortuna Düsseldorf
+    100: "HSV",       # Hamburger SV
+    55: "H96",        # Hannover 96
+    102: "HRO",       # Hansa Rostock
+    54: "BSC",        # Hertha BSC
+    104: "KIE",       # Holstein Kiel
+    181: "REG",       # Jahn Regensburg
+    105: "KSC",       # Karlsruher SC
+    107: "MSV",       # MSV Duisburg
+    188: "PRM",       # Preußen Münster
+    1635: "RBL",      # RB Leipzig
+    109: "RWE",       # Rot-Weiss Essen
+    112: "SCF",       # SC Freiburg
+    31: "SCP",        # SC Paderborn 07
+    114: "SCV",       # SC Verl
+    115: "SGF",       # SpVgg Greuther Fürth
+    116: "UHA",       # SpVgg Unterhaching
+    564: "ULM",       # SSV Ulm 1846
+    198: "ELV",       # SV 07 Elversberg
+    118: "D98",       # SV Darmstadt 98
+    119: "SVS",       # SV Sandhausen
+    553: "SVW",       # SV Waldhof Mannheim
+    174: "SVWW",      # SV Wehen Wiesbaden
+    134: "SVW",       # SV Werder Bremen
+    175: "TSG",       # TSG Hoffenheim
+    2396: "TSG2",     # TSG 1899 Hoffenheim II
+    16: "VFB",        # VfB Stuttgart
+    184: "VFB2",      # VfB Stuttgart II
+    129: "BOC",       # VfL Bochum
+    36: "OSN",        # VfL Osnabrück
+    131: "WOB",       # VfL Wolfsburg
+    2199: "VIK",      # Viktoria Köln
+    398: "FWK",       # Würzburger Kickers
 }
 # Hinweis: SVW tragen sowohl Werder Bremen (1. Liga) als auch Waldhof Mannheim
 # (3. Liga). Innerhalb einer Liga stört das nicht; treffen beide im Pokal
