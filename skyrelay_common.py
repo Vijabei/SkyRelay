@@ -122,6 +122,29 @@ def lade_config(basis_dir):
     return cfg, cfg_int, cfg_bool, pfad
 
 
+# -------------------------------------------------------------------- Login
+def melde_bei_bluesky_an(client, handle, passwort, passwort_variable):
+    """Meldet sich an und erklärt im Fehlerfall, woran es liegen kann. Ein
+    nackter 401 hilft niemandem - typisch ist, dass Passwort und Konto nicht
+    zusammenpassen, weil Ticker und Feed getrennte Konten verwenden."""
+    if not passwort:
+        log(f"Fehler: {passwort_variable} ist nicht gesetzt.")
+        log(f'Setzen mit:  export {passwort_variable}="xxxx-xxxx-xxxx-xxxx"')
+        raise SystemExit(1)
+    try:
+        client.login(handle, passwort)
+    except Exception as fehler:
+        log(f"✗ Anmeldung bei Bluesky als @{handle} fehlgeschlagen: {fehler}")
+        if "Invalid identifier or password" in str(fehler):
+            log(f"   Gehört das App-Passwort aus {passwort_variable} wirklich zu")
+            log(f"   genau diesem Konto? Werden Ticker und Feed auf getrennten")
+            log(f"   Konten betrieben, brauchen sie auch getrennte Passwörter:")
+            log(f"     Ticker: BLUESKY_APP_PASSWORD")
+            log(f"     Feed:   SKYRELAY_FEED_APP_PASSWORD")
+        log("   Hinweis: Bluesky erlaubt nur 10 Anmeldeversuche pro Tag und Konto.")
+        raise
+
+
 # ------------------------------------------------------------------- Medien
 def compress_image_for_bluesky(quelle, max_dim=2000, max_bytes=1_500_000, start_quality=85):
     """Verkleinert ein Bild so weit, dass es unter Blueskys Größengrenze passt.

@@ -37,25 +37,30 @@ from skyrelay_common import (
     log,
     lade_config,
     start_file_logging,
+    melde_bei_bluesky_an,
     compress_image_for_bluesky,
     upload_video_to_bluesky,
 )
 
 
-# Der frühere web_profile_info-Monkey-Patch für den GraphQL-400-Fehler ist obsolet:
-# instaloader >= 4.15.1 (PR #2652, released 21.03.2026) holt Profil-Metadaten über neue
-# GraphQL-Endpoints - der alte web_profile_info-Endpoint liefert inzwischen selbst Fehler
-# (429 / useragent mismatch) und darf nicht mehr verwendet werden.
+# Instagram wechselt regelmäßig die Endpunkte, über die Profildaten abrufbar sind -
+# entsprechend eng ist das Zeitfenster brauchbarer instaloader-Versionen:
+#   < 4.15.1  scheitert an Instagrams GraphQL-Umstellung
+#   4.15.2    funktioniert (in requirements.txt festgelegt)
+#   >= 4.15.3 nutzt wieder "web_profile_info"; Instagram drosselt diesen Endpunkt
+#             seit August 2026, schon die erste Anfrage endet mit 429
+#             (instaloader#2726, noch offen)
 _instaloader_version = tuple(int(p) for p in instaloader.__version__.split(".")[:3] if p.isdigit())
 if _instaloader_version < (4, 15, 1):
-    log(f"⚠️ instaloader {instaloader.__version__} ist veraltet und wird an Instagrams "
-        f"GraphQL-Änderungen scheitern. Bitte aktualisieren: pip install -U instaloader")
+    log(f"⚠️ instaloader {instaloader.__version__} ist zu alt für Instagrams "
+        f"aktuelle Endpunkte. Empfohlen: pip install 'instaloader==4.15.2'")
+elif _instaloader_version >= (4, 15, 3):
+    log(f"⚠️ instaloader {instaloader.__version__} nutzt den von Instagram "
+        f"gedrosselten Endpunkt 'web_profile_info' - rechne mit HTTP 429.")
+    log(f"   Empfohlen, bis instaloader#2726 gelöst ist: "
+        f"pip install 'instaloader==4.15.2'")
 
 # =============================== KONFIGURATION ===============================
-# TODO(Auslagerung): Konfigurations- und Protokoll-Bausteine sind mit
-# skyrelay-matchday.py nahezu identisch. Sobald beide Programme gemeinsame
-# Bausteine teilen, gehören sie in ein eigenes Modul - die Doppelung hier ist
-# bewusst und vorübergehend.
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 cfg, cfg_int, cfg_bool, CONFIG_FILE = lade_config(BASE_DIR)
 
@@ -100,13 +105,18 @@ if os.path.exists(_alt_state) and not os.path.exists(STATE_FILE):
         log(f"⚠️ Konnte posted_shortcodes.txt nicht übernehmen: {_e}")
 
 # App-Passwort NICHT in der Konfiguration speichern - kommt aus der Umgebung.
-# Eigenes Konto für den Feed -> eigenes Passwort möglich.
+# Eigenes Konto für den Feed -> eigenes Passwort möglich. BLUESKY_APP_PASSWORD
+# greift, wenn Ticker und Feed dasselbe Konto verwenden.
 BLUESKY_APP_PASSWORD = (os.environ.get("SKYRELAY_FEED_APP_PASSWORD")
                         or os.environ.get("BLUESKY_APP_PASSWORD"))
 if not BLUESKY_APP_PASSWORD:
-    log("Fehler: Umgebungsvariable BLUESKY_APP_PASSWORD ist nicht gesetzt.")
-    log('Setzen z.B. mit:  export BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"')
-    log("(dauerhaft in ~/.bashrc oder in der crontab-Zeile vor dem python-Aufruf)")
+    log(f"Fehler: Kein App-Passwort für das Feed-Konto @{BLUESKY_HANDLE} gesetzt.")
+    log('Nutzt der Feed ein EIGENES Konto (anders als der Ticker):')
+    log('    export SKYRELAY_FEED_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"')
+    log('Nutzen Ticker und Feed dasselbe Konto, genügt:')
+    log('    export BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"')
+    log("Achtung: cron liest ~/.bashrc nicht - dort die Variablen oben in die")
+    log("crontab schreiben (ohne Anführungszeichen).")
     sys.exit(1)
 
 _fehlend = [n for n, w in (("[feed] instagram_profile", INSTA_USER),
@@ -340,7 +350,10 @@ for post in latest_posts:
         if client is None:
             log("Verbinde mit Bluesky...")
             client = Client()
-            client.login(BLUESKY_HANDLE, BLUESKY_APP_PASSWORD)
+            melde_bei_bluesky_an(client, BLUESKY_HANDLE, BLUESKY_APP_PASSWORD,
+                                 "SKYRELAY_FEED_APP_PASSWORD"
+                                 if os.environ.get("SKYRELAY_FEED_APP_PASSWORD")
+                                 else "BLUESKY_APP_PASSWORD")
 
         # 9. Video-Uploads zur Bluesky-Video-API (einzeln oder mehrfach bei Multi-Video-Sidecar)
         # Priorität: Video. Backup bei Fehlschlag: das jeweilige Cover-Bild.

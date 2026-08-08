@@ -79,6 +79,7 @@ from skyrelay_common import (
     log,
     lade_config,
     start_file_logging,
+    melde_bei_bluesky_an,
     compress_image_for_bluesky,
     upload_video_to_bluesky,
 )
@@ -500,7 +501,8 @@ def ensure_bsky():
     if bsky_client is None:
         log("Verbinde mit Bluesky...")
         bsky_client = Client()
-        bsky_client.login(BLUESKY_HANDLE, BLUESKY_APP_PASSWORD)
+        melde_bei_bluesky_an(bsky_client, BLUESKY_HANDLE, BLUESKY_APP_PASSWORD,
+                             "BLUESKY_APP_PASSWORD")
 
 
 # --- Profil-Statuszeile -------------------------------------------------------
