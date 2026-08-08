@@ -1,8 +1,33 @@
+"""
+SkyRelay - Feed: spiegelt ein Instagram-Profil nach Bluesky.
+
+Im Gegensatz zum Spieltags-Ticker läuft dieses Programm im Dauerbetrieb: Es
+prüft bei jedem Aufruf die letzten Beiträge des Profils und überträgt alles,
+was noch nicht übernommen wurde. Gedacht für einen regelmäßigen Start per cron.
+
+Alle Einstellungen stehen im Abschnitt [feed] von "skyrelay.conf"
+(Vorlage: skyrelay.conf.example). Ein abweichender Pfad lässt sich über die
+Umgebungsvariable SKYRELAY_CONFIG angeben.
+
+Zugangsdaten kommen ausschließlich aus Umgebungsvariablen:
+    BLUESKY_APP_PASSWORD        App-Passwort des Bluesky-Kontos
+    SKYRELAY_FEED_APP_PASSWORD  nur nötig, wenn [feed] bluesky_handle ein
+                                anderes Konto als [bluesky] handle verwendet
+
+Die Instagram-Sitzung wird einmalig außerhalb dieses Programms angelegt:
+    venv/bin/instaloader -l <zweitkonto>
+
+Beispiel für cron (alle 15 Minuten):
+    */15 * * * * BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx" /pfad/zu/SkyRelay/venv/bin/python3 /pfad/zu/SkyRelay/skyrelay-feed.py >/dev/null 2>&1
+"""
+
+import configparser
 import os
 import re
 import sys
 import glob
 import shutil
+import threading
 import instaloader
 from atproto import Client, models, client_utils
 from PIL import Image
@@ -16,7 +41,7 @@ from atproto_client.models.blob_ref import BlobRef
 
 def log(*args, **kwargs):
     """print mit vorangestelltem Zeitstempel - für nachvollziehbare Logs (z.B. aus cron)."""
-    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}]", *args, **kwargs)
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}]", *args, **kwargs, flush=True)
 
 
 # Der frühere web_profile_info-Monkey-Patch für den GraphQL-400-Fehler ist obsolet:
@@ -28,33 +53,154 @@ if _instaloader_version < (4, 15, 1):
     log(f"⚠️ instaloader {instaloader.__version__} ist veraltet und wird an Instagrams "
         f"GraphQL-Änderungen scheitern. Bitte aktualisieren: pip install -U instaloader")
 
-# --- KONFIGURATION ---
-INSTA_USER = "arminiaofficial"
-BLUESKY_HANDLE = "arminia-repost-bot.bsky.social"
-# App-Passwort NICHT im Script speichern - kommt aus der Umgebungsvariable.
-BLUESKY_APP_PASSWORD = os.environ.get("BLUESKY_APP_PASSWORD")
+# =============================== KONFIGURATION ===============================
+# TODO(Auslagerung): Konfigurations- und Protokoll-Bausteine sind mit
+# skyrelay-matchday.py nahezu identisch. Sobald beide Programme gemeinsame
+# Bausteine teilen, gehören sie in ein eigenes Modul - die Doppelung hier ist
+# bewusst und vorübergehend.
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CONFIG_FILE = os.environ.get("SKYRELAY_CONFIG") or os.path.join(BASE_DIR, "skyrelay.conf")
+
+if not os.path.exists(CONFIG_FILE):
+    print(f"Fehler: Konfigurationsdatei nicht gefunden: {CONFIG_FILE}\n"
+          f"Vorlage kopieren und anpassen:\n"
+          f"    cp skyrelay.conf.example skyrelay.conf",
+          file=sys.stderr)
+    sys.exit(1)
+
+_cfg = configparser.ConfigParser(interpolation=None)
+try:
+    with open(CONFIG_FILE, encoding="utf-8") as _f:
+        _cfg.read_file(_f)
+except Exception as _e:
+    print(f"Fehler beim Lesen von {CONFIG_FILE}: {_e}", file=sys.stderr)
+    sys.exit(1)
+
+
+def cfg(section, key, default=None):
+    return _cfg.get(section, key, fallback=default)
+
+
+def cfg_int(section, key, default):
+    try:
+        return int(str(_cfg.get(section, key, fallback=default)).strip())
+    except (ValueError, TypeError):
+        return default
+
+
+def cfg_bool(section, key, default):
+    return _cfg.getboolean(section, key, fallback=default)
+
+
+INSTA_USER = cfg("feed", "instagram_profile", "")
+INSTA_BOT_USER = cfg("feed", "instagram_session_user", "")
+# Eigenes Konto für den Feed? Sonst das allgemeine aus [bluesky].
+BLUESKY_HANDLE = cfg("feed", "bluesky_handle", "") or cfg("bluesky", "handle", "")
+
+POSTS_TO_CHECK = cfg_int("feed", "posts_to_check", 10)
+PAUSE_BETWEEN_POSTS_SECONDS = cfg_int("feed", "pause_between_posts_seconds", 8)
+VIDEO_PLACEHOLDER = cfg("feed", "video_placeholder", "🎥 Neues Video/Reel")
+MIXED_PLACEHOLDER = cfg("feed", "mixed_placeholder", "📸🎥 Neuer Beitrag")
+IMAGE_PLACEHOLDER = cfg("feed", "image_placeholder", "📸 Neues Bild")
+ALT_TEXT_FALLBACK = cfg("feed", "alt_text_fallback", "News")
+
+POST_PREFIX = cfg("post", "prefix", "⚽ [Inoffizieller Bot]")
+STANDING_HASHTAG = cfg("post", "standing_hashtag", "").strip().lstrip("#")
+
+MAX_VIDEO_BYTES = cfg_int("limits", "max_video_bytes", 100_000_000)
+VIDEO_JOB_TIMEOUT_SECONDS = cfg_int("limits", "video_job_timeout_seconds", 600)
+
+LOG_TO_FILE = cfg_bool("logging", "to_file", True)
+LOG_MAX_BYTES = cfg_int("logging", "max_bytes", 2_000_000)
+LOG_BACKUP_COUNT = cfg_int("logging", "backup_count", 5)
+
+STATE_FILE = os.path.join(BASE_DIR, cfg("feed", "state", "skyrelay_feed_posted.txt"))
+LOG_FILE = os.path.join(BASE_DIR, cfg("feed", "log", "skyrelay-feed.log"))
+TMP_DIR = os.path.join(BASE_DIR, "tmp")
+
+
+def rotate_log(path, max_bytes, backups):
+    """Rotiert die Protokolldatei beim Start, wenn sie zu groß geworden ist."""
+    try:
+        if not os.path.exists(path) or os.path.getsize(path) < max_bytes:
+            return
+        oldest = f"{path}.{backups}"
+        if os.path.exists(oldest):
+            os.remove(oldest)
+        for i in range(backups - 1, 0, -1):
+            src = f"{path}.{i}"
+            if os.path.exists(src):
+                os.replace(src, f"{path}.{i + 1}")
+        os.replace(path, f"{path}.1")
+    except Exception as e:
+        print(f"⚠️ Protokoll-Rotation fehlgeschlagen: {e}", flush=True)
+
+
+def start_file_logging(path):
+    """Schreibt alle Ausgaben zusätzlich in eine Datei und weiterhin auf die
+    Konsole (wie "tee"), unabhängig davon, wie das Programm gestartet wurde."""
+    try:
+        rotate_log(path, LOG_MAX_BYTES, LOG_BACKUP_COUNT)
+        logfile = open(path, "ab", buffering=0)
+        read_fd, write_fd = os.pipe()
+        console_fd = os.dup(1)
+        os.dup2(write_fd, 1)
+        os.dup2(write_fd, 2)
+        os.close(write_fd)
+
+        def pump():
+            with os.fdopen(read_fd, "rb", 0) as pipe:
+                for line in iter(pipe.readline, b""):
+                    for sink in (logfile.write, lambda b: os.write(console_fd, b)):
+                        try:
+                            sink(line)
+                        except Exception:
+                            pass
+
+        threading.Thread(target=pump, name="log-tee", daemon=True).start()
+        sys.stdout.reconfigure(line_buffering=True)
+        sys.stderr.reconfigure(line_buffering=True)
+    except Exception as e:
+        print(f"⚠️ Datei-Protokoll konnte nicht gestartet werden: {e}", flush=True)
+
+
+if LOG_TO_FILE:
+    start_file_logging(LOG_FILE)
+    log(f"--- Feed-Start (Protokoll: {LOG_FILE}) ---")
+
+# Altbestand aus früheren Fassungen übernehmen, damit nichts doppelt gepostet wird.
+_alt_state = os.path.join(BASE_DIR, "posted_shortcodes.txt")
+if os.path.exists(_alt_state) and not os.path.exists(STATE_FILE):
+    try:
+        os.replace(_alt_state, STATE_FILE)
+        log(f"Übernommen: posted_shortcodes.txt -> {os.path.basename(STATE_FILE)}")
+    except Exception as _e:
+        log(f"⚠️ Konnte posted_shortcodes.txt nicht übernehmen: {_e}")
+
+# App-Passwort NICHT in der Konfiguration speichern - kommt aus der Umgebung.
+# Eigenes Konto für den Feed -> eigenes Passwort möglich.
+BLUESKY_APP_PASSWORD = (os.environ.get("SKYRELAY_FEED_APP_PASSWORD")
+                        or os.environ.get("BLUESKY_APP_PASSWORD"))
 if not BLUESKY_APP_PASSWORD:
     log("Fehler: Umgebungsvariable BLUESKY_APP_PASSWORD ist nicht gesetzt.")
     log('Setzen z.B. mit:  export BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"')
-    log("(dauerhaft: in ~/.bashrc bzw. im Aufruf-Script/der crontab-Zeile vor dem python-Aufruf)")
+    log("(dauerhaft in ~/.bashrc oder in der crontab-Zeile vor dem python-Aufruf)")
     sys.exit(1)
 
-MAX_VIDEO_BYTES = 100_000_000       # Bluesky-Limit: ~100 MB pro Video
-VIDEO_JOB_TIMEOUT_SECONDS = 600     # max. Wartezeit auf die Server-Verarbeitung
-POSTS_TO_CHECK = 10                 # mehr als 5, damit gepinnte Posts keine neuen verdrängen
-PAUSE_BETWEEN_POSTS_SECONDS = 8
-# ----------------------------------
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-LOG_FILE = os.path.join(BASE_DIR, "posted_shortcodes.txt")
-TMP_DIR = os.path.join(BASE_DIR, "tmp")
+_fehlend = [n for n, w in (("[feed] instagram_profile", INSTA_USER),
+                           ("[feed] instagram_session_user", INSTA_BOT_USER),
+                           ("bluesky_handle", BLUESKY_HANDLE))
+            if not w or w.startswith("dein")]
+if _fehlend:
+    log(f"Fehler: In {os.path.basename(CONFIG_FILE)} fehlen noch Angaben: {', '.join(_fehlend)}")
+    sys.exit(1)
 
 os.makedirs(TMP_DIR, exist_ok=True)
 
 # 1. Bereits gepostete Shortcodes laden
 posted_shortcodes = set()
-if os.path.exists(LOG_FILE):
-    with open(LOG_FILE, "r", encoding="utf-8") as f:
+if os.path.exists(STATE_FILE):
+    with open(STATE_FILE, "r", encoding="utf-8") as f:
         posted_shortcodes = set(f.read().splitlines())
 
 # 2. Instaloader initialisieren + Session laden
@@ -66,7 +212,6 @@ L = instaloader.Instaloader(
     compress_json=False
 )
 
-INSTA_BOT_USER = "arminia_feeder"
 log(f"Lade bestehende Instagram-Session für {INSTA_BOT_USER}...")
 try:
     L.load_session_from_file(INSTA_BOT_USER)
@@ -76,7 +221,7 @@ except Exception as e:
     sys.exit(1)
 
 # 3. Instagram-Profil & letzte Posts abrufen
-log("Rufe Arminia-Profil direkt von Instagram ab...")
+log(f"Rufe Profil @{INSTA_USER} direkt von Instagram ab...")
 try:
     profile = instaloader.Profile.from_username(L.context, INSTA_USER)
     posts_iterator = profile.get_posts()
@@ -170,7 +315,7 @@ def natural_sort_key(path):
 
 def build_alt_text(caption, suffix=""):
     """Erzeugt einen Alt-Text aus der Caption (Barrierefreiheit) statt eines generischen Platzhalters."""
-    base = caption.strip() if caption else "Arminia News"
+    base = caption.strip() if caption else ALT_TEXT_FALLBACK
     if len(base) > 200:
         base = base[:200].rstrip() + "…"
     return base + suffix
@@ -378,11 +523,11 @@ for post in latest_posts:
         text_chunks = split_caption(caption, first_chunk_length, follow_chunk_length)
         if not text_chunks:
             if is_video_post or is_multi_video_post:
-                text_chunks = ["🎥 Neues Video/Reel von Arminia"]
+                text_chunks = [VIDEO_PLACEHOLDER]
             elif is_mixed_post:
-                text_chunks = ["📸🎥 Neuer Beitrag von Arminia"]
+                text_chunks = [MIXED_PLACEHOLDER]
             else:
-                text_chunks = ["📸 Neues Bild von Arminia"]
+                text_chunks = [IMAGE_PLACEHOLDER]
 
         alt_text = build_alt_text(caption)
 
@@ -507,9 +652,9 @@ for post in latest_posts:
             else:
                 tb.text(f"{current_text} ({i+1}/{total_posts})")
 
-            if is_last:
+            if is_last and STANDING_HASHTAG:
                 tb.text("\n\n")
-                tb.tag("#arminia", "arminia")
+                tb.tag(f"#{STANDING_HASHTAG}", STANDING_HASHTAG)
 
             if is_first:
                 log(f"Sende Hauptpost für {post.shortcode}...")
@@ -519,7 +664,7 @@ for post in latest_posts:
 
                 # Shortcode sofort nach dem Hauptpost loggen - schlägt ein Folge-Post fehl,
                 # würde der Beitrag sonst beim nächsten Lauf komplett dupliziert.
-                with open(LOG_FILE, "a", encoding="utf-8") as f:
+                with open(STATE_FILE, "a", encoding="utf-8") as f:
                     f.write(post.shortcode + "\n")
                 posted_shortcodes.add(post.shortcode)
             else:

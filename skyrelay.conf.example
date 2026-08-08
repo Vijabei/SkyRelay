@@ -82,7 +82,38 @@ video_hint = 🎥 (Video im Original-Kanal)
 media_prefix = skyrelay
 
 
+[feed]
+# ---------------------------------------------------------------------------
+#  Nur für skyrelay-feed.py (Instagram -> Bluesky, Dauerbetrieb).
+#  Wer nur den Spieltags-Ticker nutzt, kann diesen Abschnitt ignorieren.
+# ---------------------------------------------------------------------------
+# Bluesky-Konto für die Instagram-Spiegelung. Leer lassen, um das Konto aus
+# [bluesky] zu verwenden. Bei einem eigenen Konto braucht es auch ein eigenes
+# App-Passwort - dann SKYRELAY_FEED_APP_PASSWORD setzen statt BLUESKY_APP_PASSWORD.
+bluesky_handle =
+# Instagram-Profil, das gespiegelt wird (ohne @).
+instagram_profile = arminiaofficial
+# Zweitkonto, mit dem abgerufen wird. Sitzung einmalig anlegen mit:
+#   venv/bin/instaloader -l <zweitkonto>
+instagram_session_user = dein_zweitkonto
+# Wie viele der letzten Beiträge je Lauf geprüft werden. Mehr als 5, damit
+# angeheftete Beiträge keine neuen verdrängen.
+posts_to_check = 10
+# Pause zwischen zwei Bluesky-Beiträgen (Sekunden).
+pause_between_posts_seconds = 8
+# Texte, wenn ein Instagram-Beitrag keinen eigenen Text hat.
+video_placeholder = 🎥 Neues Video/Reel
+mixed_placeholder = 📸🎥 Neuer Beitrag
+image_placeholder = 📸 Neues Bild
+# Ersatz für die Bildbeschreibung (Barrierefreiheit), wenn kein Text da ist.
+alt_text_fallback = News
+# Merkliste bereits übernommener Beiträge und eigene Protokolldatei.
+state = skyrelay_feed_posted.txt
+log = skyrelay-feed.log
+
+
 [profile]
+# Nur für skyrelay-matchday.py.
 # Erste Zeile der Bluesky-Biografie am Spieltag umschalten? true/false
 enabled = true
 # Woran eine bereits vorhandene Statuszeile erkannt wird: Enthält die erste

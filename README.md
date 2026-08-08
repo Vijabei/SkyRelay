@@ -36,10 +36,9 @@ Quellenwechsel später keine Umbenennung erzwingt.
 
 ## Projektstatus
 
-`skyrelay-matchday.py` läuft produktiv und ist über `skyrelay.conf` frei
-konfigurierbar — Verein, Kanal, Konto, Texte und Dateinamen stecken alle dort.
-`skyrelay-feed.py` (Instagram) ist noch nicht umgestellt: Dort stehen die Werte
-weiterhin im Kopf der Programmdatei.
+Beide Programme laufen produktiv und sind vollständig über `skyrelay.conf`
+konfigurierbar — Verein, Kanäle, Konten, Texte und Dateinamen stecken alle dort,
+im Code steht nichts Vereinsspezifisches mehr.
 
 ---
 
@@ -74,10 +73,13 @@ Vorlage kopieren und anpassen:
 cp skyrelay.conf.example skyrelay.conf
 ```
 
-Mindestens nötig sind `[bluesky] handle` und `[source] channel_invite_link`; für
-einen anderen Verein zusätzlich `[team]` (OpenLigaDB-Suchbegriff und Team-Nummer)
-sowie die Kürzel unter `[team_codes]`. Alle Abschnitte sind in der Vorlage
-kommentiert, eine Übersicht steht im [CheatSheet](CHEATSHEET-matchday.md).
+Für den Spieltags-Ticker sind mindestens `[bluesky] handle` und
+`[source] channel_invite_link` nötig; für einen anderen Verein zusätzlich
+`[team]` (OpenLigaDB-Suchbegriff und Team-Nummer) sowie die Kürzel unter
+`[team_codes]`. Für die Instagram-Spiegelung genügt der Abschnitt `[feed]`
+(Profil, Zweitkonto und optional ein eigenes Bluesky-Konto). Alle Abschnitte sind
+in der Vorlage kommentiert, eine Übersicht steht im
+[CheatSheet](CHEATSHEET-matchday.md).
 
 Die eigene `skyrelay.conf` steht in `.gitignore` und gehört nicht ins Repository.
 Mehrere Vereine parallel betreibst du über `SKYRELAY_CONFIG=/pfad/zur/datei.conf`.
@@ -129,6 +131,25 @@ pgrep -af skyrelay-matchday
 
 Alle weiteren Betriebsarten (Testläufe, Nachholen verpasster Beiträge, Einzeltests)
 stehen in **[CHEATSHEET-matchday.md](CHEATSHEET-matchday.md)**.
+
+### Instagram-Spiegelung (`skyrelay-feed.py`)
+
+Einmalig die Instagram-Sitzung des Zweitkontos anlegen:
+
+```bash
+venv/bin/instaloader -l dein_zweitkonto
+```
+
+Danach regelmäßig per cron aufrufen — das Programm überträgt, was seit dem
+letzten Lauf neu ist:
+
+```cron
+*/15 * * * * BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx" /pfad/zu/SkyRelay/venv/bin/python3 /pfad/zu/SkyRelay/skyrelay-feed.py >/dev/null 2>&1
+```
+
+Nutzt du für Instagram ein **anderes** Bluesky-Konto als für den Ticker, trägst du
+es unter `[feed] bluesky_handle` ein und gibst dessen App-Passwort in
+`SKYRELAY_FEED_APP_PASSWORD` an.
 
 ---
 
