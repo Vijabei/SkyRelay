@@ -282,6 +282,32 @@ def main():
     macht_matchday = was in ("beide", "matchday")
     macht_feed = was in ("beide", "feed")
 
+    # ------------------------------------------------------------ Einsatzzweck
+    zweck = "sport_plan"
+    if macht_matchday:
+        titel("Wofür wird der Kanal-Ticker eingesetzt?")
+        hinweis("Davon hängt ab, ob Spieltage automatisch erkannt werden können")
+        hinweis("und wie die vorgeschlagenen Texte formuliert sind.")
+        zweck = auswahl(
+            [("sport_plan", "Sport mit Spielplan bei OpenLigaDB (Fußball, Eishockey …)"),
+             ("sport_ohne", "Sport ohne Spielplan-Daten (z.B. Basketball, Handball-Liga)"),
+             ("individuell", "anderer Zweck (Verein, Veranstaltung, Projekt …)")],
+            "Auswahl", 0,
+        )
+    neutral = zweck == "individuell"
+    # Wortwahl der Vorgaben an den Zweck anpassen
+    W = {
+        "ereignis": "Ereignis" if neutral else "Spiel",
+        "prefix": "📡 [Inoffizieller Bot]" if neutral else "⚽ [Inoffizieller Bot]",
+        "quelle": "WhatsApp-Kanal" if neutral else "WhatsApp-Kanal des Vereins",
+        "an": ("🟢 Bot ist an {hashtag}" if neutral
+               else "🟢 Bot ist an - {info} {hashtag} ⚫⚪🔵"),
+        "aus": ("🔴 Bot ist aus" if neutral
+                else "🔴 Bot ist aus - nächstes Spiel {hashtag} ⚫⚪🔵"),
+        "aus_leer": "🔴 Bot ist aus" if neutral else "🔴 Bot ist aus ⚫⚪🔵",
+        "fallback": "aktiv" if neutral else "Testspiel",
+    }
+
     # ------------------------------------------------------------ Bluesky
     titel("Bluesky-Konto")
     hinweis("Das Konto, auf dem der Bot veröffentlicht - ohne führendes @.")
@@ -297,22 +323,26 @@ def main():
                      pflicht=True, pruefung=pruefe_kanal_link)
         setze_wert(zeilen, "source", "channel_invite_link", link)
 
-        titel("Liga und Verein")
-        hinweis("Daraus erkennt der Ticker, an welchen Tagen er überhaupt laufen muss,")
-        hinweis("und bildet den Spiel-Hashtag. Grundlage ist OpenLigaDB.")
-        wahl = auswahl(
-            [(k, b) for k, _, b in EMPFOHLENE_LIGEN]
-            + [("suchen", "andere Liga aus OpenLigaDB wählen …"),
-               ("ohne", "kein Spielplan (Sportart nicht bei OpenLigaDB) – Ticker läuft täglich")],
-            "Liga", 1,
-        )
-
         liga = saison = None
+        wahl = "ohne"
+        if zweck == "sport_plan":
+            titel("Liga und Verein")
+            hinweis("Daraus erkennt der Ticker, an welchen Tagen er überhaupt laufen muss,")
+            hinweis("und bildet den Spiel-Hashtag. Grundlage ist OpenLigaDB.")
+            wahl = auswahl(
+                [(k, b) for k, _, b in EMPFOHLENE_LIGEN]
+                + [("suchen", "andere Liga aus OpenLigaDB wählen …"),
+                   ("ohne", "doch kein Spielplan – Ticker läuft an jedem Starttag")],
+                "Liga", 1,
+            )
+
         if wahl == "ohne":
-            hinweis("Ohne Spielplan entfällt die Spieltags-Erkennung: Der Ticker läuft an")
-            hinweis("jedem Tag, an dem er gestartet wird, und der Spiel-Hashtag wird von")
-            hinweis("Hand über SKYRELAY_HASHTAG gesetzt. Cron entsprechend nur an")
-            hinweis("Spieltagen einrichten oder das Programm manuell starten.")
+            titel("Ohne Spielplan")
+            hinweis("Es findet keine automatische Prüfung statt, ob heute etwas ansteht:")
+            hinweis("Der Ticker läuft an jedem Tag, an dem er gestartet wird.")
+            hinweis(f"Ein wechselnder {W['ereignis']}-Hashtag lässt sich beim Start über")
+            hinweis("SKYRELAY_HASHTAG mitgeben. Den cron-Eintrag also nur für die Tage")
+            hinweis("einrichten, an denen etwas läuft - oder von Hand starten.")
             setze_wert(zeilen, "team", "openligadb_filter", "")
             setze_wert(zeilen, "team", "openligadb_team_id", "0")
         elif wahl == "suchen":
@@ -404,12 +434,48 @@ def main():
             setze_team_codes(zeilen, codes)
 
         titel("Beiträge")
+        hinweis("Es gibt zwei Sorten Hashtags:")
+        hinweis(f"  · Dauer-Hashtag - steht unter JEDEM Beitrag (z.B. der Vereinsname)")
+        hinweis(f"  · {W['ereignis']}-Hashtag - wechselt je Termin"
+                + (" und wird aus dem Spielplan gebildet" if wahl != "ohne"
+                   else ", kommt aus SKYRELAY_HASHTAG"))
         marke = frage("Dauer-Hashtag (ohne #, leer = keiner)",
                       bisher("post", "standing_hashtag"))
         setze_wert(zeilen, "post", "standing_hashtag", marke)
+        setze_wert(zeilen, "post", "prefix", bisher("post", "prefix") or W["prefix"])
         beschriftung = frage("Beschriftung des Quell-Links",
-                             bisher("post", "source_label") or "WhatsApp-Kanal des Vereins")
+                             bisher("post", "source_label") or W["quelle"])
         setze_wert(zeilen, "post", "source_label", beschriftung)
+
+        # ------------------------------------------------------ Profil & Zeit
+        titel("Profil-Statuszeile")
+        hinweis("Die erste Zeile der Bluesky-Biografie kann anzeigen, ob der Bot")
+        hinweis("gerade läuft - und beim Beenden wieder zurückgestellt werden.")
+        vorher_an = bisher("profile", "enabled")
+        if ja_nein("Statuszeile verwenden?", vorher_an.lower() != "false" if vorher_an else True):
+            setze_wert(zeilen, "profile", "enabled", "true")
+            hinweis("Platzhalter: {hashtag}" + (", {info} (z.B. '1. Spieltag'), {date}, {time}"
+                                                if wahl != "ohne" else ""))
+            zeile_an = frage("Text während des Betriebs",
+                             bisher("profile", "line_on") or W["an"], pflicht=True)
+            zeile_aus = frage("Text nach dem Beenden",
+                              bisher("profile", "line_off") or W["aus"], pflicht=True)
+            setze_wert(zeilen, "profile", "line_on", zeile_an)
+            setze_wert(zeilen, "profile", "line_off", zeile_aus)
+            setze_wert(zeilen, "profile", "line_off_no_match",
+                       bisher("profile", "line_off_no_match") or W["aus_leer"])
+            hinweis("Erkannt wird eine vorhandene Statuszeile am Text 'Bot ist'.")
+            hinweis("Wer andere Formulierungen nutzt, passt [profile] marker an.")
+        else:
+            setze_wert(zeilen, "profile", "enabled", "false")
+        setze_wert(zeilen, "profile", "fallback_match_info",
+                   bisher("profile", "fallback_match_info") or W["fallback"])
+
+        titel("Zeitfenster")
+        hinweis("Bis zu dieser Uhrzeit lauscht der Ticker, danach beendet er sich selbst.")
+        setze_wert(zeilen, "schedule", "day_end",
+                   frage("Betriebsende (HH:MM)", bisher("schedule", "day_end") or "23:59",
+                         pflicht=True))
 
     # ---------------------------------------------------------------- Feed
     if macht_feed:

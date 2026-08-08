@@ -1,7 +1,9 @@
 # SkyRelay
 
-Zwei kleine Bots, die Inhalte automatisch nach **Bluesky** weiterleiten — gedacht für
-Fanprojekte, die Vereinsnachrichten dort verfügbar machen wollen, wo sie sonst fehlen.
+Zwei kleine Bots, die Inhalte automatisch nach **Bluesky** weiterleiten — entstanden für
+ein Fanprojekt, das Vereinsnachrichten dort verfügbar machen wollte, wo sie sonst fehlen.
+Sport ist dabei kein Muss: Der Ticker lässt sich ebenso für Veranstaltungen, Vereine
+oder andere Kanäle einrichten, dann ohne Spielplan-Anbindung.
 
 Das Ziel ist bewusst fest auf Bluesky gelegt. Die **Quelle** ist austauschbar: Aktuell
 gibt es einen WhatsApp-Kanal- und einen Instagram-Anschluss.
@@ -77,13 +79,18 @@ Am einfachsten mit dem Einrichtungsassistenten:
 venv/bin/python skyrelay-setup.py
 ```
 
-Er fragt alles Nötige ab, **sucht den Verein direkt bei OpenLigaDB** (damit
-entfällt das Nachschlagen der Team-Nummer), **füllt die Kürzeltabelle für die
-Hashtags vor** — für die Fußball-Ligen 1–3 mit den gebräuchlichen Kürzeln, sonst
-mit klar als Vorschlag markierten Ableitungen —, prüft auf Wunsch die
-Bluesky-Anmeldung und schreibt daraus die fertige `skyrelay.conf`. Neben Fußball
-stehen die weiteren bei OpenLigaDB gepflegten Ligen zur Auswahl (z. B. DEL),
-dazu die Möglichkeit, ganz ohne Spielplan zu arbeiten. Ein erneuter Aufruf dient zum Ändern: Vorhandene Werte
+Er fragt zuerst nach dem Einsatzzweck und führt dann unterschiedlich weiter:
+
+| Zweck | Ablauf |
+|---|---|
+| **Sport mit Spielplan** | Liga und Verein werden **live bei OpenLigaDB gesucht** (kein Nachschlagen von Team-Nummern), die **Kürzeltabelle für die Hashtags wird vorbefüllt** — für die Fußball-Ligen 1–3 mit den gebräuchlichen Kürzeln, sonst mit klar als Vorschlag markierten Ableitungen (`?`). Neben Fußball stehen die weiteren gepflegten Ligen zur Wahl, etwa die DEL. |
+| **Sport ohne Spielplan** | Für Sportarten, die OpenLigaDB nicht führt (Basketball, Handball-Liga): keine Spieltags-Erkennung, wechselnder Hashtag über `SKYRELAY_HASHTAG`. |
+| **Anderer Zweck** | Für Vereine, Veranstaltungen, Projekte: wie oben, zusätzlich mit **neutral formulierten Vorgabetexten** statt Fußballsprache. |
+
+In allen Fällen werden Beitragstexte, Profil-Statuszeile und Zeitfenster abgefragt,
+auf Wunsch die Bluesky-Anmeldung geprüft und daraus die fertige `skyrelay.conf`
+geschrieben. Einmal gepflegte Kürzel bleiben dabei erhalten — auch nach einem
+Ligawechsel, damit Pokalgegner aus anderen Ligen weiterhin korrekt benannt werden. Ein erneuter Aufruf dient zum Ändern: Vorhandene Werte
 werden als Vorgabe angeboten, und von der alten Datei wird eine Sicherung angelegt.
 
 Wer lieber von Hand arbeitet, kopiert die kommentierte Vorlage:
