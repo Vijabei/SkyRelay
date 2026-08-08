@@ -65,8 +65,11 @@ BEKANNTE_KUERZEL = {
     115: "SGF", 118: "SVD", 129: "BOC", 131: "WOB", 177: "SGD", 199: "FCH",
     # 3. Liga (nur belegte Kürzel)
     23: "AAC", 102: "HRO", 107: "MSV", 109: "RWE", 114: "SCV", 171: "FCI",
-    174: "SVWW", 185: "F95", 417: "FCS",
+    174: "SVWW", 185: "F95", 188: "PRM", 417: "FCS", 553: "SVW",
 }
+# Hinweis: SVW tragen sowohl Werder Bremen (1. Liga) als auch Waldhof Mannheim
+# (3. Liga). Innerhalb einer Liga stört das nicht; treffen beide im Pokal
+# aufeinander, entstünde "#SVWSVW" - dann eines der beiden hier anpassen.
 
 
 # --------------------------------------------------------------- Darstellung
@@ -363,13 +366,14 @@ def main():
             codes, belegt = {}, {}
             for team in teams:
                 codes[team["teamId"]], belegt[team["teamId"]] = kuerzel_vorschlag(team)
-            # bereits gepflegte Kürzel haben Vorrang vor jedem Vorschlag
-            for team_id, code in [(k, v) for k, v in
-                                  [(z.split("=")[0].strip(), z.split("=")[1].strip())
-                                   for z in alt if re.match(r"^\d+\s*=", z)]]:
-                if team_id.isdigit() and int(team_id) in codes:
-                    codes[int(team_id)] = code
-                    belegt[int(team_id)] = True
+            # Bereits gepflegte Kürzel haben immer Vorrang - und bleiben auch dann
+            # erhalten, wenn die Mannschaft nicht in der gewählten Liga spielt
+            # (Ligawechsel, Pokalgegner aus anderen Ligen).
+            for zeile in alt:
+                if re.match(r"^\d+\s*=", zeile):
+                    team_id, code = zeile.split("=", 1)
+                    codes[int(team_id.strip())] = code.strip()
+                    belegt[int(team_id.strip())] = True
 
             anzahl_abgeleitet = sum(1 for t in teams if not belegt[t["teamId"]])
             if anzahl_abgeleitet:
