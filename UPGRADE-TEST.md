@@ -63,4 +63,41 @@ dokumentiert, damit die Frage nicht in drei Monaten erneut aufkommt.
 
 ## Ergebnis
 
-_(nach dem Test ausfüllen: Datum, Version, was lief, was nicht)_
+**Getestet am 08.08.2026** auf EC2 (Debian, `aarch64` — dieselbe Architektur wie
+der Raspberry Pi), neonize **0.4.3.post0**, gegen den echten Kanal im
+Trockenlauf.
+
+| Prüfpunkt | Ergebnis |
+|---|---|
+| Installation | ✅ Paket lädt für aarch64, Import gelingt |
+| Kopplung | ✅ QR-Code, Anmeldung, 515-Reconnect und History-Sync sauber durchlaufen |
+| **Kanal-Auflösung** | ✅ **ohne „Wire format was corrupt"** — genau hier scheiterte 0.4.1 |
+| **Nachrichtenabruf** | ✅ `REPLAY=1` liefert den Beitrag |
+| Medien | ✅ Video mit 16,7 MB heruntergeladen |
+| Beenden (regulär) | ✅ kein Absturz, nur die bekannte EOF-Warnung |
+| Live-Ereignisse | ⏳ noch offen — das Abo wird eingerichtet, während des Tests kam kein neuer Beitrag |
+
+### Abweichung gegenüber 0.3.18
+
+**Strg+C wird vom Go-Anteil abgefangen.** Das Programm endet mit `Quit`, die
+Python-Aufräumarbeiten laufen nicht mehr — die Profil-Statuszeile bleibt dann auf
+„Bot ist an" stehen. `Press Ctrl+C to exit`, `SIGINT` und `signal.signal` finden
+sich nicht im Python-Teil des Pakets, sondern ausschließlich in der
+mitgelieferten Go-Bibliothek; deren Signal-Handler beendet den Prozess direkt.
+
+Folgen:
+
+* **Cron-Betrieb: nicht betroffen.** Der Ticker endet regulär zum konfigurierten
+  Tagesende und stellt die Statuszeile dabei korrekt zurück.
+* **Manuelle Läufe:** Nach einem Abbruch mit Strg+C die Zeile zurücksetzen mit
+  `SKYRELAY_PROFILE=off venv/bin/python skyrelay-matchday.py`.
+
+### Bewertung
+
+Der Umstieg ist **empfehlenswert**: Die beiden Fehler, die 0.4.0/0.4.1
+unbrauchbar machten, sind behoben, und das neuere whatsmeow macht den Ticker
+haltbarer gegenüber Änderungen am WhatsApp-Protokoll. Unverändert bestehen bleibt
+der Absturz bei gelöschten Kanalbeiträgen in REPLAY und CATCHUP.
+
+Vor dem Umstieg auf dem Produktivsystem die Sitzungsdatei sichern — ein
+Rückschritt auf 0.3.18 erfordert sonst eine neue Kopplung.
