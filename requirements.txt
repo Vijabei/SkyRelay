@@ -7,16 +7,14 @@ Pillow>=11.1.0
 requests>=2.32.3
 
 # --- skyrelay-matchday.py (Quelle: WhatsApp-Kanal) ---
-# ==> ERPROBUNGSZWEIG: Umstieg von 0.3.18.post0 auf 0.4.3.post0.
-# Erwarteter Gewinn: neueres whatsmeow (Robustheit gegenüber Änderungen am
-# WhatsApp-Protokoll) sowie der Fix für "Wire format was corrupt" (PR #198,
-# seit 0.4.2). NICHT enthalten ist weiterhin der Absturz bei gelöschten
-# Kanalbeiträgen - der betrifft nur REPLAY/CATCHUP.
-# Vor dem Übernehmen nach main zu prüfen (siehe UPGRADE-TEST.md):
-#   1. Kanal-Auflösung ohne "Wire format was corrupt"
-#   2. Nachrichtenabruf (REPLAY) funktioniert
-#   3. Live-Ereignisse kommen an
-#   4. Beenden ohne Absturz
+# Feste Version, weil neonize seine WhatsApp-Anbindung (whatsmeow) mitliefert
+# und sich das Verhalten zwischen Fassungen deutlich unterscheidet:
+#   0.3.18.post0  lange im Einsatz, funktioniert
+#   0.4.0 / 0.4.1 unbrauchbar - jeder Rückgabewert scheiterte mit
+#                 "Wire format was corrupt" (Issue #199)
+#   0.4.3.post0   am 08.08.2026 vollständig geprüft (siehe UPGRADE-TEST.md)
+# Vor einem Wechsel die Sitzungsdatei sichern: Das Datenbankschema ändert sich,
+# ein Rückschritt erfordert unter Umständen eine neue Kopplung.
 neonize==0.4.3.post0
 # protobuf NIEMALS unter die Gencode-Version der neonize-Wheels downgraden,
 # sonst scheitert schon der Import mit einem VersionError.
