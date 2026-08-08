@@ -24,6 +24,30 @@ gibt es einen WhatsApp-Kanal- und einen Instagram-Anschluss.
 Benannt sind sie nach der **Betriebsart**, nicht nach der Quelle — damit ein
 Quellenwechsel später keine Umbenennung erzwingt.
 
+### Welche Quelle passt zu welcher Betriebsart?
+
+Die Quelle ist derzeit fest mit dem jeweiligen Programm verbunden. Ob eine
+Kombination überhaupt sinnvoll ist, entscheidet eine einzige Frage: **Meldet die
+Quelle neue Beiträge von sich aus (Push), oder muss man sie regelmäßig abfragen?**
+
+| Quelle | Ticker (ereignisgetrieben, Zeitfenster) | Feed (Dauerbetrieb, Abfrage) |
+|---|---|---|
+| **WhatsApp-Kanal** | ✅ umgesetzt — Beiträge erscheinen binnen Sekunden | ⚙️ möglich: Ticker ohne Spielplan mit weitem Zeitfenster (siehe unten) |
+| **Instagram** | ❌ nicht sinnvoll — Instagram kennt kein Push; für Ticker-Tempo müsste man im Minutentakt abfragen, was zuverlässig zur Kontosperre führt | ✅ umgesetzt |
+| **weitere Quellen** | nur mit Push-Unterstützung | wenn regelmäßiges Abfragen erlaubt ist |
+
+**WhatsApp im Dauerbetrieb** braucht keinen Umbau: In der Konfiguration den
+Spielplan leer lassen (`[team] openligadb_filter =`), `day_end` auf `23:59`
+setzen und den Cron-Eintrag täglich statt nur an Spieltagen starten. Einzige
+Einschränkung: Über Mitternacht entsteht eine kurze Lücke, weil sich das
+Programm beendet und nach dem Neustart nur Beiträge des laufenden Tages annimmt.
+
+**Neue Quellen** sind willkommen, aber vor dem Programmieren lohnt die Prüfung:
+Gibt es eine brauchbare Bibliothek? Erlaubt der Dienst automatisierten Zugriff?
+Und vor allem — kann er Ereignisse melden, oder verträgt er zumindest häufiges
+Abfragen ohne Sperre? Erst wenn das geklärt ist, lohnt sich die Trennung von
+Quelle und Ablaufsteuerung. Sprich uns über ein Issue an.
+
 ### Was `skyrelay-matchday.py` besonders macht
 
 * **Spieltagserkennung** über [OpenLigaDB](https://www.openligadb.de): An spielfreien
