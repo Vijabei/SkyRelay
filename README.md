@@ -186,6 +186,7 @@ es unter `[feed] bluesky_handle` ein und gibst dessen App-Passwort in
 | `README.md` | dieses Dokument |
 | `skyrelay-setup.py` | Einrichtungsassistent (erzeugt und ändert `skyrelay.conf`) |
 | `skyrelay.conf.example` | kommentierte Vorlage aller Einstellungen |
+| `skyrelay_common.py` | gemeinsame Bausteine beider Programme (Protokoll, Konfiguration, Bilder, Video-Upload) |
 | `CHEATSHEET-matchday.md` | alle Umgebungsvariablen, Betriebsarten, Dateien, Fehlerbehebung |
 | `ISSUE-DRAFT-neonize-newsletter-panic.md` | vorbereiteter Fehlerbericht an das neonize-Projekt |
 

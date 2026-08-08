@@ -57,13 +57,11 @@ import asyncio
 import configparser
 import hashlib
 import html as html_utils
-import io
 import json
 import logging
 import os
 import re
 import sys
-import threading
 import time
 import traceback
 from datetime import datetime, date, timezone
@@ -71,62 +69,32 @@ from zoneinfo import ZoneInfo
 
 import requests
 import segno
-from PIL import Image
 from atproto import Client, models, client_utils
-from atproto_client.models.blob_ref import BlobRef
 
 from neonize.aioze.client import NewAClient
 from neonize.aioze.events import ConnectedEv, MessageEv, PairStatusEv
 from neonize.types import MessageServerID
 
-# httpx (der HTTP-Client der atproto-Bibliothek) loggt sonst jede Anfrage als INFO.
+from skyrelay_common import (
+    log,
+    lade_config,
+    start_file_logging,
+    compress_image_for_bluesky,
+    upload_video_to_bluesky,
+)
+
+# httpx (der HTTP-Client der atproto-Bibliothek) protokolliert sonst jede Anfrage.
 logging.getLogger("httpx").setLevel(logging.WARNING)
-
-
-def log(*args, **kwargs):
-    """print mit vorangestelltem Zeitstempel - für nachvollziehbare Logs (z.B. aus cron)."""
-    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}]", *args, **kwargs, flush=True)
 
 
 # =============================== KONFIGURATION ===============================
 # Alle vereins- und kontospezifischen Werte stehen in "skyrelay.conf"
 # (Vorlage: skyrelay.conf.example). Hier wird nur noch gelesen.
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_FILE = os.environ.get("SKYRELAY_CONFIG") or os.path.join(BASE_DIR, "skyrelay.conf")
-
-if not os.path.exists(CONFIG_FILE):
-    print(f"Fehler: Konfigurationsdatei nicht gefunden: {CONFIG_FILE}\n"
-          f"Vorlage kopieren und anpassen:\n"
-          f"    cp skyrelay.conf.example skyrelay.conf\n"
-          f"(oder einen anderen Pfad über die Umgebungsvariable SKYRELAY_CONFIG angeben)",
-          file=sys.stderr)
-    sys.exit(1)
-
-# interpolation=None: sonst würde configparser Prozentzeichen in Texten deuten.
+cfg, cfg_int, cfg_bool, CONFIG_FILE = lade_config(BASE_DIR)
 _cfg = configparser.ConfigParser(interpolation=None)
-try:
-    with open(CONFIG_FILE, encoding="utf-8") as _f:
-        _cfg.read_file(_f)
-except Exception as _e:
-    print(f"Fehler beim Lesen von {CONFIG_FILE}: {_e}", file=sys.stderr)
-    sys.exit(1)
-
-
-def cfg(section, key, default=None):
-    """Wert aus der Konfiguration; fehlt er, greift die Vorgabe."""
-    return _cfg.get(section, key, fallback=default)
-
-
-def cfg_int(section, key, default):
-    try:
-        return int(str(_cfg.get(section, key, fallback=default)).strip())
-    except (ValueError, TypeError):
-        return default
-
-
-def cfg_bool(section, key, default):
-    return _cfg.getboolean(section, key, fallback=default)
-
+with open(CONFIG_FILE, encoding="utf-8") as _f:
+    _cfg.read_file(_f)  # für den direkten Zugriff auf [team_codes]
 
 BLUESKY_HANDLE = cfg("bluesky", "handle", "")
 CHANNEL_INVITE_LINK = cfg("source", "channel_invite_link", "")
@@ -237,62 +205,8 @@ for _neu, _alt in ((SESSION_DB, "dsc_ticker_session.sqlite3"),
     uebernimm_altdatei(_neu, _alt)
 
 
-def rotate_log(path, max_bytes, backups):
-    """Rotiert die Logdatei beim Start, wenn sie zu groß geworden ist:
-    ticker.log -> ticker.log.1 -> ... -> ticker.log.N (ältestes fliegt raus)."""
-    try:
-        if not os.path.exists(path) or os.path.getsize(path) < max_bytes:
-            return
-        oldest = f"{path}.{backups}"
-        if os.path.exists(oldest):
-            os.remove(oldest)
-        for i in range(backups - 1, 0, -1):
-            src = f"{path}.{i}"
-            if os.path.exists(src):
-                os.replace(src, f"{path}.{i + 1}")
-        os.replace(path, f"{path}.1")
-    except Exception as e:
-        print(f"⚠️ Log-Rotation fehlgeschlagen: {e}", flush=True)
-
-
-def start_file_logging(path):
-    """Schreibt ALLE Ausgaben zusätzlich in eine Datei - auch die des Go-Layers
-    (whatsmeow/neonize), die nicht durch Python laufen und die ein reines
-    Python-Logging deshalb verpassen würde. Dafür werden stdout/stderr in eine
-    Pipe umgehängt; ein Hintergrund-Thread schreibt jede Zeile in die Datei UND
-    auf die echte Konsole (wie "tee"). Schlägt das fehl, läuft das Script
-    normal weiter - nur eben ohne Logdatei."""
-    try:
-        rotate_log(path, LOG_MAX_BYTES, LOG_BACKUP_COUNT)
-        logfile = open(path, "ab", buffering=0)
-        read_fd, write_fd = os.pipe()
-        console_fd = os.dup(1)  # Kopie der echten Konsole, bevor umgehängt wird
-        os.dup2(write_fd, 1)
-        os.dup2(write_fd, 2)
-        os.close(write_fd)
-
-        def pump():
-            with os.fdopen(read_fd, "rb", 0) as pipe:
-                for line in iter(pipe.readline, b""):
-                    for sink in (logfile.write, lambda b: os.write(console_fd, b)):
-                        try:
-                            sink(line)
-                        except Exception:
-                            pass
-
-        threading.Thread(target=pump, name="log-tee", daemon=True).start()
-        # stdout ist ohne Terminal sonst blockgepuffert - Zeilenpufferung sorgt
-        # dafür, dass das Log auch bei "tail -f" sofort mitläuft.
-        sys.stdout.reconfigure(line_buffering=True)
-        sys.stderr.reconfigure(line_buffering=True)
-        return True
-    except Exception as e:
-        print(f"⚠️ Datei-Logging konnte nicht gestartet werden: {e}", flush=True)
-        return False
-
-
 if LOG_TO_FILE:
-    start_file_logging(LOG_FILE)
+    start_file_logging(LOG_FILE, LOG_MAX_BYTES, LOG_BACKUP_COUNT)
     log(f"--- Ticker-Start (Log: {LOG_FILE}) ---")
 
 BLUESKY_APP_PASSWORD = os.environ.get("BLUESKY_APP_PASSWORD")
@@ -481,24 +395,6 @@ def extract_text(msg):
     return ""
 
 
-def compress_image_for_bluesky(image_bytes, max_dim=2000, max_bytes=1_500_000, start_quality=85):
-    """Komprimiert ein Bild so, dass es unter Blueskys Blob-Größenlimit passt."""
-    img = Image.open(io.BytesIO(image_bytes))
-    if img.mode in ("RGBA", "P"):
-        img = img.convert("RGB")
-    if max(img.size) > max_dim:
-        img.thumbnail((max_dim, max_dim), Image.Resampling.LANCZOS)
-
-    quality = start_quality
-    buf = io.BytesIO()
-    img.save(buf, format="JPEG", quality=quality)
-    while buf.tell() > max_bytes and quality > 50:
-        buf = io.BytesIO()
-        quality -= 10
-        img.save(buf, format="JPEG", quality=quality)
-    return buf.getvalue()
-
-
 def split_text(text, first_limit=200, follow_limit=240):
     """Zerlegt Text in Chunks unter Blueskys 300-Zeichen-Limit. Der erste Chunk
     ist kleiner, weil er zusätzlich Präfix + Quell-Link trägt (~60 Zeichen);
@@ -593,7 +489,6 @@ def build_external_embed(url):
 
 
 bsky_client = None
-pds_aud = None        # PDS-DID des Bot-Accounts, wird beim ersten Video-Upload aufgelöst
 match_hashtag = None  # wird in main() aus den OpenLigaDB-Daten gesetzt (z.B. "DSCWOB")
 match_info = None     # Kurzinfo zum heutigen Spiel, z.B. "1. Spieltag" (für die Profilzeile)
 match_kickoff = None  # Anstoßzeit des heutigen Spiels (für die Profilzeile)
@@ -688,136 +583,6 @@ def set_profile_status(on):
 # veröffentlicht wird, gehören diese gemeinsamen Funktionen in ein geteiltes
 # Modul - die Redundanz ist hier bewusst und nur vorübergehend.
 
-def resolve_pds_did_web(actor_did):
-    """Löst die DID der tatsächlichen PDS des Accounts auf (nötig als 'aud' für Service-Auth-Tokens)."""
-    if actor_did.startswith("did:plc:"):
-        resp = requests.get(f"https://plc.directory/{actor_did}", timeout=15)
-    elif actor_did.startswith("did:web:"):
-        host = actor_did.split(":", 2)[2]
-        resp = requests.get(f"https://{host}/.well-known/did.json", timeout=15)
-    else:
-        raise ValueError(f"Unbekanntes DID-Format: {actor_did}")
-
-    resp.raise_for_status()
-    doc = resp.json()
-
-    for service in doc.get("service", []):
-        if service.get("id") == "#atproto_pds":
-            endpoint = service["serviceEndpoint"]
-            host = endpoint.split("://", 1)[-1].rstrip("/")
-            return f"did:web:{host}"
-
-    raise ValueError(f"Konnte PDS-Service-Endpoint nicht im DID-Dokument finden: {doc}")
-
-
-def upload_video_to_bluesky(video_bytes, filename):
-    """Lädt Video-Bytes zu Bluesky hoch und liefert das fertige Embed-Objekt zurück.
-    Wirft eine Exception bei Fehlschlag - der Aufrufer kümmert sich um den Fallback.
-    (Bluesky verarbeitet Videos über einen eigenen Dienst: Upload -> serverseitiges
-    Transkodieren -> Job-Polling bis JOB_STATE_COMPLETED.)"""
-    global pds_aud
-
-    if len(video_bytes) > MAX_VIDEO_BYTES:
-        raise RuntimeError(
-            f"Video ist {len(video_bytes)} Bytes groß und überschreitet das Bluesky-Limit "
-            f"von {MAX_VIDEO_BYTES} Bytes - Upload wird gar nicht erst versucht."
-        )
-
-    if pds_aud is None:
-        try:
-            pds_aud = resolve_pds_did_web(bsky_client.me.did)
-            log(f"   ✓ PDS-DID ermittelt: {pds_aud}")
-        except Exception as pds_err:
-            log(f"   ⚠️ Konnte PDS-DID nicht auflösen: {pds_err}")
-            pds_aud = "did:web:bsky.social"
-
-    service_auth = bsky_client.com.atproto.server.get_service_auth({
-        'aud': pds_aud,
-        'lxm': 'com.atproto.repo.uploadBlob',
-        'exp': int(time.time()) + 60 * 15
-    })
-    token = service_auth.token
-
-    upload_url = "https://video.bsky.app/xrpc/app.bsky.video.uploadVideo"
-    upload_params = {"did": bsky_client.me.did, "name": filename}
-    upload_headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "video/mp4",
-        "Content-Length": str(len(video_bytes)),
-    }
-
-    log(f"   Sende Videodaten an: {upload_url} ({len(video_bytes)} Bytes)")
-
-    max_attempts = 3
-    upload_response = None
-    job_id = None
-
-    for attempt in range(1, max_attempts + 1):
-        try:
-            upload_response = requests.post(
-                upload_url, params=upload_params, headers=upload_headers,
-                data=video_bytes, timeout=180
-            )
-
-            if upload_response.status_code == 409:
-                # Video wurde in einem früheren Lauf bereits hochgeladen und fertig
-                # verarbeitet - bestehende Job-ID weiterverwenden statt neu hochzuladen.
-                conflict_data = upload_response.json()
-                if conflict_data.get("error") == "already_exists" and conflict_data.get("jobId"):
-                    job_id = conflict_data["jobId"]
-                    log(f"   ℹ️ Video wurde bereits verarbeitet, verwende bestehende Job-ID: {job_id}")
-                    break
-
-            upload_response.raise_for_status()
-            break
-        except requests.exceptions.HTTPError as http_err:
-            body_preview = upload_response.text[:500] if upload_response is not None else "(keine Antwort)"
-            log(f"   ⚠️ Upload-Versuch {attempt}/{max_attempts} fehlgeschlagen: {http_err}")
-            log(f"      Server-Antwort: {body_preview}")
-            if attempt == max_attempts:
-                raise
-            wait_seconds = 10 * attempt
-            log(f"      Warte {wait_seconds}s vor dem nächsten Versuch...")
-            time.sleep(wait_seconds)
-
-    if job_id is None:
-        status_data = upload_response.json()
-        job_status_obj = status_data.get("jobStatus", status_data)
-        job_id = job_status_obj.get("jobId")
-        log(f"   ✓ Video erfolgreich übertragen! Job-ID erhalten: {job_id}")
-
-    log("   Warte auf Server-Verarbeitung...")
-
-    status_url = "https://video.bsky.app/xrpc/app.bsky.video.getJobStatus"
-    deadline = time.time() + VIDEO_JOB_TIMEOUT_SECONDS
-    video_blob_dict = None
-    while True:
-        if time.time() > deadline:
-            raise RuntimeError(
-                f"Video-Verarbeitung nicht innerhalb von {VIDEO_JOB_TIMEOUT_SECONDS}s abgeschlossen (Job {job_id})."
-            )
-        status_response = requests.get(
-            status_url, params={"jobId": job_id},
-            headers={"Authorization": f"Bearer {token}"}, timeout=30
-        )
-        status_response.raise_for_status()
-        current_status_data = status_response.json()
-        current_job_obj = current_status_data.get("jobStatus", current_status_data)
-        job_state = current_job_obj.get("state")
-
-        if job_state == "JOB_STATE_COMPLETED":
-            video_blob_dict = current_job_obj.get("blob")
-            log("   ✓ Video-Verarbeitung auf dem Bluesky-Server abgeschlossen!")
-            break
-        elif job_state == "JOB_STATE_FAILED":
-            error_msg = current_job_obj.get("error", "Unbekannter Rendering-Fehler")
-            raise RuntimeError(f"Bluesky-Server meldet Fehler beim Video-Rendering: {error_msg}")
-        else:
-            log(f"   ⏳ Status: {job_state}... (Warte 5 Sekunden)")
-            time.sleep(5)
-
-    video_blob = models.get_or_create(video_blob_dict, model=BlobRef)
-    return models.AppBskyEmbedVideo.Main(video=video_blob)
 # ------------------------------------------------------------------------------
 
 
@@ -858,7 +623,10 @@ def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None, media
     video_embed = None
     if video_bytes:
         try:
-            video_embed = upload_video_to_bluesky(video_bytes, f"{media_name}.mp4")
+            video_embed = upload_video_to_bluesky(bsky_client, video_bytes,
+                                                  f"{media_name}.mp4",
+                                                  MAX_VIDEO_BYTES,
+                                                  VIDEO_JOB_TIMEOUT_SECONDS)
         except Exception as video_err:
             log(f"   ⚠️ Video-Upload fehlgeschlagen: {video_err}")
             if video_thumb and not image_blobs:
