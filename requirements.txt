@@ -18,5 +18,11 @@ protobuf>=7.34.1
 segno>=1.6.1
 
 # --- skyrelay-feed.py (Quelle: Instagram) ---
-# < 4.15.1 scheitert an Instagrams GraphQL-Umstellung
-instaloader>=4.15.2
+# ACHTUNG: instaloader ist bewusst auf 4.15.2 festgelegt.
+# 4.15.3 stellte die Profilabfrage auf den Endpunkt "web_profile_info" um
+# (instaloader#2701). Instagram drosselt genau diesen Endpunkt seit Anfang
+# August 2026 pauschal: Schon die erste Anfrage endet mit "429 Too Many
+# Requests" - unabhängig von Konto, Netz und Wartezeit (instaloader#2726,
+# noch offen). 4.15.2 nutzt den älteren Weg und funktioniert weiterhin.
+# Vor einem Upgrade also erst prüfen, ob #2726 gelöst ist.
+instaloader==4.15.2

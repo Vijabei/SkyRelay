@@ -223,6 +223,11 @@ es unter `[feed] bluesky_handle` ein und gibst dessen App-Passwort in
   eine leere Nachricht zurück, an der der zugrundeliegende Go-Programmteil abstürzt.
   Betrifft **nur** die Nachhol-Betriebsarten (kleineren Wert wählen), nicht den
   Dauerbetrieb — dieser lauscht auf Ereignisse und ist davon nicht betroffen.
+* **`instaloader` ist auf 4.15.2 festgelegt.** Version 4.15.3 stellte die
+  Profilabfrage auf einen Endpunkt um, den Instagram seit Anfang August 2026
+  drosselt — schon die erste Anfrage endet mit „429 Too Many Requests"
+  ([instaloader#2726](https://github.com/instaloader/instaloader/issues/2726),
+  offen). Erst nach dessen Lösung aktualisieren.
 * **Umfragen** werden übersprungen: Bluesky kennt dieses Format nicht.
 * **Videos** bis rund 100 MB; größere werden nicht übertragen (Bluesky-Grenze).
 * Mehrere Bilder in einem Beitrag: Bluesky nimmt höchstens vier.
