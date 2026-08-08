@@ -167,10 +167,11 @@ cat <<HINWEISE
 
 $(printf '\033[1mFertig.\033[0m') Nächste Schritte:
 
-  1. Konfiguration anlegen und anpassen:
-       cp skyrelay.conf.example skyrelay.conf
-       nano skyrelay.conf
-     -> mindestens [source] channel_invite_link und [bluesky] handle setzen
+  1. Konfiguration anlegen - am einfachsten mit dem Assistenten:
+       venv/bin/python skyrelay-setup.py
+     Er sucht den Verein bei OpenLigaDB, füllt die Kürzeltabelle vor und
+     schreibt die fertige skyrelay.conf.
+     (Wer lieber von Hand arbeitet: cp skyrelay.conf.example skyrelay.conf)
 
   2. Bluesky-App-Passwort als Umgebungsvariable bereitstellen
      (niemals in die Konfiguration oder ins Repository schreiben):

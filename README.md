@@ -67,7 +67,19 @@ System: Fehlende Systempakete werden nur gemeldet, nicht automatisch nachinstall
 
 ## Konfiguration
 
-Vorlage kopieren und anpassen:
+Am einfachsten mit dem Einrichtungsassistenten:
+
+```bash
+venv/bin/python skyrelay-setup.py
+```
+
+Er fragt alles Nötige ab, **sucht den Verein direkt bei OpenLigaDB** (damit
+entfällt das Nachschlagen der Team-Nummer), **füllt die Kürzeltabelle für die
+Hashtags vor**, prüft auf Wunsch die Bluesky-Anmeldung und schreibt daraus die
+fertige `skyrelay.conf`. Ein erneuter Aufruf dient zum Ändern: Vorhandene Werte
+werden als Vorgabe angeboten, und von der alten Datei wird eine Sicherung angelegt.
+
+Wer lieber von Hand arbeitet, kopiert die kommentierte Vorlage:
 
 ```bash
 cp skyrelay.conf.example skyrelay.conf
@@ -158,6 +170,8 @@ es unter `[feed] bluesky_handle` ein und gibst dessen App-Passwort in
 | Datei | Inhalt |
 |---|---|
 | `README.md` | dieses Dokument |
+| `skyrelay-setup.py` | Einrichtungsassistent (erzeugt und ändert `skyrelay.conf`) |
+| `skyrelay.conf.example` | kommentierte Vorlage aller Einstellungen |
 | `CHEATSHEET-matchday.md` | alle Umgebungsvariablen, Betriebsarten, Dateien, Fehlerbehebung |
 | `ISSUE-DRAFT-neonize-newsletter-panic.md` | vorbereiteter Fehlerbericht an das neonize-Projekt |
 
