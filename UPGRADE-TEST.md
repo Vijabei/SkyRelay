@@ -81,7 +81,7 @@ Trockenlauf.
 
 ### Abweichung gegenüber 0.3.18
 
-**Strg+C wird vom Go-Anteil abgefangen.** Das Programm endet mit `Quit`, die
+**Strg+C wurde einmal vom Go-Anteil abgefangen.** Das Programm endet mit `Quit`, die
 Python-Aufräumarbeiten laufen nicht mehr — die Profil-Statuszeile bleibt dann auf
 „Bot ist an" stehen. `Press Ctrl+C to exit`, `SIGINT` und `signal.signal` finden
 sich nicht im Python-Teil des Pakets, sondern ausschließlich in der

@@ -235,10 +235,11 @@ es unter `[feed] bluesky_handle` ein und gibst die App-Passwörter getrennt an
 * **`neonize` ist auf `0.4.3.post0` festgelegt** und wurde am 08.08.2026
   vollständig geprüft (siehe [UPGRADE-TEST.md](UPGRADE-TEST.md)). Vor einem
   Wechsel die Sitzungsdatei sichern — das Datenbankschema ändert sich.
-* **Strg+C wird vom Go-Anteil abgefangen** (ab 0.4.x): Bei manuellem Abbruch
-  läuft das Aufräumen nicht, die Profil-Statuszeile bleibt auf „Bot ist an".
-  Zurücksetzen mit `SKYRELAY_PROFILE=off`. Im cron-Betrieb spielt das keine
-  Rolle, dort endet der Ticker regulär zum Tagesende.
+* **Strg+C kann gelegentlich vom Go-Anteil abgefangen werden** (ab 0.4.x): Dann
+  endet das Programm mit `Quit`, ohne aufzuräumen, und die Profil-Statuszeile
+  bleibt auf „Bot ist an" stehen. Beobachtet wurde das einmal; im Regelfall läuft
+  das Aufräumen normal. Zurücksetzen notfalls mit `SKYRELAY_PROFILE=off`. Im
+  cron-Betrieb ohne Bedeutung — dort endet der Ticker regulär zum Tagesende.
 * **Absturz bei gelöschten Kanalbeiträgen:** Löscht der Kanal einen Beitrag, bleibt
   eine leere Nachricht zurück, an der der zugrundeliegende Go-Programmteil abstürzt.
   Betrifft **nur** die Nachhol-Betriebsarten (kleineren Wert wählen), nicht den
