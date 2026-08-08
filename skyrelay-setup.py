@@ -128,6 +128,16 @@ def titel(text):
     print("─" * len(text))
 
 
+def programm_banner(teil, name, fluss, zusatz=""):
+    """Deutlich sichtbare Trennung zwischen den beiden Programmen - sonst ist beim
+    Einrichten nicht klar, für welchen Bot eine Angabe gerade gilt."""
+    breite = 74
+    print("\n\033[1m" + "═" * breite)
+    print(f"  {teil}{name}")
+    print(f"  {fluss}" + (f"   ({zusatz})" if zusatz else ""))
+    print("═" * breite + "\033[0m")
+
+
 def hinweis(text):
     print(f"  \033[2m{text}\033[0m")
 
@@ -323,19 +333,29 @@ def main():
 
     # ------------------------------------------------------ Welche Programme?
     titel("Welche Programme möchtest du einrichten?")
+    hinweis("SkyRelay besteht aus zwei getrennten Bots, die auch getrennte")
+    hinweis("Bluesky-Konten benutzen können:")
+    print("     · Spieltags-Ticker: WhatsApp-Kanal → Bluesky, nur an Spieltagen")
+    print("     · Instagram-Feed:   Instagram → Bluesky, im Dauerbetrieb")
     was = auswahl(
         [("beide", "Beide"),
-         ("matchday", "Nur Spieltags-Ticker (WhatsApp-Kanal)"),
-         ("feed", "Nur Instagram-Spiegelung")],
+         ("matchday", "Nur den Spieltags-Ticker (WhatsApp-Kanal)"),
+         ("feed", "Nur die Instagram-Spiegelung")],
         "Auswahl", 0,
     )
     macht_matchday = was in ("beide", "matchday")
     macht_feed = was in ("beide", "feed")
+    teile = "1 von 2: " if was == "beide" else ""
+    ticker_handle = feed_handle = ""
+
+    if macht_matchday:
+        programm_banner(teile, "SPIELTAGS-TICKER",
+                        "WhatsApp-Kanal  ──►  Bluesky", "läuft nur an Spieltagen")
 
     # ------------------------------------------------------------ Einsatzzweck
     zweck = "sport_plan"
     if macht_matchday:
-        titel("Wofür wird der Kanal-Ticker eingesetzt?")
+        titel("Wofür wird der Ticker eingesetzt?")
         hinweis("Davon hängt ab, ob Spieltage automatisch erkannt werden können")
         hinweis("und wie die vorgeschlagenen Texte formuliert sind.")
         zweck = auswahl(
@@ -358,16 +378,16 @@ def main():
         "fallback": "aktiv" if neutral else "Testspiel",
     }
 
-    # ------------------------------------------------------------ Bluesky
-    titel("Bluesky-Konto")
-    hinweis("Das Konto, auf dem der Bot veröffentlicht - ohne führendes @.")
-    handle = frage("Handle", bisher("bluesky", "handle") or "mein-bot.bsky.social",
-                   pflicht=True, pruefung=pruefe_handle)
-    setze_wert(zeilen, "bluesky", "handle", handle)
-
     # ------------------------------------------------------------ Matchday
     if macht_matchday:
-        titel("WhatsApp-Kanal")
+        titel("Bluesky-Konto FÜR DEN TICKER")
+        hinweis("Auf dieses Konto werden die Beiträge aus dem WhatsApp-Kanal")
+        hinweis("veröffentlicht - ohne führendes @.")
+        ticker_handle = frage("Handle", bisher("bluesky", "handle") or "mein-ticker.bsky.social",
+                              pflicht=True, pruefung=pruefe_handle)
+        setze_wert(zeilen, "bluesky", "handle", ticker_handle)
+
+        titel("WhatsApp-Kanal (Quelle des Tickers)")
         hinweis("Im Handy: Kanal öffnen → Kanalnamen antippen → Teilen → Link kopieren.")
         link = frage("Einladungslink", bisher("source", "channel_invite_link"),
                      pflicht=True, pruefung=pruefe_kanal_link)
@@ -483,7 +503,7 @@ def main():
                 hinweis("Später jederzeit im Abschnitt [team_codes] änderbar.")
             setze_team_codes(zeilen, codes)
 
-        titel("Beiträge")
+        titel("Beiträge des Tickers")
         hinweis("Es gibt zwei Sorten Hashtags:")
         hinweis(f"  · Dauer-Hashtag - steht unter JEDEM Beitrag (z.B. der Vereinsname)")
         hinweis(f"  · {W['ereignis']}-Hashtag - wechselt je Termin"
@@ -498,9 +518,9 @@ def main():
         setze_wert(zeilen, "post", "source_label", beschriftung)
 
         # ------------------------------------------------------ Profil & Zeit
-        titel("Profil-Statuszeile")
-        hinweis("Die erste Zeile der Bluesky-Biografie kann anzeigen, ob der Bot")
-        hinweis("gerade läuft - und beim Beenden wieder zurückgestellt werden.")
+        titel("Profil-Statuszeile des Ticker-Kontos")
+        hinweis(f"Die erste Zeile der Biografie von @{ticker_handle} kann anzeigen,")
+        hinweis("ob der Bot gerade läuft - beim Beenden wird sie zurückgestellt.")
         vorher_an = bisher("profile", "enabled")
         if ja_nein("Statuszeile verwenden?", vorher_an.lower() != "false" if vorher_an else True):
             setze_wert(zeilen, "profile", "enabled", "true")
@@ -529,24 +549,57 @@ def main():
 
     # ---------------------------------------------------------------- Feed
     if macht_feed:
-        titel("Instagram-Spiegelung")
-        profil = frage("Instagram-Profil, das gespiegelt wird (ohne @)",
+        programm_banner("2 von 2: " if was == "beide" else "", "INSTAGRAM-SPIEGELUNG",
+                        "Instagram  ──►  Bluesky", "läuft im Dauerbetrieb")
+
+        titel("Instagram-Profil (Quelle des Feeds)")
+        profil = frage("Profil, das gespiegelt wird (ohne @)",
                        bisher("feed", "instagram_profile"), pflicht=True)
         setze_wert(zeilen, "feed", "instagram_profile", profil)
 
-        hinweis("Zweitkonto für den Abruf. Sitzung anlegen mit: venv/bin/instaloader -l <name>")
+        hinweis("Zweitkonto für den Abruf - NICHT das gespiegelte Profil.")
+        hinweis("Sitzung anlegen mit: venv/bin/instaloader -l <name>")
         zweitkonto = frage("Instagram-Zweitkonto", bisher("feed", "instagram_session_user"),
                            pflicht=True)
         setze_wert(zeilen, "feed", "instagram_session_user", zweitkonto)
 
+        titel("Bluesky-Konto FÜR DEN FEED")
         eigenes_konto = bisher("feed", "bluesky_handle")
-        if ja_nein("Für Instagram ein anderes Bluesky-Konto verwenden?", bool(eigenes_konto)):
-            feed_handle = frage("Handle für die Instagram-Spiegelung",
-                                eigenes_konto or handle, pflicht=True, pruefung=pruefe_handle)
-            setze_wert(zeilen, "feed", "bluesky_handle", feed_handle)
-            hinweis("Dessen App-Passwort gehört in SKYRELAY_FEED_APP_PASSWORD.")
+        if macht_matchday:
+            hinweis(f"Der Ticker veröffentlicht auf @{ticker_handle}.")
+            eigenes = ja_nein("Soll die Instagram-Spiegelung ein ANDERES Konto verwenden?",
+                              bool(eigenes_konto))
         else:
+            eigenes = True
+        if eigenes:
+            hinweis("Auf dieses Konto werden die Instagram-Beiträge veröffentlicht.")
+            feed_handle = frage("Handle", eigenes_konto or bisher("bluesky", "handle")
+                                or "mein-feed.bsky.social", pflicht=True, pruefung=pruefe_handle)
+            if macht_matchday:
+                setze_wert(zeilen, "feed", "bluesky_handle", feed_handle)
+                hinweis("Dessen App-Passwort gehört in SKYRELAY_FEED_APP_PASSWORD,")
+                hinweis("nicht in BLUESKY_APP_PASSWORD (das gilt für den Ticker).")
+            else:
+                # Ohne Ticker ist das allgemeine Konto zugleich das des Feeds.
+                setze_wert(zeilen, "bluesky", "handle", feed_handle)
+                setze_wert(zeilen, "feed", "bluesky_handle", "")
+        else:
+            feed_handle = ticker_handle
             setze_wert(zeilen, "feed", "bluesky_handle", "")
+
+    # ------------------------------------------------------- Zusammenfassung
+    titel("Zusammenfassung")
+    hinweis("Bitte prüfen, ob Quellen und Konten richtig zugeordnet sind:")
+    if macht_matchday:
+        print(f"  Spieltags-Ticker:  WhatsApp-Kanal  ──►  @{ticker_handle}")
+    if macht_feed:
+        print(f"  Instagram-Feed:    @{profil}  ──►  @{feed_handle}")
+    if macht_matchday and macht_feed and ticker_handle == feed_handle:
+        hinweis("Beide veröffentlichen auf demselben Konto - das ist zulässig,")
+        hinweis("führt aber dazu, dass Ticker und Feed sich vermischen.")
+    if not ja_nein("\n  Stimmt das so?", True):
+        print("\nAbgebrochen - es wurde nichts geändert. Starte den Assistenten erneut.")
+        return
 
     # ------------------------------------------------------------- Schreiben
     titel("Speichern")
@@ -567,15 +620,24 @@ def main():
         datei.writelines(zeilen)
     print(f"  ✓ Geschrieben: {os.path.basename(ZIEL)}")
 
-    teste_bluesky(handle)
+    # Jedes Konto mit der Passwort-Variablen prüfen, die im Betrieb auch gilt.
+    if macht_matchday:
+        teste_bluesky(ticker_handle, "BLUESKY_APP_PASSWORD")
+    if macht_feed:
+        if not macht_matchday:
+            teste_bluesky(feed_handle, "BLUESKY_APP_PASSWORD")
+        elif feed_handle != ticker_handle:
+            teste_bluesky(feed_handle, "SKYRELAY_FEED_APP_PASSWORD")
 
     print("\n\033[1mFertig.\033[0m Nächste Schritte:\n")
     if macht_matchday:
-        print("  Erste WhatsApp-Kopplung (interaktiv im Terminal):")
-        print("    SKYRELAY_FORCE=1 SKYRELAY_DRY_RUN=1 venv/bin/python skyrelay-matchday.py")
+        print(f"  SPIELTAGS-TICKER (postet auf @{ticker_handle})")
+        print("    Erste WhatsApp-Kopplung, interaktiv im Terminal:")
+        print("      SKYRELAY_FORCE=1 SKYRELAY_DRY_RUN=1 venv/bin/python skyrelay-matchday.py")
     if macht_feed:
-        print("  Instagram-Sitzung anlegen (einmalig):")
-        print(f"    venv/bin/instaloader -l {zweitkonto}")
+        print(f"\n  INSTAGRAM-FEED (postet auf @{feed_handle})")
+        print("    Instagram-Sitzung einmalig anlegen:")
+        print(f"      venv/bin/instaloader -l {zweitkonto}")
     print("\n  Danach den Dauerbetrieb per cron einrichten - siehe README.md.\n")
 
 
