@@ -233,9 +233,21 @@ Projekte, denen der Dank gebührt:
 | [Segno](https://github.com/heuer/segno) | QR-Code im Terminal für die Kopplung | BSD-3-Clause |
 | [OpenLigaDB](https://www.openligadb.de) | freie Spielplandaten (Spieltag, Anstoß, Gegner) | Community-Projekt |
 
+## Mitmachen
+
+Verbesserungen sind willkommen — vor allem **Vereinskürzel**, die noch fehlen oder
+unüblich sind. Dafür muss man nicht programmieren können: Ein Issue mit Team-Nummer
+und Kürzel genügt. Wie das geht, steht in [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Lizenz
 
-Noch nicht festgelegt. Bis dahin gilt: **alle Rechte vorbehalten** — eine Nutzung,
-Weitergabe oder Veränderung ist ohne Absprache nicht gestattet. Vorgesehen ist eine
-Lizenz, die nichtkommerzielle Nutzung mit Namensnennung erlaubt; kommerzielle Nutzung
-soll gesondert vereinbart werden.
+[PolyForm Noncommercial License 1.0.0](LICENSE) — nichtkommerzielle Nutzung ist
+frei, einschließlich Fanprojekten, gemeinnütziger Organisationen und
+Bildungseinrichtungen. Der Copyright-Hinweis muss dabei erhalten bleiben.
+
+**Kommerzielle Nutzung** — etwa durch Vereine als Wirtschaftsunternehmen,
+Medienhäuser oder werbefinanzierte Angebote — erfordert eine gesonderte Lizenz.
+Anfragen bitte über ein Issue in diesem Repository.
+
+Hinweis: Das ist eine „source available"-Lizenz, keine Open-Source-Lizenz im Sinne
+der OSI — die Einschränkung auf nichtkommerzielle Nutzung ist damit unvereinbar.
