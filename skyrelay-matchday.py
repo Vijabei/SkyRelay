@@ -1,64 +1,60 @@
 """
-PoC: DSC-Spieltag-Ticker — repostet den Arminia-Bielefeld-WhatsApp-Kanal nach Bluesky,
+SkyRelay - Spieltags-Ticker: spiegelt einen WhatsApp-Kanal nach Bluesky,
 aber nur an Spieltagen (Prüfung über OpenLigaDB).
 
+Alle vereins- und kontospezifischen Angaben stehen in "skyrelay.conf"
+(Vorlage: skyrelay.conf.example). Ein abweichender Pfad lässt sich über die
+Umgebungsvariable SKYRELAY_CONFIG angeben - damit sind mehrere Vereine parallel
+möglich. Das Bluesky-App-Passwort kommt aus BLUESKY_APP_PASSWORD, nie aus einer Datei.
+
 Funktionsweise:
-  1. Beim Start wird über OpenLigaDB geprüft, ob Arminia heute spielt.
-     Kein Spiel -> Script beendet sich sofort (gedacht für einen täglichen Cron-Start).
-  2. An Spieltagen verbindet sich das Script über neonize (whatsmeow) mit WhatsApp
-     und lauscht bis 24 Uhr auf Live-Events des Kanals (Start per Cron um 6 Uhr ->
-     Fenster 6-24 Uhr). Neue Posts werden sofort nach Bluesky repostet; beim
-     Verbinden nachgelieferte Posts von HEUTE (Offline-Queue) ebenfalls, ältere
-     werden verworfen. Ein inhaltlicher Hashtag-Filter ist bewusst NICHT
-     eingebaut - die Kanal-Posts enthalten den Spiel-Hashtag nie.
-     (Kein Polling im Dauerbetrieb: get_newsletter_messages panict im Go-Layer,
-     sobald der Abruf eine unsichtbare Meta-Nachricht erwischt - z.B. die
-     Bearbeitung/Löschung eines Posts. Nur REPLAY/CATCHUP nutzen diesen Abruf
-     noch, dort ist ein Absturz verschmerzbar.)
+  1. Beim Start wird über OpenLigaDB geprüft, ob die eigene Mannschaft heute
+     spielt. Kein Spiel -> das Programm beendet sich sofort, ohne überhaupt eine
+     Verbindung aufzubauen (gedacht für einen täglichen Start per cron).
+  2. An Spieltagen wird über neonize (whatsmeow) eine Verbindung zu WhatsApp
+     aufgebaut; bis zum konfigurierten Tagesende lauscht das Programm auf
+     Ereignisse des Kanals. Neue Beiträge gehen sofort nach Bluesky, ebenso beim
+     Verbinden nachgelieferte Beiträge von HEUTE - ältere werden verworfen.
+     (Bewusst kein regelmäßiges Abrufen im Dauerbetrieb: get_newsletter_messages
+     stürzt im Go-Teil ab, sobald der Abruf eine unsichtbare Meta-Nachricht
+     erwischt - etwa die Bearbeitung oder Löschung eines Beitrags. Nur REPLAY und
+     CATCHUP nutzen diesen Abruf noch, dort ist ein Absturz verschmerzbar.)
   3. Der Spiel-Hashtag (z.B. #DSCWOB heim, #WOBDSC auswärts) wird aus den
-     OpenLigaDB-Daten GENERIERT (DFL-Kürzel, Heimteam zuerst) - oder manuell per
-     DSC_TICKER_HASHTAG gesetzt - und zusammen mit #arminia an jeden Post angehängt.
-  4. Duplikat-Schutz bei Neustarts am selben Tag über die monoton steigende
-     MessageServerID des Kanals (Wasserzeichen in dsc_ticker_state.txt).
+     OpenLigaDB-Daten gebildet (Kürzel aus [team_codes], Heimteam zuerst) - oder
+     von Hand über SKYRELAY_HASHTAG gesetzt.
+  4. Doppelte Beiträge nach einem Neustart am selben Tag verhindert die monoton
+     steigende MessageServerID des Kanals (Stand in der Datei aus [files] state).
 
-Einrichtung (auf dem Raspberry Pi, 64-bit-OS erforderlich - neonize liefert nur
-aarch64/x86_64-Wheels, kein 32-bit armv7):
-    python -m venv venv && source venv/bin/activate
-    pip install "neonize==0.3.18.post0" "protobuf>=7.34.1" atproto pillow requests
-    # neonize ist bewusst gepinnt: 0.4.0/0.4.1 (Juli 2026) lieferten korrupte
-    # Rückgabewerte ("Wire format was corrupt", Issue #199; Ursache: c_char_p
-    # schnitt Puffer am ersten NUL-Byte ab). Das ist seit 0.4.2 gefixt (PR #198),
-    # aber ungetestet von uns - Upgrade auf >=0.4.3 erst in einer ruhigen Woche
-    # mit DRY_RUN/REPLAY durchtesten (vorher dsc_ticker_session.sqlite3 sichern!).
-    # Der Newsletter-Panic bei gelöschten Posts ist auch in 0.4.3 NICHT gefixt.
-    # protobuf NICHT downgraden: die Wheels sind mit Gencode >=7.34 gebaut,
-    # die Runtime muss mindestens genauso neu sein.
+Einrichtung (64-Bit-System erforderlich - neonize liefert keine 32-Bit-Pakete):
+    ./install.sh
+    cp skyrelay.conf.example skyrelay.conf   # und anpassen
+    # neonize ist in requirements.txt bewusst festgelegt: 0.4.0/0.4.1 lieferten
+    # beschädigte Rückgabewerte ("Wire format was corrupt", Issue #199). Behoben
+    # seit 0.4.2, hier aber ungetestet - vor einem Wechsel die Sitzungsdatei
+    # sichern und mit Trockenlauf prüfen. Der Absturz bei gelöschten Beiträgen
+    # besteht auch in 0.4.3 weiterhin.
 
-Erster Lauf MUSS interaktiv im Terminal erfolgen (nicht per cron; SSH reicht,
-kein X11/Browser nötig). Empfohlener Weg: Kopplung per 8-stelligem Code statt QR
-(der ASCII-QR-Code wird in Terminals oft verzerrt dargestellt und rotiert alle
-paar Sekunden - der Zahlencode ist zuverlässiger):
-    DSC_TICKER_PAIR_PHONE="4915123456789" DSC_TICKER_FORCE=1 DSC_TICKER_DRY_RUN=1 python skyrelay-matchday.py
-    (Nummer der Wegwerf-SIM im internationalen Format ohne + und ohne führende 0)
-    -> Das Script gibt einen Kopplungscode aus. Im Handy: WhatsApp ->
-       Einstellungen -> Verknüpfte Geräte -> Gerät hinzufügen ->
-       "Stattdessen mit Telefonnummer koppeln" -> Code eingeben.
-    Alternativ ohne DSC_TICKER_PAIR_PHONE: ASCII-QR-Code im Terminal scannen
-    (Terminalfenster groß genug ziehen, damit der Code nicht umbricht; bei
-    Scan-Problemen Bildschirmhelligkeit hoch und Darstellung stark vergrößern -
-    der Kamera fehlt sonst schlicht der Kontrast).
-    ACHTUNG: Ein Login über web.whatsapp.com im Browser hilft NICHT - neonize ist
-    ein eigenes "verknüpftes Gerät" mit eigener Session. Die Session landet in
-    dsc_ticker_session.sqlite3 und wird bei allen weiteren Läufen wiederverwendet;
-    DSC_TICKER_PAIR_PHONE ist danach nicht mehr nötig.
+Erste Kopplung - muss interaktiv im Terminal laufen (nicht per cron; SSH genügt):
+    SKYRELAY_PAIR_PHONE="4915123456789" SKYRELAY_FORCE=1 SKYRELAY_DRY_RUN=1 venv/bin/python skyrelay-matchday.py
+    (Nummer im internationalen Format ohne + und ohne führende 0)
+    -> Es erscheint ein Kopplungscode. Im Handy: WhatsApp -> Einstellungen ->
+       Verknüpfte Geräte -> Gerät hinzufügen -> "Stattdessen mit Telefonnummer
+       koppeln" -> Code eingeben.
+    Ohne SKYRELAY_PAIR_PHONE erscheint stattdessen ein QR-Code im Terminal. Bei
+    Scan-Problemen: Fenster stark vergrößern und Bildschirm hell stellen, sonst
+    fehlt der Kamera der Kontrast.
+    ACHTUNG: Eine Anmeldung über web.whatsapp.com hilft NICHT - dieses Programm
+    ist ein eigenes verknüpftes Gerät mit eigener Sitzung. Sie landet in der Datei
+    aus [files] session; danach wird SKYRELAY_PAIR_PHONE nicht mehr gebraucht.
 
-Cron-Beispiel (Spieltags-Check jeden Morgen um 6 Uhr, Rest regelt das Script selbst).
-Achtung: Pfade sind case-sensitive, und KEINE ">> ticker.log"-Umleitung mehr angeben -
-das Script schreibt sein Log selbst (sonst stünde jede Zeile doppelt drin):
-    0 6 * * * BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx" /home/pi/arminia/venv/bin/python3 /home/pi/arminia/skyrelay-matchday.py >/dev/null 2>&1
+Beispiel für cron (täglicher Start um 6 Uhr, den Rest entscheidet das Programm).
+Pfade beachten Groß- und Kleinschreibung, und eine Ausgabeumleitung in die
+Protokolldatei ist NICHT nötig - das Programm schreibt sie selbst:
+    0 6 * * * BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx" /pfad/zu/SkyRelay/venv/bin/python3 /pfad/zu/SkyRelay/skyrelay-matchday.py >/dev/null 2>&1
 """
 
 import asyncio
+import configparser
 import hashlib
 import html as html_utils
 import io
@@ -92,104 +88,153 @@ def log(*args, **kwargs):
     print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}]", *args, **kwargs, flush=True)
 
 
-# --- KONFIGURATION ---
-# Invite-Link des Arminia-WhatsApp-Kanals: im Handy den Kanal öffnen
-# -> Kanalname antippen -> Teilen -> Link kopieren.
-CHANNEL_INVITE_LINK = "https://whatsapp.com/channel/0029VaR1aJm6RGJAiMy8w73L"
-
-BLUESKY_HANDLE = "dsc-spieltagticker.bsky.social"   # neuen Bluesky-Account hier eintragen
-OPENLIGADB_TEAM_FILTER = "bielefeld"            # Teamfilter der OpenLigaDB-API
-OPENLIGADB_TEAM_ID = 83                         # DSC Arminia Bielefeld (zur Absicherung des Filters)
-# OpenLigaDB listet zu Arminia auch Spiele aus Fantasie-/Testligen (gesehen: "ESP8266",
-# dasselbe Spiel mit falschem Datum!). Nur Ligen mit diesen Shortcut-Präfixen zählen:
-# bl1/bl2/bl2h/bl3 = Bundesligen, dfb = DFB-Pokal. Verworfene Ligen werden geloggt -
-# taucht dort mal eine echte Liga auf, hier ergänzen.
-LEAGUE_PREFIXES = ("bl", "dfb")
-
-# --- Bluesky-Profil: erste Bio-Zeile am Spieltag umschalten --------------------
-PROFILE_STATUS_ENABLED = True
-# Woran eine bereits vorhandene Statuszeile erkannt wird. Enthält die erste Bio-Zeile
-# diesen Text, wird sie ersetzt - sonst wird die Statuszeile davorgesetzt.
-PROFILE_STATUS_MARKER = "Bot ist"
-# Platzhalter: {info} = "1. Spieltag" / "DFB-Pokal, 1. Runde", {hashtag} = "#KSCDSC",
-# {date} = "08.08." (bei OFF das Datum des nächsten Spiels), {time} = "13:00"
-PROFILE_LINE_ON = "🟢 Bot ist an - {info} {hashtag} ⚫⚪🔵"
-PROFILE_LINE_OFF = "🔴 Bot ist aus - nächstes Spiel {hashtag} ⚫⚪🔵"
-PROFILE_LINE_OFF_NO_MATCH = "🔴 Bot ist aus ⚫⚪🔵"
-# Wenn der Spieltags-Check übersprungen wurde (FORCE), kennt OpenLigaDB das Spiel nicht:
-FALLBACK_MATCH_INFO = "Testspiel"
-
-# --- Logging ------------------------------------------------------------------
-# Das Script schreibt sein Log IMMER selbst in eine Datei (neben dem Script) -
-# unabhängig davon, wie es gestartet wurde. In der crontab ist deshalb KEINE
-# ">> ticker.log 2>&1"-Umleitung mehr nötig (sonst stünde jede Zeile doppelt drin).
-LOG_TO_FILE = True
-LOG_FILE_NAME = "ticker.log"
-LOG_MAX_BYTES = 2_000_000   # ab dieser Größe wird beim Start rotiert
-LOG_BACKUP_COUNT = 5        # ticker.log.1 ... ticker.log.5
-
-SUBSCRIBE_RENEW_SECONDS = 240    # Live-Update-Abo des Kanals regelmäßig erneuern (gilt nur wenige Minuten)
-MAX_VIDEO_BYTES = 100_000_000    # Bluesky-Limit: ~100 MB pro Video
-VIDEO_JOB_TIMEOUT_SECONDS = 600  # max. Wartezeit auf die serverseitige Video-Verarbeitung
-DAY_END_HOUR = 23                # bis wann (lokale Zeit) an Spieltagen gelauscht wird -> 23:59 = "bis 24 Uhr"
-DAY_END_MINUTE = 59
-PAUSE_BETWEEN_POSTS_SECONDS = 3  # kurze Pause zwischen Bluesky-Posts
-
-# Offizielle DFL-Kürzel je OpenLigaDB-teamId für die Hashtag-Generierung (#DSCWOB etc.).
-# Stand: 2. Bundesliga 2026/27. Unbekannte Gegner (z.B. DFB-Pokal) bekommen als
-# Fallback die ersten 3 Buchstaben des Kurznamens - dann Log-Hinweis prüfen und
-# das korrekte Kürzel hier nachtragen.
-TEAM_CODES = {
-    83: "DSC",    # DSC Arminia Bielefeld
-    199: "FCH",   # 1. FC Heidenheim 1846
-    76: "FCK",    # 1. FC Kaiserslautern
-    78: "FCM",    # 1. FC Magdeburg
-    79: "FCN",    # 1. FC Nürnberg
-    177: "SGD",   # Dynamo Dresden
-    74: "EBS",    # Eintracht Braunschweig
-    93: "FCE",    # Energie Cottbus
-    98: "STP",    # FC St. Pauli
-    55: "H96",    # Hannover 96
-    54: "BSC",    # Hertha BSC
-    104: "KSV",   # Holstein Kiel
-    105: "KSC",   # Karlsruher SC
-    115: "SGF",   # SpVgg Greuther Fürth
-    118: "SVD",   # SV Darmstadt 98
-    129: "BOC",   # VfL Bochum
-    36: "OSN",    # VfL Osnabrück
-    131: "WOB",   # VfL Wolfsburg
-}
-
-LOCAL_TZ = ZoneInfo("Europe/Berlin")
-
-# DSC_TICKER_DRY_RUN=1 -> nur loggen, nichts auf Bluesky posten (für die ersten Tests).
-DRY_RUN = os.environ.get("DSC_TICKER_DRY_RUN") == "1"
-# DSC_TICKER_FORCE=1 -> Spieltags-Check überspringen (zum Testen, z.B. in der Sommerpause).
-FORCE_RUN = os.environ.get("DSC_TICKER_FORCE") == "1"
-# DSC_TICKER_PAIR_PHONE=<Nummer> -> Erst-Kopplung per 8-stelligem Code statt QR-Scan
-# (internationales Format ohne "+", z.B. 4915123456789). Nur beim ersten Lauf nötig.
-PAIR_PHONE = os.environ.get("DSC_TICKER_PAIR_PHONE")
-# DSC_TICKER_REPLAY=N -> Testmodus: verarbeitet einmalig die letzten N vorhandenen
-# Kanal-Posts (statt auf neue zu warten) und beendet sich. Das Wasserzeichen bleibt
-# unangetastet. Mit DRY_RUN=1 nur Log-Ausgabe, ohne DRY_RUN echter Bluesky-Test.
-REPLAY_COUNT = int(os.environ.get("DSC_TICKER_REPLAY", "0"))
-# DSC_TICKER_CATCHUP=N -> wie REPLAY, aber: bereits verarbeitete Posts (Wasserzeichen)
-# werden übersprungen, das Wasserzeichen wird fortgeschrieben, und danach lauscht das
-# Script normal weiter. Der Modus für "Script zu spät gestartet, Posts nachholen".
-CATCHUP_COUNT = int(os.environ.get("DSC_TICKER_CATCHUP", "0"))
-# DSC_TICKER_HASHTAG=DSCGUE -> Spiel-Hashtag manuell setzen (mit oder ohne "#").
-# Gedacht für Spiele, die OpenLigaDB nicht kennt (Testspiele!) - zusammen mit
-# FORCE=1 der Weg für manuelle Läufe. Hat Vorrang vor dem generierten Hashtag.
-MANUAL_HASHTAG = os.environ.get("DSC_TICKER_HASHTAG", "").strip().lstrip("#").upper()
-# DSC_TICKER_PROFILE=on|off -> NUR die Profil-Statuszeile setzen und sofort beenden
-# (ohne WhatsApp-Verbindung). Zum Testen und für manuelles Nachkorrigieren.
-PROFILE_ONLY = os.environ.get("DSC_TICKER_PROFILE", "").strip().lower()
-
+# =============================== KONFIGURATION ===============================
+# Alle vereins- und kontospezifischen Werte stehen in "skyrelay.conf"
+# (Vorlage: skyrelay.conf.example). Hier wird nur noch gelesen.
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-SESSION_DB = os.path.join(BASE_DIR, "dsc_ticker_session.sqlite3")
-STATE_FILE = os.path.join(BASE_DIR, "dsc_ticker_state.txt")
-POSTS_MAP_FILE = os.path.join(BASE_DIR, "dsc_ticker_posts.json")
-LOG_FILE = os.path.join(BASE_DIR, LOG_FILE_NAME)
+CONFIG_FILE = os.environ.get("SKYRELAY_CONFIG") or os.path.join(BASE_DIR, "skyrelay.conf")
+
+if not os.path.exists(CONFIG_FILE):
+    print(f"Fehler: Konfigurationsdatei nicht gefunden: {CONFIG_FILE}\n"
+          f"Vorlage kopieren und anpassen:\n"
+          f"    cp skyrelay.conf.example skyrelay.conf\n"
+          f"(oder einen anderen Pfad über die Umgebungsvariable SKYRELAY_CONFIG angeben)",
+          file=sys.stderr)
+    sys.exit(1)
+
+# interpolation=None: sonst würde configparser Prozentzeichen in Texten deuten.
+_cfg = configparser.ConfigParser(interpolation=None)
+try:
+    with open(CONFIG_FILE, encoding="utf-8") as _f:
+        _cfg.read_file(_f)
+except Exception as _e:
+    print(f"Fehler beim Lesen von {CONFIG_FILE}: {_e}", file=sys.stderr)
+    sys.exit(1)
+
+
+def cfg(section, key, default=None):
+    """Wert aus der Konfiguration; fehlt er, greift die Vorgabe."""
+    return _cfg.get(section, key, fallback=default)
+
+
+def cfg_int(section, key, default):
+    try:
+        return int(str(_cfg.get(section, key, fallback=default)).strip())
+    except (ValueError, TypeError):
+        return default
+
+
+def cfg_bool(section, key, default):
+    return _cfg.getboolean(section, key, fallback=default)
+
+
+BLUESKY_HANDLE = cfg("bluesky", "handle", "")
+CHANNEL_INVITE_LINK = cfg("source", "channel_invite_link", "")
+
+OPENLIGADB_TEAM_FILTER = cfg("team", "openligadb_filter", "")
+OPENLIGADB_TEAM_ID = cfg_int("team", "openligadb_team_id", 0)
+LEAGUE_PREFIXES = tuple(
+    p.strip().lower() for p in cfg("team", "league_prefixes", "bl, dfb").split(",") if p.strip()
+)
+LOCAL_TZ = ZoneInfo(cfg("team", "timezone", "Europe/Berlin"))
+
+# Kürzel für die Hashtag-Bildung, z.B. {83: "DSC"}
+TEAM_CODES = {}
+if _cfg.has_section("team_codes"):
+    for _team_id, _code in _cfg.items("team_codes"):
+        try:
+            TEAM_CODES[int(_team_id)] = _code.strip().upper()
+        except ValueError:
+            print(f"⚠️ [team_codes] '{_team_id}' ist keine Team-Nummer - übersprungen", file=sys.stderr)
+
+POST_PREFIX = cfg("post", "prefix", "⚽ [Inoffizieller Bot]")
+POST_SOURCE_LABEL = cfg("post", "source_label", "Original-Kanal")
+STANDING_HASHTAG = cfg("post", "standing_hashtag", "").strip().lstrip("#")
+IMAGE_PLACEHOLDER = cfg("post", "image_placeholder", "📸 Neues Bild im Kanal")
+VIDEO_PLACEHOLDER = cfg("post", "video_placeholder", "🎥 Neues Video im Kanal")
+VIDEO_HINT = cfg("post", "video_hint", "🎥 (Video im Original-Kanal)")
+MEDIA_PREFIX = cfg("post", "media_prefix", "skyrelay")
+
+PROFILE_STATUS_ENABLED = cfg_bool("profile", "enabled", True)
+PROFILE_STATUS_MARKER = cfg("profile", "marker", "Bot ist")
+PROFILE_LINE_ON = cfg("profile", "line_on", "🟢 Bot ist an - {info} {hashtag}")
+PROFILE_LINE_OFF = cfg("profile", "line_off", "🔴 Bot ist aus - nächstes Spiel {hashtag}")
+PROFILE_LINE_OFF_NO_MATCH = cfg("profile", "line_off_no_match", "🔴 Bot ist aus")
+FALLBACK_MATCH_INFO = cfg("profile", "fallback_match_info", "Testspiel")
+
+_day_end = cfg("schedule", "day_end", "23:59")
+try:
+    DAY_END_HOUR, DAY_END_MINUTE = (int(x) for x in _day_end.split(":", 1))
+except ValueError:
+    print(f"⚠️ [schedule] day_end='{_day_end}' unlesbar - nutze 23:59", file=sys.stderr)
+    DAY_END_HOUR, DAY_END_MINUTE = 23, 59
+SUBSCRIBE_RENEW_SECONDS = cfg_int("schedule", "subscribe_renew_seconds", 240)
+PAUSE_BETWEEN_POSTS_SECONDS = cfg_int("schedule", "pause_between_posts_seconds", 3)
+
+MAX_VIDEO_BYTES = cfg_int("limits", "max_video_bytes", 100_000_000)
+VIDEO_JOB_TIMEOUT_SECONDS = cfg_int("limits", "video_job_timeout_seconds", 600)
+
+LOG_TO_FILE = cfg_bool("logging", "to_file", True)
+LOG_MAX_BYTES = cfg_int("logging", "max_bytes", 2_000_000)
+LOG_BACKUP_COUNT = cfg_int("logging", "backup_count", 5)
+
+SESSION_DB = os.path.join(BASE_DIR, cfg("files", "session", "skyrelay_session.sqlite3"))
+STATE_FILE = os.path.join(BASE_DIR, cfg("files", "state", "skyrelay_state.txt"))
+POSTS_MAP_FILE = os.path.join(BASE_DIR, cfg("files", "posts_map", "skyrelay_posts.json"))
+LOG_FILE = os.path.join(BASE_DIR, cfg("files", "log", "skyrelay.log"))
+
+
+def env(name, default=None):
+    """Liest SKYRELAY_<name>; akzeptiert übergangsweise noch die alten
+    DSC_TICKER_-Namen, damit bestehende Aufrufe und crontab-Zeilen weiterlaufen."""
+    wert = os.environ.get(f"SKYRELAY_{name}")
+    if wert is not None:
+        return wert
+    alt = os.environ.get(f"DSC_TICKER_{name}")
+    if alt is not None:
+        print(f"Hinweis: DSC_TICKER_{name} ist veraltet - bitte SKYRELAY_{name} verwenden.",
+              file=sys.stderr)
+        return alt
+    return default
+
+
+# SKYRELAY_DRY_RUN=1 -> nur protokollieren, nichts auf Bluesky posten.
+DRY_RUN = env("DRY_RUN") == "1"
+# SKYRELAY_FORCE=1 -> auch laufen, wenn OpenLigaDB heute kein Spiel kennt (Testspiele).
+FORCE_RUN = env("FORCE") == "1"
+# SKYRELAY_PAIR_PHONE=<Nummer> -> Erst-Kopplung per Zahlencode statt QR-Scan
+# (international ohne "+", z.B. 4915123456789). Nur beim ersten Lauf nötig.
+PAIR_PHONE = env("PAIR_PHONE")
+# SKYRELAY_REPLAY=N -> Testlauf: verarbeitet einmalig die letzten N vorhandenen
+# Kanal-Beiträge und beendet sich. Der Stand bleibt unangetastet.
+REPLAY_COUNT = int(env("REPLAY", "0") or 0)
+# SKYRELAY_CATCHUP=N -> wie REPLAY, überspringt aber bereits Verarbeitetes,
+# schreibt den Stand fort und lauscht danach normal weiter.
+CATCHUP_COUNT = int(env("CATCHUP", "0") or 0)
+# SKYRELAY_HASHTAG=DSCGUE -> Spiel-Hashtag von Hand setzen (mit oder ohne "#").
+MANUAL_HASHTAG = (env("HASHTAG", "") or "").strip().lstrip("#").upper()
+# SKYRELAY_PROFILE=on|off -> nur die Profilzeile setzen und sofort beenden.
+PROFILE_ONLY = (env("PROFILE", "") or "").strip().lower()
+
+
+def uebernimm_altdatei(neu, alt_name):
+    """Benennt eine Datei aus einer früheren Fassung auf den neuen Namen um.
+    Verhindert, dass nach dem Umstellen auf die Konfigurationsdatei eine neue
+    WhatsApp-Kopplung nötig wird oder der Verarbeitungsstand verloren geht."""
+    alt = os.path.join(BASE_DIR, alt_name)
+    if os.path.exists(alt) and not os.path.exists(neu):
+        try:
+            os.replace(alt, neu)
+            print(f"Übernommen: {alt_name} -> {os.path.basename(neu)}")
+        except Exception as e:
+            print(f"⚠️ Konnte {alt_name} nicht übernehmen: {e}", file=sys.stderr)
+
+
+for _neu, _alt in ((SESSION_DB, "dsc_ticker_session.sqlite3"),
+                   (STATE_FILE, "dsc_ticker_state.txt"),
+                   (POSTS_MAP_FILE, "dsc_ticker_posts.json"),
+                   (LOG_FILE, "ticker.log")):
+    uebernimm_altdatei(_neu, _alt)
 
 
 def rotate_log(path, max_bytes, backups):
@@ -255,7 +300,7 @@ if not BLUESKY_APP_PASSWORD and not DRY_RUN:
     log("Fehler: Umgebungsvariable BLUESKY_APP_PASSWORD ist nicht gesetzt.")
     log('Setzen z.B. mit:  export BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"')
     log("(dauerhaft: in ~/.bashrc bzw. in der crontab-Zeile vor dem python-Aufruf)")
-    log("Oder für einen reinen Lese-Test ohne Bluesky:  DSC_TICKER_DRY_RUN=1")
+    log("Oder für einen reinen Lese-Test ohne Bluesky:  SKYRELAY_DRY_RUN=1")
     sys.exit(1)
 # ----------------------------------
 
@@ -279,13 +324,13 @@ def match_info_text(match):
     return group or match.get("leagueName", "")
 
 
-def fetch_arminia_matches(weeks_back=1, weeks_forward=1):
-    """Holt Arminia-Spiele aus OpenLigaDB und liefert sie als Liste von
+def fetch_team_matches(weeks_back=1, weeks_forward=1):
+    """Holt die Spiele der eigenen Mannschaft aus OpenLigaDB und liefert sie als Liste von
     (kickoff_local, match) - aufsteigend sortiert, doppelte Termine entfernt.
 
     Filtert zwei Sorten Datenmüll heraus:
       * fremde Teams (der API-Teamfilter "bielefeld" ist unscharf) -> Prüfung auf teamId
-      * Fantasie-/Testligen: OpenLigaDB listete zu Arminia z.B. eine Liga "ESP8266"
+      * Fantasie-/Testligen: OpenLigaDB listete real z.B. eine Liga "ESP8266"
         mit demselben Spiel an einem FALSCHEN Datum. Ohne diesen Filter würde der
         Ticker an einem spielfreien Tag anspringen."""
     url = (f"https://api.openligadb.de/getmatchesbyteam/{OPENLIGADB_TEAM_FILTER}"
@@ -326,11 +371,11 @@ def describe_match(kickoff_local, match):
 
 
 def get_todays_match():
-    """Liefert (kickoff_local, beschreibung, hashtag, kurzinfo) wenn Arminia heute
+    """Liefert (kickoff_local, beschreibung, hashtag, kurzinfo) wenn die eigene Mannschaft heute
     spielt, sonst None. Der Hashtag folgt dem Schema Heimteam+Auswärtsteam, also
     z.B. DSCWOB (heim) bzw. WOBDSC (auswärts)."""
     today_local = datetime.now(LOCAL_TZ).date()
-    for kickoff_local, match in fetch_arminia_matches(1, 1):
+    for kickoff_local, match in fetch_team_matches(1, 1):
         if kickoff_local.date() == today_local:
             return describe_match(kickoff_local, match)
     return None
@@ -341,7 +386,7 @@ def get_next_match():
     sonst None. Schaut bewusst weit voraus, damit auch Winter-/Sommerpausen überbrückt
     werden."""
     now = datetime.now(LOCAL_TZ)
-    for kickoff_local, match in fetch_arminia_matches(0, 12):
+    for kickoff_local, match in fetch_team_matches(0, 12):
         if kickoff_local > now:
             return describe_match(kickoff_local, match)
     return None
@@ -631,7 +676,7 @@ def set_profile_status(on):
 # --- Video-Upload: portiert aus skyrelay-feed.py ---------------------------
 # TODO(Auslagerung): resolve_pds_did_web, upload_video_to_bluesky, das Bild-
 # Komprimieren und die Thread-Post-Logik existieren nahezu identisch im
-# Instagram-Reposter. Bevor das Script mit Config-Datei "Arminia"-neutral
+# Instagram-Reposter. Sobald beide Programme gemeinsame Bausteine teilen,
 # veröffentlicht wird, gehören diese gemeinsamen Funktionen in ein geteiltes
 # Modul - die Redundanz ist hier bewusst und nur vorübergehend.
 
@@ -774,10 +819,11 @@ def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None, media
     URLs im Text werden klickbar. Embed-Priorität (ein Post = ein Embed):
     Video > Bilder > Link-Vorschaukarte. Scheitert der Video-Upload, dient das
     WhatsApp-Vorschaubild als Bild-Fallback. An den letzten Chunk kommen der
-    generierte Spiel-Hashtag und #arminia. Liefert die Liste der erzeugten
+    generierte Spiel-Hashtag und der Dauer-Hashtag. Liefert die Liste der erzeugten
     Post-URIs zurück (Hauptpost zuerst) - wird für die Bearbeitungs-Logik
     gespeichert, um Posts später löschen zu können."""
-    hashtags = ([match_hashtag] if match_hashtag else []) + ["arminia"]
+    hashtags = ([match_hashtag] if match_hashtag else []) + \
+               ([STANDING_HASHTAG] if STANDING_HASHTAG else [])
 
     text_chunks = split_text(text)
     if not text_chunks and not image_blobs and not video_bytes:
@@ -798,8 +844,7 @@ def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None, media
     ensure_bsky()
 
     if not text_chunks:
-        text_chunks = ["🎥 Neues Video im Arminia-Kanal" if video_bytes
-                       else "📸 Neues Bild im Arminia-Kanal"]
+        text_chunks = [VIDEO_PLACEHOLDER if video_bytes else IMAGE_PLACEHOLDER]
 
     # Video-Upload zuerst versuchen; bei Fehlschlag Vorschaubild als Bild-Fallback.
     video_embed = None
@@ -844,8 +889,8 @@ def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None, media
 
         tb = client_utils.TextBuilder()
         if is_first:
-            tb.text("⚽ [Inoffizieller Bot]\n🔗 Quelle: ")
-            tb.link("WhatsApp-Kanal der Arminia", CHANNEL_INVITE_LINK)
+            tb.text(f"{POST_PREFIX}\n🔗 Quelle: ")
+            tb.link(POST_SOURCE_LABEL, CHANNEL_INVITE_LINK)
             tb.text("\n\n")
         add_text_with_links(tb, chunk if total == 1 else f"{chunk} ({i + 1}/{total})")
         if is_last:
@@ -925,10 +970,11 @@ async def process_newsletter_message(client, raw_msg, server_id):
                 except Exception:
                     pass
             if text:
-                text += "\n\n🎥 (Video im Original-Kanal)"
+                text += f"\n\n{VIDEO_HINT}"
 
     log(f"   Text ({len(text)} Zeichen): {text[:100]!r}...")
-    return post_to_bluesky(text, image_blobs, video_bytes, video_thumb, media_name=f"dsc_{server_id}")
+    return post_to_bluesky(text, image_blobs, video_bytes, video_thumb,
+                           media_name=f"{MEDIA_PREFIX}_{server_id}")
 
 
 async def handle_edit(client, event, server_id, posts_map):
@@ -1011,7 +1057,7 @@ async def on_qr(_, data_qr):
         log("Erst-Kopplung nötig - diesen QR-Code mit dem Handy der Wegwerf-Nummer scannen:")
         log("(WhatsApp -> Einstellungen -> Verknüpfte Geräte -> Gerät hinzufügen;")
         log(" bei Scan-Problemen Terminal stark vergrößern und Bildschirm heller stellen.")
-        log(" Alternative: Kopplung per Zahlencode via DSC_TICKER_PAIR_PHONE=<Nummer>.)")
+        log(" Alternative: Kopplung per Zahlencode via SKYRELAY_PAIR_PHONE=<Nummer>.)")
     else:
         log("(neuer QR-Code - der alte ist abgelaufen)")
     segno.make_qr(data_qr).terminal(compact=True)
@@ -1059,10 +1105,15 @@ async def with_retries(description, coro_factory, max_attempts=6, wait_seconds=1
 async def main():
     global match_hashtag, match_info, match_kickoff, channel_user
 
-    if "HIER-DEN-ARMINIA-KANAL-LINK" in CHANNEL_INVITE_LINK:
-        log("Fehler: CHANNEL_INVITE_LINK ist noch der Platzhalter.")
-        log("Im Handy: Arminia-Kanal öffnen -> Kanalname antippen -> Teilen -> Link kopieren")
-        log("und oben im Script bei CHANNEL_INVITE_LINK eintragen.")
+    fehlend = [name for name, wert in (
+        ("[source] channel_invite_link", CHANNEL_INVITE_LINK),
+        ("[bluesky] handle", BLUESKY_HANDLE),
+        ("[team] openligadb_filter", OPENLIGADB_TEAM_FILTER),
+    ) if not wert or "HIER-DEN" in wert or wert.startswith("dein-bot.")]
+    if fehlend:
+        log(f"Fehler: In {os.path.basename(CONFIG_FILE)} fehlen noch Angaben: {', '.join(fehlend)}")
+        log("Den Kanal-Link bekommst du im Handy über: Kanal öffnen -> Kanalnamen")
+        log("antippen -> Teilen -> Link kopieren.")
         sys.exit(1)
 
     # Nur-Profil-Modus "off": braucht weder Spieltag noch WhatsApp.
@@ -1095,11 +1146,11 @@ async def main():
         log(f"⚽ Heute ist Spieltag: {desc}, {info}, Anstoß {kickoff.strftime('%H:%M')} Uhr. "
             f"Spiel-Hashtag: #{match_hashtag}")
     elif FORCE_RUN:
-        note = "" if match_hashtag else " (Posts bekommen nur #arminia, keinen Spiel-Hashtag)"
-        log(f"DSC_TICKER_FORCE=1 gesetzt - kein OpenLigaDB-Spiel für heute gefunden, "
+        note = "" if match_hashtag else " (ohne Spiel-Hashtag)"
+        log(f"SKYRELAY_FORCE=1 gesetzt - kein OpenLigaDB-Spiel für heute gefunden, "
             f"laufe trotzdem{note}.")
     else:
-        log("Heute kein Arminia-Spiel - Script beendet sich.")
+        log("Heute kein Spiel - Script beendet sich.")
         return
 
     # Nur-Profil-Modus "on": Statuszeile setzen und beenden, ohne WhatsApp.
@@ -1108,7 +1159,7 @@ async def main():
         return
 
     if DRY_RUN:
-        log("DSC_TICKER_DRY_RUN=1 gesetzt - es wird NICHTS auf Bluesky gepostet.")
+        log("SKYRELAY_DRY_RUN=1 gesetzt - es wird NICHTS auf Bluesky gepostet.")
 
     log("Verbinde mit WhatsApp...")
     await client.connect()
@@ -1118,7 +1169,7 @@ async def main():
         # (PairPhone würde bei bestehendem Login einen Fehler werfen).
         try:
             await asyncio.wait_for(wa_connected.wait(), timeout=10)
-            log("ℹ️ Bereits gekoppelt - DSC_TICKER_PAIR_PHONE wird ignoriert.")
+            log("ℹ️ Bereits gekoppelt - SKYRELAY_PAIR_PHONE wird ignoriert.")
         except asyncio.TimeoutError:
             try:
                 code = await client.PairPhone(PAIR_PHONE, show_push_notification=True)

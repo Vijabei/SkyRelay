@@ -10,13 +10,17 @@ an Spieltagen automatisch von 6 bis 24 Uhr, gesteuert über Umgebungsvariablen.
 | Variable | Werte | Funktion |
 |---|---|---|
 | `BLUESKY_APP_PASSWORD` | `xxxx-xxxx-xxxx-xxxx` | **Pflicht** (außer im Dry-Run). App-Passwort des Bluesky-Bot-Accounts. |
-| `DSC_TICKER_DRY_RUN` | `1` | Nur loggen, **nichts** auf Bluesky posten. Für gefahrlose Tests. |
-| `DSC_TICKER_FORCE` | `1` | Läuft auch dann, wenn OpenLigaDB für heute **kein** Spiel kennt (Testspiele, manuelle Läufe). Findet OpenLigaDB doch eins, werden Hashtag und Spieltagsinfo trotzdem übernommen. |
-| `DSC_TICKER_HASHTAG` | z. B. `DSCGUE` | Spiel-Hashtag **manuell** setzen (mit/ohne `#`, Groß-/Kleinschreibung egal). Hat Vorrang vor dem automatisch generierten. Nötig bei Testspielen, die OpenLigaDB nicht kennt. |
-| `DSC_TICKER_REPLAY` | Zahl `N` | Testmodus: verarbeitet einmalig die **letzten N vorhandenen** Kanal-Posts und **beendet sich**. Wasserzeichen bleibt unberührt, keine Duplikatsprüfung. |
-| `DSC_TICKER_CATCHUP` | Zahl `N` | Nachhol-Modus: verarbeitet die letzten N Posts (**überspringt** bereits Verarbeitete dank Wasserzeichen) und **lauscht danach normal weiter**. Für „Script zu spät gestartet". |
-| `DSC_TICKER_PAIR_PHONE` | `4915123456789` | Erst-Kopplung per 8-stelligem Zahlencode statt QR-Scan (Nummer international, ohne `+`/führende 0). Nur beim allerersten Lauf nötig; wird ignoriert, wenn schon gekoppelt. |
-| `DSC_TICKER_PROFILE` | `on` / `off` | Setzt **nur** die Profil-Statuszeile der Bluesky-Bio und beendet sich sofort (ohne WhatsApp). Zum Testen und manuellen Nachkorrigieren. |
+| `SKYRELAY_DRY_RUN` | `1` | Nur loggen, **nichts** auf Bluesky posten. Für gefahrlose Tests. |
+| `SKYRELAY_FORCE` | `1` | Läuft auch dann, wenn OpenLigaDB für heute **kein** Spiel kennt (Testspiele, manuelle Läufe). Findet OpenLigaDB doch eins, werden Hashtag und Spieltagsinfo trotzdem übernommen. |
+| `SKYRELAY_HASHTAG` | z. B. `DSCGUE` | Spiel-Hashtag **manuell** setzen (mit/ohne `#`, Groß-/Kleinschreibung egal). Hat Vorrang vor dem automatisch generierten. Nötig bei Testspielen, die OpenLigaDB nicht kennt. |
+| `SKYRELAY_REPLAY` | Zahl `N` | Testmodus: verarbeitet einmalig die **letzten N vorhandenen** Kanal-Posts und **beendet sich**. Wasserzeichen bleibt unberührt, keine Duplikatsprüfung. |
+| `SKYRELAY_CATCHUP` | Zahl `N` | Nachhol-Modus: verarbeitet die letzten N Posts (**überspringt** bereits Verarbeitete dank Wasserzeichen) und **lauscht danach normal weiter**. Für „Script zu spät gestartet". |
+| `SKYRELAY_PAIR_PHONE` | `4915123456789` | Erst-Kopplung per 8-stelligem Zahlencode statt QR-Scan (Nummer international, ohne `+`/führende 0). Nur beim allerersten Lauf nötig; wird ignoriert, wenn schon gekoppelt. |
+| `SKYRELAY_PROFILE` | `on` / `off` | Setzt **nur** die Profil-Statuszeile der Bluesky-Bio und beendet sich sofort (ohne WhatsApp). Zum Testen und manuellen Nachkorrigieren. |
+| `SKYRELAY_CONFIG` | Pfad | Andere Konfigurationsdatei verwenden (Standard: `skyrelay.conf` neben dem Programm). So lassen sich mehrere Vereine parallel betreiben. |
+
+> Die alten `DSC_TICKER_*`-Namen funktionieren übergangsweise weiter, geben aber
+> einen Hinweis aus. Bitte auf `SKYRELAY_*` umstellen.
 
 ---
 
@@ -32,7 +36,7 @@ an Spieltagen automatisch von 6 bis 24 Uhr, gesteuert über Umgebungsvariablen.
 > Ein `Trotzdemdabei` im Interpreter-Pfad führt zu `/bin/sh: 1: …/bin/python3: not found`
 > — die Meldung meint den Interpreter, nicht Python selbst.
 >
-> ⚠️ **Keine `>> ticker.log 2>&1`-Umleitung mehr:** Das Script schreibt sein Log selbst
+> ⚠️ **Keine `>> skyrelay.log 2>&1`-Umleitung mehr:** Das Script schreibt sein Log selbst
 > (siehe unten). Bleibt die Umleitung stehen, steht jede Zeile **doppelt** in der Datei.
 
 **Verhalten:**
@@ -53,18 +57,18 @@ an Spieltagen automatisch von 6 bis 24 Uhr, gesteuert über Umgebungsvariablen.
 
 ```bash
 export BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"
-DSC_TICKER_FORCE=1 DSC_TICKER_HASHTAG=DSCGUE python skyrelay-matchday.py
+SKYRELAY_FORCE=1 SKYRELAY_HASHTAG=DSCGUE python skyrelay-matchday.py
 ```
 
 - **Beenden:** `Strg+C` (wird sauber abgefangen) — oder von selbst um 23:59 Uhr.
 - **Neustart am selben Tag:** unkritisch, keine Duplikate (Wasserzeichen).
-- Ohne `DSC_TICKER_HASHTAG` bekommen die Posts nur `#arminia` — außer OpenLigaDB kennt
+- Ohne `SKYRELAY_HASHTAG` bekommen die Posts nur `#arminia` — außer OpenLigaDB kennt
   für heute doch ein Spiel, dann werden Hashtag und Spieltagsinfo automatisch übernommen.
 - Für lange Läufe über SSH (überlebt das Schließen der Sitzung):
 
 ```bash
-nohup env DSC_TICKER_FORCE=1 DSC_TICKER_HASHTAG=DSCGUE python skyrelay-matchday.py >/dev/null 2>&1 &
-tail -f ticker.log        # zuschauen (Log schreibt das Script selbst)
+nohup env SKYRELAY_FORCE=1 SKYRELAY_HASHTAG=DSCGUE python skyrelay-matchday.py >/dev/null 2>&1 &
+tail -f skyrelay.log        # zuschauen (Log schreibt das Script selbst)
 pgrep -af dsc-spieltag    # läuft er? PID + Kommandozeile
 kill <PID>                # beenden (sauber, Bio geht auf "Bot ist aus")
 ```
@@ -72,7 +76,7 @@ kill <PID>                # beenden (sauber, Bio geht auf "Bot ist aus")
 ### 3a. Catchup (verpasste Posts nachholen, dann weiterlauschen)
 
 ```bash
-DSC_TICKER_CATCHUP=5 DSC_TICKER_FORCE=1 DSC_TICKER_HASHTAG=DSCGUE python skyrelay-matchday.py
+SKYRELAY_CATCHUP=5 SKYRELAY_FORCE=1 SKYRELAY_HASHTAG=DSCGUE python skyrelay-matchday.py
 ```
 
 - Holt die letzten `N` Posts nach, **überspringt** dabei alles, was laut Wasserzeichen heute
@@ -85,13 +89,13 @@ DSC_TICKER_CATCHUP=5 DSC_TICKER_FORCE=1 DSC_TICKER_HASHTAG=DSCGUE python skyrela
 
 ```bash
 # Letzten Kanal-Post nur ins Log (Trockenübung):
-DSC_TICKER_REPLAY=1 DSC_TICKER_FORCE=1 DSC_TICKER_DRY_RUN=1 python skyrelay-matchday.py
+SKYRELAY_REPLAY=1 SKYRELAY_FORCE=1 SKYRELAY_DRY_RUN=1 python skyrelay-matchday.py
 
 # Letzten Kanal-Post ECHT auf Bluesky posten (End-to-End-Test):
-DSC_TICKER_REPLAY=1 DSC_TICKER_FORCE=1 python skyrelay-matchday.py
+SKYRELAY_REPLAY=1 SKYRELAY_FORCE=1 python skyrelay-matchday.py
 
 # Die letzten 3 Posts:
-DSC_TICKER_REPLAY=3 ...
+SKYRELAY_REPLAY=3 ...
 ```
 
 - Verarbeitet älteste → neueste, komplette Pipeline (Text, Bilder, Link-Karte), dann Sofort-Exit.
@@ -109,17 +113,17 @@ DSC_TICKER_REPLAY=3 ...
 ## Erst-Kopplung (einmalig, interaktiv — nicht per Cron!)
 
 ```bash
-DSC_TICKER_FORCE=1 DSC_TICKER_DRY_RUN=1 python skyrelay-matchday.py
+SKYRELAY_FORCE=1 SKYRELAY_DRY_RUN=1 python skyrelay-matchday.py
 ```
 
 - Es erscheint ein ASCII-**QR-Code im Terminal** (nur wenn wirklich eine Kopplung nötig ist).
   Scannen mit: WhatsApp → Einstellungen → **Verknüpfte Geräte** → Gerät hinzufügen.
 - **Scan-Probleme?** Terminal stark vergrößern + Bildschirm heller stellen (Kontrast!).
   Der QR-Code rotiert alle ~30 s — immer den zuletzt angezeigten scannen.
-- **Alternative Zahlencode:** zusätzlich `DSC_TICKER_PAIR_PHONE=49…` setzen → Code im Handy eintippen
+- **Alternative Zahlencode:** zusätzlich `SKYRELAY_PAIR_PHONE=49…` setzen → Code im Handy eintippen
   („Stattdessen mit Telefonnummer koppeln").
 - Ein Login über web.whatsapp.com im Browser hilft **nicht** — es zählt nur die Kopplung dieses Scripts.
-- Danach liegt die Session in `dsc_ticker_session.sqlite3` und wird automatisch wiederverwendet.
+- Danach liegt die Session in `skyrelay_session.sqlite3` und wird automatisch wiederverwendet.
 
 ---
 
@@ -128,26 +132,35 @@ DSC_TICKER_FORCE=1 DSC_TICKER_DRY_RUN=1 python skyrelay-matchday.py
 | Datei | Zweck | Löschen erlaubt? |
 |---|---|---|
 | `skyrelay-matchday.py` | das Script | — |
-| `dsc_ticker_session.sqlite3` | WhatsApp-Session (Kopplung) | Ja → erzwingt neue Erst-Kopplung |
-| `dsc_ticker_state.txt` | Wasserzeichen: `Datum;letzte ServerID` | Ja → nächster Start setzt frische Baseline („ab jetzt") |
-| `dsc_ticker_posts.json` | Zuordnung ServerID → Bluesky-Posts (heutiger Tag, für Bearbeitungen) | Ja → Bearbeitungen können dann alte Posts nicht mehr löschen, nur neu posten |
-| `ticker.log` | Log — schreibt das Script **immer selbst**, egal wie gestartet (inkl. der Ausgaben des Go-Layers). Konsole zeigt weiterhin alles. | Ja |
-| `ticker.log.1` … `.5` | rotierte Logs (ab 2 MB wird beim Start rotiert, `.1` = neuestes) | Ja |
+| `skyrelay_session.sqlite3` | WhatsApp-Session (Kopplung) | Ja → erzwingt neue Erst-Kopplung |
+| `skyrelay_state.txt` | Wasserzeichen: `Datum;letzte ServerID` | Ja → nächster Start setzt frische Baseline („ab jetzt") |
+| `skyrelay_posts.json` | Zuordnung ServerID → Bluesky-Posts (heutiger Tag, für Bearbeitungen) | Ja → Bearbeitungen können dann alte Posts nicht mehr löschen, nur neu posten |
+| `skyrelay.log` | Log — schreibt das Script **immer selbst**, egal wie gestartet (inkl. der Ausgaben des Go-Layers). Konsole zeigt weiterhin alles. | Ja |
+| `skyrelay.log.1` … `.5` | rotierte Logs (ab 2 MB wird beim Start rotiert, `.1` = neuestes) | Ja |
 
 ---
 
-## Feste Einstellungen (Konstanten im Script-Kopf)
+## Einstellungen in `skyrelay.conf`
 
-| Konstante | Wert | Bedeutung |
-|---|---|---|
-| `CHANNEL_INVITE_LINK` | `…/channel/0029VaR1aJm6RGJAiMy8w73L` | Arminia-Kanal (JID `120363246785630110@newsletter`) |
-| `BLUESKY_HANDLE` | `dsc-spieltagticker.bsky.social` | Ziel-Account |
-| `SUBSCRIBE_RENEW_SECONDS` | `240` | Erneuerungs-Rhythmus des Live-Update-Abos (gilt nur wenige Minuten) |
-| `DAY_END_HOUR/MINUTE` | `23:59` | Selbst-Beenden am Spieltag |
-| `TEAM_CODES` | Dict | DFL-Kürzel je OpenLigaDB-teamId (2. Liga 2026/27). **Pokalgegner ggf. nachtragen** — unbekannte Teams bekommen einen 3-Buchstaben-Fallback + Log-Warnung. |
-| `LEAGUE_PREFIXES` | `("bl","dfb")` | Nur Spiele aus diesen OpenLigaDB-Ligen zählen. OpenLigaDB listet zu Arminia auch Fantasie-Ligen (gesehen: **„ESP8266"**, dasselbe Spiel mit falschem Datum!) — ohne Filter würde der Ticker an spielfreien Tagen anspringen. Verworfene Ligen stehen im Log. |
-| `LOG_TO_FILE` / `LOG_FILE_NAME` | `True` / `ticker.log` | Datei-Logging (immer aktiv, unabhängig von der Startart). `LOG_MAX_BYTES` = 2 MB, `LOG_BACKUP_COUNT` = 5. |
-| `PROFILE_LINE_ON` / `_OFF` | Templates | Text der Bio-Statuszeile. Platzhalter: `{info}` (= „1. Spieltag" / „DFB-Pokal, 1. Runde" / „Testspiel"), `{hashtag}`, `{date}`, `{time}`. `PROFILE_STATUS_ENABLED = False` schaltet die Funktion ganz ab. |
+Angelegt wird sie aus der Vorlage: `cp skyrelay.conf.example skyrelay.conf`.
+Sie steht in `.gitignore` und gehört **nicht** ins Repository.
+
+| Abschnitt / Schlüssel | Bedeutung |
+|---|---|
+| `[bluesky] handle` | Konto, auf dem gepostet wird. Das App-Passwort kommt **nicht** hierher, sondern in `BLUESKY_APP_PASSWORD`. |
+| `[source] channel_invite_link` | Einladungslink des WhatsApp-Kanals (Kanal → Teilen → Link kopieren) |
+| `[team] openligadb_filter` / `openligadb_team_id` | Verein bei OpenLigaDB. Team-Nummer nachschlagen unter `https://api.openligadb.de/getavailableteams/bl2/2026` |
+| `[team] league_prefixes` | Nur diese Ligen zählen. OpenLigaDB liefert vereinzelt Fantasie-Ligen mit falschen Terminen (real gesehen: **„ESP8266"**) — ohne die Sperre liefe der Ticker an spielfreien Tagen. Verworfene Ligen stehen im Log. |
+| `[team] timezone` | Zeitzone für Anstoß und Tagesende |
+| `[team_codes]` | Kürzel je Team-Nummer für die Hashtag-Bildung. **Pokalgegner ggf. nachtragen** — unbekannte Teams bekommen ein 3-Buchstaben-Ersatzkürzel plus Warnung im Log. |
+| `[post] prefix` / `source_label` / `standing_hashtag` | Kopfzeile, Beschriftung des Quell-Links und Dauer-Hashtag jedes Beitrags |
+| `[post] image_placeholder` / `video_placeholder` / `video_hint` | Texte für Beiträge ohne eigenen Text bzw. bei fehlgeschlagenem Video-Upload |
+| `[profile] enabled` / `marker` / `line_on` / `line_off` / `line_off_no_match` | Bio-Statuszeile. Platzhalter: `{info}` („1. Spieltag" / „DFB-Pokal, 1. Runde" / `fallback_match_info`), `{hashtag}`, `{date}`, `{time}` |
+| `[schedule] day_end` | Wann sich der Ticker selbst beendet (Standard `23:59`) |
+| `[schedule] subscribe_renew_seconds` | Erneuerungs-Rhythmus des Live-Abos (gilt nur wenige Minuten) |
+| `[files] session` / `state` / `posts_map` / `log` | Dateinamen im Programmordner. Beim Umstellen aus einer älteren Fassung werden vorhandene `dsc_ticker_*`-Dateien **automatisch übernommen** — eine neue Kopplung ist nicht nötig. |
+| `[logging] to_file` / `max_bytes` / `backup_count` | Protokolldatei und Rotation |
+| `[limits] max_video_bytes` / `video_job_timeout_seconds` | Bluesky-Grenzwerte, normalerweise unverändert lassen |
 
 ---
 
@@ -170,7 +183,7 @@ DSC_TICKER_FORCE=1 DSC_TICKER_DRY_RUN=1 python skyrelay-matchday.py
 - Embed-Priorität pro Post: Video > Bilder > Link-Karte (Bluesky erlaubt nur ein Embed).
 - **Bearbeitungen im Kanal:** Wird ein bereits reposteter Kanal-Post editiert, löscht der Bot
   seine alten Bluesky-Posts dazu und postet die korrigierte Version neu (Zuordnung in
-  `dsc_ticker_posts.json`, gilt pro Tag). Unveränderte Wiederzustellungen werden per
+  `skyrelay_posts.json`, gilt pro Tag). Unveränderte Wiederzustellungen werden per
   Text-Hash erkannt und ignoriert. Bearbeitungen zu Posts **ohne** gespeicherte Zuordnung
   (alte/fremde Posts) werden komplett ignoriert — alte Tickerposts sind uninteressant.
 
@@ -180,15 +193,15 @@ DSC_TICKER_FORCE=1 DSC_TICKER_DRY_RUN=1 python skyrelay-matchday.py
 
 | Symptom | Ursache / Lösung |
 |---|---|
-| `Wire format was corrupt` | Bug in neonize 0.4.0/0.4.1 (NUL-Byte-Abschneidung, [#199](https://github.com/krypton-byte/neonize/issues/199)) — seit **0.4.2** upstream gefixt (PR #198). Wir bleiben vorerst auf `0.3.18.post0` (im Spielbetrieb bewährt); Upgrade auf ≥ 0.4.3 in einer ruhigen Woche mit DRY_RUN/REPLAY testen, vorher `dsc_ticker_session.sqlite3` sichern. |
+| `Wire format was corrupt` | Bug in neonize 0.4.0/0.4.1 (NUL-Byte-Abschneidung, [#199](https://github.com/krypton-byte/neonize/issues/199)) — seit **0.4.2** upstream gefixt (PR #198). Wir bleiben vorerst auf `0.3.18.post0` (im Spielbetrieb bewährt); Upgrade auf ≥ 0.4.3 in einer ruhigen Woche mit DRY_RUN/REPLAY testen, vorher `skyrelay_session.sqlite3` sichern. |
 | `panic: required field neonize.NewsletterMessage.Message not set` | Go-Absturz, wenn der Nachrichten-Abruf eine unsichtbare **Meta-Nachricht** erwischt (z. B. Post-Bearbeitung/-Löschung). Betrifft nur **Replay/Catchup** (kleineres `N` wählen); der Live-Betrieb lauscht seit 13.07.2026 auf Events und ist immun. |
 | `VersionError: gencode … runtime …` | protobuf zu alt → `pip install -U protobuf` (**nie** downgraden). |
-| Nach neonize-Versionswechsel Probleme | `dsc_ticker_session.sqlite3` löschen + neu koppeln (DB-Schema). |
+| Nach neonize-Versionswechsel Probleme | `skyrelay_session.sqlite3` löschen + neu koppeln (DB-Schema). |
 | Hänger/Fehler direkt nach Erst-Kopplung | Normal (Server erzwingt Reconnect); Script wartet + wiederholt selbst. Einfach neu starten, falls es doch abbricht. |
 | `⚠️ Kein DFL-Kürzel für "XY"` im Log | Pokal-/unbekannter Gegner → korrektes Kürzel in `TEAM_CODES` nachtragen. |
 | Cron: `/bin/sh: 1: …/bin/python3: not found` | Pfad-Tippfehler (meist Groß-/Kleinschreibung, `Trotzdemdabei` statt `trotzdemdabei`). Gemeint ist der **Interpreter**, nicht Python. Prüfen mit `ls -l <pfad>`. |
 | Ticker startet an einem spielfreien Tag | Sollte durch `LEAGUE_PREFIXES` verhindert sein. Log prüfen auf „Spiele aus unbekannten Ligen ignoriert" bzw. welche Liga als Spieltag erkannt wurde. |
-| Bio-Statuszeile bleibt auf „Bot ist an" | Prozess wurde hart getötet (`kill -9`, Stromausfall) — dann läuft das `finally` nicht. Manuell zurücksetzen: `DSC_TICKER_PROFILE=off … python skyrelay-matchday.py`. |
+| Bio-Statuszeile bleibt auf „Bot ist an" | Prozess wurde hart getötet (`kill -9`, Stromausfall) — dann läuft das `finally` nicht. Manuell zurücksetzen: `SKYRELAY_PROFILE=off … python skyrelay-matchday.py`. |
 | Script „postet nichts" | Läuft es im richtigen Modus? Log prüfen: `REPLAY-Modus…` vs. `Starte Poll-Loop…`. Env-Variablen müssen **vor** dem python-Aufruf auf derselben Zeile stehen. |
 | `Error sending close to websocket … EOF` am Ende | Kosmetik beim sauberen Trennen — ignorieren. |
 | `SIGSEGV … signal arrived during cgo execution` **nach** „REPLAY abgeschlossen"/Tagesende | Aufräum-Race in neonize: Go-Socket-Thread loggt nach Python, während der Interpreter schon beendet. Rein kosmetisch — die Arbeit war zu dem Zeitpunkt komplett erledigt. Script wartet seit 13.07. 2 s nach dem Trennen, um das zu vermeiden. |

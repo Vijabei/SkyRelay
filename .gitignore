@@ -20,9 +20,11 @@ nohup.out
 # Arbeitsverzeichnis der Medien-Downloads
 tmp/
 
-# === Lokale Konfiguration mit Zugangsdaten ===
+# === Lokale Konfiguration (enthält Kanal-Link und Kontodaten) ===
+# Die Vorlage skyrelay.conf.example bleibt im Repository, die eigene nicht.
+skyrelay.conf
+*.local.conf
 config.ini
-config.local.*
 .env
 *.env
 

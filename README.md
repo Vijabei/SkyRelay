@@ -36,11 +36,10 @@ Quellenwechsel später keine Umbenennung erzwingt.
 
 ## Projektstatus
 
-Läuft produktiv, ist aber **noch nicht allgemein konfigurierbar**: Verein, Kanal und
-Konto stehen derzeit als Konstanten im Kopf der Programmdatei, die Umgebungsvariablen
-heißen noch `DSC_TICKER_*`. Eine Konfigurationsdatei und vereinsneutrale Bezeichnungen
-sind der nächste geplante Schritt. Wer es heute für einen anderen Verein nutzen will,
-muss den Dateikopf anpassen — machbar, aber kein Komfort.
+`skyrelay-matchday.py` läuft produktiv und ist über `skyrelay.conf` frei
+konfigurierbar — Verein, Kanal, Konto, Texte und Dateinamen stecken alle dort.
+`skyrelay-feed.py` (Instagram) ist noch nicht umgestellt: Dort stehen die Werte
+weiterhin im Kopf der Programmdatei.
 
 ---
 
@@ -69,17 +68,22 @@ System: Fehlende Systempakete werden nur gemeldet, nicht automatisch nachinstall
 
 ## Konfiguration
 
-Bis zur Konfigurationsdatei werden die Werte im Kopf von `skyrelay-matchday.py`
-gesetzt — mindestens diese beiden:
+Vorlage kopieren und anpassen:
 
-```python
-CHANNEL_INVITE_LINK = "https://whatsapp.com/channel/..."   # Kanal → Teilen → Link kopieren
-BLUESKY_HANDLE      = "dein-bot.bsky.social"
+```bash
+cp skyrelay.conf.example skyrelay.conf
 ```
 
-Für einen anderen Verein zusätzlich anzupassen: `OPENLIGADB_TEAM_FILTER`,
-`OPENLIGADB_TEAM_ID`, die Kürzeltabelle `TEAM_CODES` und die Vorlagen der
-Profil-Statuszeile.
+Mindestens nötig sind `[bluesky] handle` und `[source] channel_invite_link`; für
+einen anderen Verein zusätzlich `[team]` (OpenLigaDB-Suchbegriff und Team-Nummer)
+sowie die Kürzel unter `[team_codes]`. Alle Abschnitte sind in der Vorlage
+kommentiert, eine Übersicht steht im [CheatSheet](CHEATSHEET-matchday.md).
+
+Die eigene `skyrelay.conf` steht in `.gitignore` und gehört nicht ins Repository.
+Mehrere Vereine parallel betreibst du über `SKYRELAY_CONFIG=/pfad/zur/datei.conf`.
+
+Wer von einer älteren Fassung umsteigt, muss **nichts neu koppeln**: vorhandene
+`dsc_ticker_*`-Dateien werden beim ersten Start automatisch übernommen.
 
 Das **App-Passwort gehört niemals in eine Datei**, sondern in eine Umgebungsvariable:
 
@@ -92,13 +96,13 @@ export BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"
 Einmalig und **interaktiv im Terminal** (nicht per cron):
 
 ```bash
-DSC_TICKER_FORCE=1 DSC_TICKER_DRY_RUN=1 venv/bin/python skyrelay-matchday.py
+SKYRELAY_FORCE=1 SKYRELAY_DRY_RUN=1 venv/bin/python skyrelay-matchday.py
 ```
 
 Es erscheint ein QR-Code, den du im Handy unter *WhatsApp → Einstellungen →
 Verknüpfte Geräte → Gerät hinzufügen* scannst. Praxistipp: Bildschirm hell stellen und
 das Terminal stark vergrößern, sonst findet die Kamera zu wenig Kontrast. Alternativ
-per Zahlencode koppeln — dazu `DSC_TICKER_PAIR_PHONE=49xxxxxxxxx` ergänzen.
+per Zahlencode koppeln — dazu `SKYRELAY_PAIR_PHONE=49xxxxxxxxx` ergänzen.
 
 Ein Login über `web.whatsapp.com` im Browser hilft **nicht**: Das Programm ist ein
 eigenes verknüpftes Gerät mit eigener Sitzung. Diese liegt danach in
@@ -114,7 +118,7 @@ entscheidet das Programm selbst:
 ```
 
 Zwei häufige Stolpersteine: Pfade sind **groß-/kleinschreibungsabhängig**, und eine
-Ausgabeumleitung (`>> ticker.log`) ist **nicht** nötig — das Programm schreibt sein
+Ausgabeumleitung (`>> skyrelay.log`) ist **nicht** nötig — das Programm schreibt sein
 Protokoll selbst, sonst steht jede Zeile doppelt darin.
 
 Läuft der Bot gerade?

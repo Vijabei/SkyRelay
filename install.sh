@@ -167,16 +167,17 @@ cat <<HINWEISE
 
 $(printf '\033[1mFertig.\033[0m') Nächste Schritte:
 
-  1. Konfiguration eintragen (derzeit im Kopf der Programmdatei):
-       nano skyrelay-matchday.py
-     -> CHANNEL_INVITE_LINK und BLUESKY_HANDLE setzen
+  1. Konfiguration anlegen und anpassen:
+       cp skyrelay.conf.example skyrelay.conf
+       nano skyrelay.conf
+     -> mindestens [source] channel_invite_link und [bluesky] handle setzen
 
   2. Bluesky-App-Passwort als Umgebungsvariable bereitstellen
-     (niemals ins Programm oder ins Repository schreiben):
+     (niemals in die Konfiguration oder ins Repository schreiben):
        export BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"
 
   3. Erste WhatsApp-Kopplung - muss interaktiv im Terminal laufen:
-       DSC_TICKER_FORCE=1 DSC_TICKER_DRY_RUN=1 venv/bin/python skyrelay-matchday.py
+       SKYRELAY_FORCE=1 SKYRELAY_DRY_RUN=1 venv/bin/python skyrelay-matchday.py
      -> QR-Code mit dem Handy scannen (Verknüpfte Geräte -> Gerät hinzufügen)
 
   4. Danach Dauerbetrieb per cron einrichten - siehe README.md

@@ -1,0 +1,130 @@
+# ============================================================================
+#  SkyRelay - Konfiguration
+# ============================================================================
+#  Diese Datei nach "skyrelay.conf" kopieren und anpassen:
+#      cp skyrelay.conf.example skyrelay.conf
+#
+#  Die eigene skyrelay.conf gehört NICHT ins Repository (steht in .gitignore).
+#  Das Bluesky-App-Passwort steht bewusst NICHT hier, sondern in der
+#  Umgebungsvariablen BLUESKY_APP_PASSWORD.
+#
+#  Ein anderer Pfad lässt sich über die Umgebungsvariable SKYRELAY_CONFIG
+#  angeben - so lassen sich mehrere Vereine parallel betreiben.
+# ============================================================================
+
+[bluesky]
+# Handle des Bot-Kontos, auf dem gepostet wird.
+handle = dein-bot.bsky.social
+
+
+[source]
+# Einladungslink des WhatsApp-Kanals, der gespiegelt werden soll.
+# Im Handy: Kanal öffnen -> Kanalnamen antippen -> Teilen -> Link kopieren.
+channel_invite_link = https://whatsapp.com/channel/HIER-DEN-KANAL-LINK-EINSETZEN
+
+
+[team]
+# Suchbegriff für die OpenLigaDB-Abfrage (Teil des Vereinsnamens).
+openligadb_filter = bielefeld
+# Team-Nummer bei OpenLigaDB. Zur Absicherung, weil der Suchbegriff
+# auch fremde Vereine treffen kann. Nachschlagen:
+#   https://api.openligadb.de/getavailableteams/bl2/2026
+openligadb_team_id = 83
+# Nur Spiele aus diesen Ligen zählen (Vergleich mit dem Ligakürzel, Komma-Liste).
+# Hintergrund: OpenLigaDB liefert vereinzelt Fantasie-Ligen mit falschen Terminen
+# (real gesehen: "ESP8266"). Ohne diese Sperre würde der Bot an spielfreien Tagen
+# anspringen. bl = alle Bundesligen, dfb = DFB-Pokal.
+league_prefixes = bl, dfb
+# Zeitzone für Anstoßzeiten und das Tagesende.
+timezone = Europe/Berlin
+
+
+[team_codes]
+# Kürzel für die Hashtag-Bildung: Heimteam + Auswärtsteam ergibt z.B. #KSCDSC.
+# Format:  <OpenLigaDB-Team-Nummer> = <Kürzel>
+# Fehlt ein Gegner, nimmt der Bot die ersten drei Buchstaben des Kurznamens und
+# schreibt eine Warnung ins Protokoll - dann hier ergänzen.
+# Stand: 2. Bundesliga 2026/27.
+83 = DSC
+199 = FCH
+76 = FCK
+78 = FCM
+79 = FCN
+177 = SGD
+74 = EBS
+93 = FCE
+98 = STP
+55 = H96
+54 = BSC
+104 = KSV
+105 = KSC
+115 = SGF
+118 = SVD
+129 = BOC
+36 = OSN
+131 = WOB
+
+
+[post]
+# Kopfzeile jedes Hauptbeitrags. Kennzeichnet den Bot als inoffiziell -
+# bitte drin lassen, das erspart Missverständnisse.
+prefix = ⚽ [Inoffizieller Bot]
+# Beschriftung des Quell-Links (verweist auf den Kanal aus [source]).
+source_label = WhatsApp-Kanal des Vereins
+# Hashtag, der unter jedem Beitrag steht (ohne #). Leer lassen für keinen.
+standing_hashtag = arminia
+# Platzhaltertexte, wenn ein Beitrag nur aus Medien ohne Text besteht.
+image_placeholder = 📸 Neues Bild im Kanal
+video_placeholder = 🎥 Neues Video im Kanal
+# Hinweis, der angehängt wird, wenn ein Video nicht übertragen werden konnte.
+video_hint = 🎥 (Video im Original-Kanal)
+# Präfix der hochgeladenen Videodateien (nur intern sichtbar).
+media_prefix = skyrelay
+
+
+[profile]
+# Erste Zeile der Bluesky-Biografie am Spieltag umschalten? true/false
+enabled = true
+# Woran eine bereits vorhandene Statuszeile erkannt wird: Enthält die erste
+# Zeile diesen Text, wird sie ersetzt - sonst wird die Zeile davorgesetzt.
+marker = Bot ist
+# Platzhalter: {info} = "1. Spieltag" bzw. "DFB-Pokal, 1. Runde"
+#              {hashtag} = "#KSCDSC", {date} = "08.08.", {time} = "13:00"
+line_on = 🟢 Bot ist an - {info} {hashtag} ⚫⚪🔵
+line_off = 🔴 Bot ist aus - nächstes Spiel {hashtag} ⚫⚪🔵
+line_off_no_match = 🔴 Bot ist aus ⚫⚪🔵
+# Text für {info}, wenn OpenLigaDB kein Spiel kennt (z.B. Testspiele).
+fallback_match_info = Testspiel
+
+
+[schedule]
+# Bis wann an Spieltagen gelauscht wird (danach beendet sich der Bot selbst).
+day_end = 23:59
+# Abstand, in dem das Live-Abo des Kanals erneuert wird (Sekunden).
+subscribe_renew_seconds = 240
+# Pause zwischen zwei Bluesky-Beiträgen (Sekunden).
+pause_between_posts_seconds = 3
+
+
+[files]
+# Dateinamen im Programmverzeichnis. Beim Umbenennen einer bestehenden
+# Installation werden vorhandene Dateien automatisch übernommen.
+# ACHTUNG: session enthält die WhatsApp-Kopplung - niemals weitergeben.
+session = skyrelay_session.sqlite3
+state = skyrelay_state.txt
+posts_map = skyrelay_posts.json
+log = skyrelay.log
+
+
+[logging]
+# Protokoll immer zusätzlich in die Datei aus [files] log schreiben.
+to_file = true
+# Ab dieser Größe wird beim Start rotiert (Bytes), mit so vielen Sicherungen.
+max_bytes = 2000000
+backup_count = 5
+
+
+[limits]
+# Grenzwerte von Bluesky bzw. Wartezeiten - normalerweise unverändert lassen.
+max_video_bytes = 100000000
+video_job_timeout_seconds = 600
