@@ -1043,7 +1043,8 @@ async def main():
                 traceback.print_exc()
             if mode == "CATCHUP":
                 watermark = nm.MessageServerID
-                save_watermark(watermark)
+                if not DRY_RUN:  # im Trockenlauf nichts als erledigt markieren
+                    save_watermark(watermark)
             await asyncio.sleep(PAUSE_BETWEEN_POSTS_SECONDS)
         if mode == "REPLAY":
             log("REPLAY abgeschlossen - Script beendet sich.")
@@ -1129,7 +1130,8 @@ async def main():
                 log("   (nicht von heute - übersprungen)")
                 if server_id:
                     watermark = server_id
-                    save_watermark(watermark)
+                    if not DRY_RUN:
+                        save_watermark(watermark)
                 continue
 
             log(f"[NEU] Kanal-Nachricht mit ServerID {server_id or '?'}:")
@@ -1144,12 +1146,15 @@ async def main():
             except Exception as post_err:
                 log(f"   ⚠️ Fehler beim Reposten: {post_err}")
                 traceback.print_exc()
-            # Dedup auch bei Fehler fortschreiben, sonst bleibt das Script an
-            # derselben kaputten Nachricht hängen.
+            # Dedup auch bei Fehler fortschreiben, sonst bleibt das Programm an
+            # derselben kaputten Nachricht hängen. Im Trockenlauf wird der Stand
+            # NICHT gespeichert - sonst gälte ein nur getesteter Beitrag später
+            # als erledigt und würde nie veröffentlicht.
             seen_ids.add(msg_id)
             if server_id:
                 watermark = server_id
-                save_watermark(watermark)
+                if not DRY_RUN:
+                    save_watermark(watermark)
             await asyncio.sleep(PAUSE_BETWEEN_POSTS_SECONDS)
         except Exception as event_err:
             log(f"⚠️ Fehler bei der Event-Verarbeitung ({event_err}) - Event übersprungen, lausche weiter.")
