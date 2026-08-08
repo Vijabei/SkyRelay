@@ -137,18 +137,14 @@ Mehrere Vereine parallel betreibst du über `SKYRELAY_CONFIG=/pfad/zur/datei.con
 Wer von einer älteren Fassung umsteigt, muss **nichts neu koppeln**: vorhandene
 `dsc_ticker_*`-Dateien werden beim ersten Start automatisch übernommen.
 
-Das **App-Passwort gehört niemals in eine Datei**, sondern in eine Umgebungsvariable.
-Bei **einem gemeinsamen Konto** für beide Bots genügt eine:
-
-```bash
-export BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"
-```
-
-Bei **getrennten Konten** je eine pro Bot — dann greift die allgemeine Variable nicht mehr:
+Das **App-Passwort gehört niemals in eine Datei**, sondern in eine Umgebungsvariable —
+je eine pro Bot, damit die Zuordnung eindeutig bleibt:
 
 ```bash
 export BLUESKY_TICKER_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"; export BLUESKY_FEED_APP_PASSWORD="yyyy-yyyy-yyyy-yyyy"
 ```
+
+Nutzen beide Bots dasselbe Konto, steht in beiden Variablen einfach dasselbe Passwort.
 
 ⚠️ **cron liest weder `~/.bashrc` noch `~/.profile`.** Für den automatischen Betrieb
 gehören die Variablen **oben in die crontab** (`crontab -e`) — dort ohne
@@ -182,7 +178,7 @@ Im Regelbetrieb genügt ein täglicher cron-Eintrag — ob heute überhaupt gesp
 entscheidet das Programm selbst:
 
 ```cron
-0 6 * * * BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx" /pfad/zu/SkyRelay/venv/bin/python3 /pfad/zu/SkyRelay/skyrelay-matchday.py >/dev/null 2>&1
+0 6 * * * BLUESKY_TICKER_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx" /pfad/zu/SkyRelay/venv/bin/python3 /pfad/zu/SkyRelay/skyrelay-matchday.py >/dev/null 2>&1
 ```
 
 Zwei häufige Stolpersteine: Pfade sind **groß-/kleinschreibungsabhängig**, und eine
@@ -210,7 +206,7 @@ Danach regelmäßig per cron aufrufen — das Programm überträgt, was seit dem
 letzten Lauf neu ist:
 
 ```cron
-*/15 * * * * BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx" /pfad/zu/SkyRelay/venv/bin/python3 /pfad/zu/SkyRelay/skyrelay-feed.py >/dev/null 2>&1
+*/15 * * * * BLUESKY_FEED_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx" /pfad/zu/SkyRelay/venv/bin/python3 /pfad/zu/SkyRelay/skyrelay-feed.py >/dev/null 2>&1
 ```
 
 Nutzt du für Instagram ein **anderes** Bluesky-Konto als für den Ticker, trägst du

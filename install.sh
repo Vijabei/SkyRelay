@@ -175,7 +175,8 @@ $(printf '\033[1mFertig.\033[0m') Nächste Schritte:
 
   2. Bluesky-App-Passwort als Umgebungsvariable bereitstellen
      (niemals in die Konfiguration oder ins Repository schreiben):
-       export BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"
+       export BLUESKY_TICKER_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"
+       export BLUESKY_FEED_APP_PASSWORD="yyyy-yyyy-yyyy-yyyy"
 
   3. Erste WhatsApp-Kopplung - muss interaktiv im Terminal laufen:
        SKYRELAY_FORCE=1 SKYRELAY_DRY_RUN=1 venv/bin/python skyrelay-matchday.py

@@ -9,7 +9,7 @@ an Spieltagen automatisch von 6 bis 24 Uhr, gesteuert über Umgebungsvariablen.
 
 | Variable | Werte | Funktion |
 |---|---|---|
-| `BLUESKY_APP_PASSWORD` | `xxxx-xxxx-xxxx-xxxx` | **Pflicht** (außer im Dry-Run). App-Passwort des Bluesky-Bot-Accounts. |
+| `BLUESKY_TICKER_APP_PASSWORD` | `xxxx-xxxx-xxxx-xxxx` | **Pflicht** (außer im Dry-Run). App-Passwort des **Ticker**-Kontos. Der Feed nutzt entsprechend `BLUESKY_FEED_APP_PASSWORD`. |
 | `SKYRELAY_DRY_RUN` | `1` | Nur loggen, **nichts** auf Bluesky posten. Für gefahrlose Tests. |
 | `SKYRELAY_FORCE` | `1` | Läuft auch dann, wenn OpenLigaDB für heute **kein** Spiel kennt (Testspiele, manuelle Läufe). Findet OpenLigaDB doch eins, werden Hashtag und Spieltagsinfo trotzdem übernommen. |
 | `SKYRELAY_HASHTAG` | z. B. `DSCGUE` | Spiel-Hashtag **manuell** setzen (mit/ohne `#`, Groß-/Kleinschreibung egal). Hat Vorrang vor dem automatisch generierten. Nötig bei Testspielen, die OpenLigaDB nicht kennt. |
@@ -29,7 +29,7 @@ an Spieltagen automatisch von 6 bis 24 Uhr, gesteuert über Umgebungsvariablen.
 ### 1. Cron-Automatik (Normalbetrieb, Pflichtspiele)
 
 ```cron
-0 6 * * * BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx" /home/geordi/trotzdemdabei/bin/python3 /home/geordi/trotzdemdabei/skyrelay-matchday.py >/dev/null 2>&1
+0 6 * * * BLUESKY_TICKER_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx" /home/geordi/SkyRelay/venv/bin/python3 /home/geordi/SkyRelay/skyrelay-matchday.py >/dev/null 2>&1
 ```
 
 > ⚠️ **Pfade sind case-sensitive:** `trotzdemdabei` wird komplett kleingeschrieben.
@@ -56,7 +56,7 @@ an Spieltagen automatisch von 6 bis 24 Uhr, gesteuert über Umgebungsvariablen.
 ### 2. Manueller Lauf (Testspiele, „mal ein paar Stunden testen")
 
 ```bash
-export BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"
+export BLUESKY_TICKER_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"
 SKYRELAY_FORCE=1 SKYRELAY_HASHTAG=DSCGUE python skyrelay-matchday.py
 ```
 
@@ -147,7 +147,7 @@ Sie steht in `.gitignore` und gehört **nicht** ins Repository.
 
 | Abschnitt / Schlüssel | Bedeutung |
 |---|---|
-| `[bluesky] handle` | Konto, auf dem gepostet wird. Das App-Passwort kommt **nicht** hierher, sondern in `BLUESKY_APP_PASSWORD`. |
+| `[bluesky] handle` | Konto, auf dem gepostet wird. Das App-Passwort kommt **nicht** hierher, sondern in `BLUESKY_TICKER_APP_PASSWORD`. |
 | `[source] channel_invite_link` | Einladungslink des WhatsApp-Kanals (Kanal → Teilen → Link kopieren) |
 | `[team] openligadb_filter` / `openligadb_team_id` | Verein bei OpenLigaDB. Team-Nummer nachschlagen unter `https://api.openligadb.de/getavailableteams/bl2/2026`. **Leer bzw. `0` = keine Spieltags-Erkennung** — für Sportarten ohne OpenLigaDB-Daten; der Ticker läuft dann an jedem Starttag, Hashtag über `SKYRELAY_HASHTAG`. |
 | `[team] league_prefixes` | Nur diese Ligen zählen. OpenLigaDB liefert vereinzelt Fantasie-Ligen mit falschen Terminen (real gesehen: **„ESP8266"**) — ohne die Sperre liefe der Ticker an spielfreien Tagen. Verworfene Ligen stehen im Log. |

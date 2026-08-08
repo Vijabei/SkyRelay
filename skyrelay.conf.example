@@ -6,7 +6,7 @@
 #
 #  Die eigene skyrelay.conf gehört NICHT ins Repository (steht in .gitignore).
 #  Das Bluesky-App-Passwort steht bewusst NICHT hier, sondern in der
-#  Umgebungsvariablen BLUESKY_APP_PASSWORD.
+#  Umgebungsvariablen BLUESKY_TICKER_APP_PASSWORD bzw. BLUESKY_FEED_APP_PASSWORD.
 #
 #  Ein anderer Pfad lässt sich über die Umgebungsvariable SKYRELAY_CONFIG
 #  angeben - so lassen sich mehrere Vereine parallel betreiben.
