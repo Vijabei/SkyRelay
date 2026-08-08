@@ -8,6 +8,7 @@ Bluesky. Damit gibt es für jede dieser Aufgaben nur noch eine Stelle.
 Wird von beiden Programmen importiert und ist nicht zum direkten Aufruf gedacht.
 """
 
+import atexit
 import configparser
 import io
 import os
@@ -71,11 +72,26 @@ def start_file_logging(path, max_bytes=2_000_000, backups=5):
                         except Exception:
                             pass
 
-        threading.Thread(target=verteile, name="log-tee", daemon=True).start()
+        verteiler = threading.Thread(target=verteile, name="log-tee", daemon=True)
+        verteiler.start()
         # Ohne Terminal ist stdout sonst blockgepuffert - Zeilenpufferung sorgt
         # dafür, dass "tail -f" sofort mitläuft.
         sys.stdout.reconfigure(line_buffering=True)
         sys.stderr.reconfigure(line_buffering=True)
+
+        def abschluss():
+            """Beim Beenden dem Verteiler-Thread Zeit geben, die Pipe zu leeren.
+            Ohne das gehen Ausgaben verloren, sobald sich das Programm kurz nach
+            dem Start beendet - etwa mit einer Meldung zur Konfiguration oder mit
+            "heute kein Spiel". Also genau die Zeilen, die man dann braucht."""
+            try:
+                sys.stdout.flush()
+                sys.stderr.flush()
+            except Exception:
+                pass
+            time.sleep(0.2)
+
+        atexit.register(abschluss)
         return True
     except Exception as fehler:
         print(f"⚠️ Datei-Protokoll konnte nicht gestartet werden: {fehler}", flush=True)
