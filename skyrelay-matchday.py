@@ -38,7 +38,7 @@ Erster Lauf MUSS interaktiv im Terminal erfolgen (nicht per cron; SSH reicht,
 kein X11/Browser nötig). Empfohlener Weg: Kopplung per 8-stelligem Code statt QR
 (der ASCII-QR-Code wird in Terminals oft verzerrt dargestellt und rotiert alle
 paar Sekunden - der Zahlencode ist zuverlässiger):
-    DSC_TICKER_PAIR_PHONE="4915123456789" DSC_TICKER_FORCE=1 DSC_TICKER_DRY_RUN=1 python dsc-spieltag-ticker.py
+    DSC_TICKER_PAIR_PHONE="4915123456789" DSC_TICKER_FORCE=1 DSC_TICKER_DRY_RUN=1 python skyrelay-matchday.py
     (Nummer der Wegwerf-SIM im internationalen Format ohne + und ohne führende 0)
     -> Das Script gibt einen Kopplungscode aus. Im Handy: WhatsApp ->
        Einstellungen -> Verknüpfte Geräte -> Gerät hinzufügen ->
@@ -55,7 +55,7 @@ paar Sekunden - der Zahlencode ist zuverlässiger):
 Cron-Beispiel (Spieltags-Check jeden Morgen um 6 Uhr, Rest regelt das Script selbst).
 Achtung: Pfade sind case-sensitive, und KEINE ">> ticker.log"-Umleitung mehr angeben -
 das Script schreibt sein Log selbst (sonst stünde jede Zeile doppelt drin):
-    0 6 * * * BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx" /home/pi/arminia/venv/bin/python3 /home/pi/arminia/dsc-spieltag-ticker.py >/dev/null 2>&1
+    0 6 * * * BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx" /home/pi/arminia/venv/bin/python3 /home/pi/arminia/skyrelay-matchday.py >/dev/null 2>&1
 """
 
 import asyncio
@@ -628,7 +628,7 @@ def set_profile_status(on):
         log(f"⚠️ Profil-Statuszeile konnte nicht aktualisiert werden: {e}")
 
 
-# --- Video-Upload: portiert aus arminia_reposter.py ---------------------------
+# --- Video-Upload: portiert aus skyrelay-feed.py ---------------------------
 # TODO(Auslagerung): resolve_pds_did_web, upload_video_to_bluesky, das Bild-
 # Komprimieren und die Thread-Post-Logik existieren nahezu identisch im
 # Instagram-Reposter. Bevor das Script mit Config-Datei "Arminia"-neutral

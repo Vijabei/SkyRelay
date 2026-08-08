@@ -1,4 +1,4 @@
-# CheatSheet: dsc-spieltag-ticker.py
+# CheatSheet: skyrelay-matchday.py
 
 Repostet den **Arminia-Bielefeld-WhatsApp-Kanal** nach Bluesky (`dsc-spieltagticker.bsky.social`) —
 an Spieltagen automatisch von 6 bis 24 Uhr, gesteuert über Umgebungsvariablen.
@@ -25,7 +25,7 @@ an Spieltagen automatisch von 6 bis 24 Uhr, gesteuert über Umgebungsvariablen.
 ### 1. Cron-Automatik (Normalbetrieb, Pflichtspiele)
 
 ```cron
-0 6 * * * BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx" /home/geordi/trotzdemdabei/bin/python3 /home/geordi/trotzdemdabei/dsc-spieltag-ticker.py >/dev/null 2>&1
+0 6 * * * BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx" /home/geordi/trotzdemdabei/bin/python3 /home/geordi/trotzdemdabei/skyrelay-matchday.py >/dev/null 2>&1
 ```
 
 > ⚠️ **Pfade sind case-sensitive:** `trotzdemdabei` wird komplett kleingeschrieben.
@@ -53,7 +53,7 @@ an Spieltagen automatisch von 6 bis 24 Uhr, gesteuert über Umgebungsvariablen.
 
 ```bash
 export BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"
-DSC_TICKER_FORCE=1 DSC_TICKER_HASHTAG=DSCGUE python dsc-spieltag-ticker.py
+DSC_TICKER_FORCE=1 DSC_TICKER_HASHTAG=DSCGUE python skyrelay-matchday.py
 ```
 
 - **Beenden:** `Strg+C` (wird sauber abgefangen) — oder von selbst um 23:59 Uhr.
@@ -63,7 +63,7 @@ DSC_TICKER_FORCE=1 DSC_TICKER_HASHTAG=DSCGUE python dsc-spieltag-ticker.py
 - Für lange Läufe über SSH (überlebt das Schließen der Sitzung):
 
 ```bash
-nohup env DSC_TICKER_FORCE=1 DSC_TICKER_HASHTAG=DSCGUE python dsc-spieltag-ticker.py >/dev/null 2>&1 &
+nohup env DSC_TICKER_FORCE=1 DSC_TICKER_HASHTAG=DSCGUE python skyrelay-matchday.py >/dev/null 2>&1 &
 tail -f ticker.log        # zuschauen (Log schreibt das Script selbst)
 pgrep -af dsc-spieltag    # läuft er? PID + Kommandozeile
 kill <PID>                # beenden (sauber, Bio geht auf "Bot ist aus")
@@ -72,7 +72,7 @@ kill <PID>                # beenden (sauber, Bio geht auf "Bot ist aus")
 ### 3a. Catchup (verpasste Posts nachholen, dann weiterlauschen)
 
 ```bash
-DSC_TICKER_CATCHUP=5 DSC_TICKER_FORCE=1 DSC_TICKER_HASHTAG=DSCGUE python dsc-spieltag-ticker.py
+DSC_TICKER_CATCHUP=5 DSC_TICKER_FORCE=1 DSC_TICKER_HASHTAG=DSCGUE python skyrelay-matchday.py
 ```
 
 - Holt die letzten `N` Posts nach, **überspringt** dabei alles, was laut Wasserzeichen heute
@@ -85,10 +85,10 @@ DSC_TICKER_CATCHUP=5 DSC_TICKER_FORCE=1 DSC_TICKER_HASHTAG=DSCGUE python dsc-spi
 
 ```bash
 # Letzten Kanal-Post nur ins Log (Trockenübung):
-DSC_TICKER_REPLAY=1 DSC_TICKER_FORCE=1 DSC_TICKER_DRY_RUN=1 python dsc-spieltag-ticker.py
+DSC_TICKER_REPLAY=1 DSC_TICKER_FORCE=1 DSC_TICKER_DRY_RUN=1 python skyrelay-matchday.py
 
 # Letzten Kanal-Post ECHT auf Bluesky posten (End-to-End-Test):
-DSC_TICKER_REPLAY=1 DSC_TICKER_FORCE=1 python dsc-spieltag-ticker.py
+DSC_TICKER_REPLAY=1 DSC_TICKER_FORCE=1 python skyrelay-matchday.py
 
 # Die letzten 3 Posts:
 DSC_TICKER_REPLAY=3 ...
@@ -109,7 +109,7 @@ DSC_TICKER_REPLAY=3 ...
 ## Erst-Kopplung (einmalig, interaktiv — nicht per Cron!)
 
 ```bash
-DSC_TICKER_FORCE=1 DSC_TICKER_DRY_RUN=1 python dsc-spieltag-ticker.py
+DSC_TICKER_FORCE=1 DSC_TICKER_DRY_RUN=1 python skyrelay-matchday.py
 ```
 
 - Es erscheint ein ASCII-**QR-Code im Terminal** (nur wenn wirklich eine Kopplung nötig ist).
@@ -127,7 +127,7 @@ DSC_TICKER_FORCE=1 DSC_TICKER_DRY_RUN=1 python dsc-spieltag-ticker.py
 
 | Datei | Zweck | Löschen erlaubt? |
 |---|---|---|
-| `dsc-spieltag-ticker.py` | das Script | — |
+| `skyrelay-matchday.py` | das Script | — |
 | `dsc_ticker_session.sqlite3` | WhatsApp-Session (Kopplung) | Ja → erzwingt neue Erst-Kopplung |
 | `dsc_ticker_state.txt` | Wasserzeichen: `Datum;letzte ServerID` | Ja → nächster Start setzt frische Baseline („ab jetzt") |
 | `dsc_ticker_posts.json` | Zuordnung ServerID → Bluesky-Posts (heutiger Tag, für Bearbeitungen) | Ja → Bearbeitungen können dann alte Posts nicht mehr löschen, nur neu posten |
@@ -188,7 +188,7 @@ DSC_TICKER_FORCE=1 DSC_TICKER_DRY_RUN=1 python dsc-spieltag-ticker.py
 | `⚠️ Kein DFL-Kürzel für "XY"` im Log | Pokal-/unbekannter Gegner → korrektes Kürzel in `TEAM_CODES` nachtragen. |
 | Cron: `/bin/sh: 1: …/bin/python3: not found` | Pfad-Tippfehler (meist Groß-/Kleinschreibung, `Trotzdemdabei` statt `trotzdemdabei`). Gemeint ist der **Interpreter**, nicht Python. Prüfen mit `ls -l <pfad>`. |
 | Ticker startet an einem spielfreien Tag | Sollte durch `LEAGUE_PREFIXES` verhindert sein. Log prüfen auf „Spiele aus unbekannten Ligen ignoriert" bzw. welche Liga als Spieltag erkannt wurde. |
-| Bio-Statuszeile bleibt auf „Bot ist an" | Prozess wurde hart getötet (`kill -9`, Stromausfall) — dann läuft das `finally` nicht. Manuell zurücksetzen: `DSC_TICKER_PROFILE=off … python dsc-spieltag-ticker.py`. |
+| Bio-Statuszeile bleibt auf „Bot ist an" | Prozess wurde hart getötet (`kill -9`, Stromausfall) — dann läuft das `finally` nicht. Manuell zurücksetzen: `DSC_TICKER_PROFILE=off … python skyrelay-matchday.py`. |
 | Script „postet nichts" | Läuft es im richtigen Modus? Log prüfen: `REPLAY-Modus…` vs. `Starte Poll-Loop…`. Env-Variablen müssen **vor** dem python-Aufruf auf derselben Zeile stehen. |
 | `Error sending close to websocket … EOF` am Ende | Kosmetik beim sauberen Trennen — ignorieren. |
 | `SIGSEGV … signal arrived during cgo execution` **nach** „REPLAY abgeschlossen"/Tagesende | Aufräum-Race in neonize: Go-Socket-Thread loggt nach Python, während der Interpreter schon beendet. Rein kosmetisch — die Arbeit war zu dem Zeitpunkt komplett erledigt. Script wartet seit 13.07. 2 s nach dem Trennen, um das zu vermeiden. |
