@@ -137,10 +137,26 @@ Mehrere Vereine parallel betreibst du über `SKYRELAY_CONFIG=/pfad/zur/datei.con
 Wer von einer älteren Fassung umsteigt, muss **nichts neu koppeln**: vorhandene
 `dsc_ticker_*`-Dateien werden beim ersten Start automatisch übernommen.
 
-Das **App-Passwort gehört niemals in eine Datei**, sondern in eine Umgebungsvariable:
+Das **App-Passwort gehört niemals in eine Datei**, sondern in eine Umgebungsvariable.
+Bei **einem gemeinsamen Konto** für beide Bots genügt eine:
 
 ```bash
 export BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"
+```
+
+Bei **getrennten Konten** je eine pro Bot — dann greift die allgemeine Variable nicht mehr:
+
+```bash
+export BLUESKY_TICKER_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"; export BLUESKY_FEED_APP_PASSWORD="yyyy-yyyy-yyyy-yyyy"
+```
+
+⚠️ **cron liest weder `~/.bashrc` noch `~/.profile`.** Für den automatischen Betrieb
+gehören die Variablen **oben in die crontab** (`crontab -e`) — dort ohne
+Anführungszeichen, sonst würden sie Teil des Werts:
+
+```cron
+BLUESKY_TICKER_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx
+BLUESKY_FEED_APP_PASSWORD=yyyy-yyyy-yyyy-yyyy
 ```
 
 ## Erste Kopplung mit WhatsApp
@@ -198,8 +214,8 @@ letzten Lauf neu ist:
 ```
 
 Nutzt du für Instagram ein **anderes** Bluesky-Konto als für den Ticker, trägst du
-es unter `[feed] bluesky_handle` ein und gibst dessen App-Passwort in
-`SKYRELAY_FEED_APP_PASSWORD` an.
+es unter `[feed] bluesky_handle` ein und gibst die App-Passwörter getrennt an
+(siehe unten).
 
 ---
 

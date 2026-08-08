@@ -10,9 +10,9 @@ Alle Einstellungen stehen im Abschnitt [feed] von "skyrelay.conf"
 Umgebungsvariable SKYRELAY_CONFIG angeben.
 
 Zugangsdaten kommen ausschließlich aus Umgebungsvariablen:
-    BLUESKY_APP_PASSWORD        App-Passwort des Bluesky-Kontos
-    SKYRELAY_FEED_APP_PASSWORD  nur nötig, wenn [feed] bluesky_handle ein
-                                anderes Konto als [bluesky] handle verwendet
+    BLUESKY_FEED_APP_PASSWORD   App-Passwort des Feed-Kontos
+    BLUESKY_APP_PASSWORD        Ersatz, wenn Ticker und Feed dasselbe Konto
+                                verwenden
 
 Die Instagram-Sitzung wird einmalig außerhalb dieses Programms angelegt:
     venv/bin/instaloader -l <zweitkonto>
@@ -38,6 +38,7 @@ from skyrelay_common import (
     lade_config,
     start_file_logging,
     melde_bei_bluesky_an,
+    hole_app_passwort,
     compress_image_for_bluesky,
     upload_video_to_bluesky,
 )
@@ -107,12 +108,14 @@ if os.path.exists(_alt_state) and not os.path.exists(STATE_FILE):
 # App-Passwort NICHT in der Konfiguration speichern - kommt aus der Umgebung.
 # Eigenes Konto für den Feed -> eigenes Passwort möglich. BLUESKY_APP_PASSWORD
 # greift, wenn Ticker und Feed dasselbe Konto verwenden.
-BLUESKY_APP_PASSWORD = (os.environ.get("SKYRELAY_FEED_APP_PASSWORD")
-                        or os.environ.get("BLUESKY_APP_PASSWORD"))
+BLUESKY_APP_PASSWORD, PASSWORT_VARIABLE = hole_app_passwort(
+    "BLUESKY_FEED_APP_PASSWORD",
+    "SKYRELAY_FEED_APP_PASSWORD",  # früherer Name, weiterhin akzeptiert
+    "BLUESKY_APP_PASSWORD")
 if not BLUESKY_APP_PASSWORD:
     log(f"Fehler: Kein App-Passwort für das Feed-Konto @{BLUESKY_HANDLE} gesetzt.")
     log('Nutzt der Feed ein EIGENES Konto (anders als der Ticker):')
-    log('    export SKYRELAY_FEED_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"')
+    log('    export BLUESKY_FEED_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"')
     log('Nutzen Ticker und Feed dasselbe Konto, genügt:')
     log('    export BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"')
     log("Achtung: cron liest ~/.bashrc nicht - dort die Variablen oben in die")
@@ -351,9 +354,7 @@ for post in latest_posts:
             log("Verbinde mit Bluesky...")
             client = Client()
             melde_bei_bluesky_an(client, BLUESKY_HANDLE, BLUESKY_APP_PASSWORD,
-                                 "SKYRELAY_FEED_APP_PASSWORD"
-                                 if os.environ.get("SKYRELAY_FEED_APP_PASSWORD")
-                                 else "BLUESKY_APP_PASSWORD")
+                                 PASSWORT_VARIABLE)
 
         # 9. Video-Uploads zur Bluesky-Video-API (einzeln oder mehrfach bei Multi-Video-Sidecar)
         # Priorität: Video. Backup bei Fehlschlag: das jeweilige Cover-Bild.

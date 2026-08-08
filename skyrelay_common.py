@@ -123,6 +123,19 @@ def lade_config(basis_dir):
 
 
 # -------------------------------------------------------------------- Login
+def hole_app_passwort(*namen):
+    """Liefert (Passwort, Variablenname) aus der ersten gesetzten Umgebungs-
+    variablen. Die Reihenfolge geht vom spezifischen zum allgemeinen Namen:
+    Wer Ticker und Feed auf getrennten Konten betreibt, setzt die jeweils
+    eigene Variable; wer ein einziges Konto nutzt, kommt mit
+    BLUESKY_APP_PASSWORD aus."""
+    for name in namen:
+        wert = os.environ.get(name)
+        if wert:
+            return wert, name
+    return None, namen[0]
+
+
 def melde_bei_bluesky_an(client, handle, passwort, passwort_variable):
     """Meldet sich an und erklärt im Fehlerfall, woran es liegen kann. Ein
     nackter 401 hilft niemandem - typisch ist, dass Passwort und Konto nicht
@@ -139,8 +152,9 @@ def melde_bei_bluesky_an(client, handle, passwort, passwort_variable):
             log(f"   Gehört das App-Passwort aus {passwort_variable} wirklich zu")
             log(f"   genau diesem Konto? Werden Ticker und Feed auf getrennten")
             log(f"   Konten betrieben, brauchen sie auch getrennte Passwörter:")
-            log(f"     Ticker: BLUESKY_APP_PASSWORD")
-            log(f"     Feed:   SKYRELAY_FEED_APP_PASSWORD")
+            log(f"     Ticker: BLUESKY_TICKER_APP_PASSWORD")
+            log(f"     Feed:   BLUESKY_FEED_APP_PASSWORD")
+            log(f"   (Bei einem gemeinsamen Konto genügt BLUESKY_APP_PASSWORD.)")
         log("   Hinweis: Bluesky erlaubt nur 10 Anmeldeversuche pro Tag und Konto.")
         raise
 

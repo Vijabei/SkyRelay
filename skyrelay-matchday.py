@@ -80,6 +80,7 @@ from skyrelay_common import (
     lade_config,
     start_file_logging,
     melde_bei_bluesky_an,
+    hole_app_passwort,
     compress_image_for_bluesky,
     upload_video_to_bluesky,
 )
@@ -210,12 +211,18 @@ if LOG_TO_FILE:
     start_file_logging(LOG_FILE, LOG_MAX_BYTES, LOG_BACKUP_COUNT)
     log(f"--- Ticker-Start (Log: {LOG_FILE}) ---")
 
-BLUESKY_APP_PASSWORD = os.environ.get("BLUESKY_APP_PASSWORD")
+# Eigenes Passwort für den Ticker, sonst das gemeinsame.
+BLUESKY_APP_PASSWORD, PASSWORT_VARIABLE = hole_app_passwort(
+    "BLUESKY_TICKER_APP_PASSWORD", "BLUESKY_APP_PASSWORD")
 if not BLUESKY_APP_PASSWORD and not DRY_RUN:
-    log("Fehler: Umgebungsvariable BLUESKY_APP_PASSWORD ist nicht gesetzt.")
-    log('Setzen z.B. mit:  export BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"')
-    log("(dauerhaft: in ~/.bashrc bzw. in der crontab-Zeile vor dem python-Aufruf)")
-    log("Oder für einen reinen Lese-Test ohne Bluesky:  SKYRELAY_DRY_RUN=1")
+    log(f"Fehler: Kein App-Passwort für das Ticker-Konto @{BLUESKY_HANDLE} gesetzt.")
+    log('Getrennte Konten für Ticker und Feed:')
+    log('    export BLUESKY_TICKER_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"')
+    log('Ein gemeinsames Konto für beide:')
+    log('    export BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"')
+    log("cron liest ~/.bashrc NICHT - dort die Variablen oben in die crontab")
+    log("schreiben (ohne Anführungszeichen).")
+    log("Nur lesen, ohne Bluesky:  SKYRELAY_DRY_RUN=1")
     sys.exit(1)
 # ----------------------------------
 
@@ -502,7 +509,7 @@ def ensure_bsky():
         log("Verbinde mit Bluesky...")
         bsky_client = Client()
         melde_bei_bluesky_an(bsky_client, BLUESKY_HANDLE, BLUESKY_APP_PASSWORD,
-                             "BLUESKY_APP_PASSWORD")
+                             PASSWORT_VARIABLE)
 
 
 # --- Profil-Statuszeile -------------------------------------------------------

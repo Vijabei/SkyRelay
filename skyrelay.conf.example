@@ -96,7 +96,8 @@ media_prefix = skyrelay
 # ---------------------------------------------------------------------------
 # Bluesky-Konto für die Instagram-Spiegelung. Leer lassen, um das Konto aus
 # [bluesky] zu verwenden. Bei einem eigenen Konto braucht es auch ein eigenes
-# App-Passwort - dann SKYRELAY_FEED_APP_PASSWORD setzen statt BLUESKY_APP_PASSWORD.
+# App-Passwort - dann BLUESKY_FEED_APP_PASSWORD setzen (und für den Ticker
+# entsprechend BLUESKY_TICKER_APP_PASSWORD).
 bluesky_handle =
 # Instagram-Profil, das gespiegelt wird (ohne @).
 instagram_profile = arminiaofficial
