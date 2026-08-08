@@ -1,0 +1,44 @@
+# === Laufzeitdaten - NIEMALS ins Repo ===
+# WhatsApp-Session: entspricht faktisch dem Zugang zum gekoppelten Konto
+*_session.sqlite3
+*_session.sqlite3-*
+*.sqlite3
+*.sqlite3-journal
+# Instagram-Session (instaloader)
+session-*
+
+# Zustandsdateien des Tickers / Reposters
+dsc_ticker_state.txt
+dsc_ticker_posts.json
+posted_shortcodes.txt
+
+# Logs (enthalten Kanalinhalte, JIDs und ggf. Fehlermeldungen mit Daten)
+*.log
+*.log.*
+nohup.out
+
+# Arbeitsverzeichnis der Medien-Downloads
+tmp/
+
+# === Lokale Konfiguration mit Zugangsdaten ===
+config.ini
+config.local.*
+.env
+*.env
+
+# === Python ===
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+env/
+*.egg-info/
+
+# === Backups / Editoren / Betriebssystem ===
+*.bak
+*.bak[0-9]*
+*~
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

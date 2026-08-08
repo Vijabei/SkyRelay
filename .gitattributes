@@ -1,0 +1,3 @@
+# Zielsystem ist Linux (Raspberry Pi) - Zeilenenden im Repo immer LF,
+# damit Windows-Bearbeitung keine CRLF einschleppt.
+* text=auto eol=lf
