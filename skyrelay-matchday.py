@@ -1129,13 +1129,20 @@ async def main():
     # keine Verbindung aufgebaut (minimiert Laufzeit und Auffälligkeit).
     # FORCE heißt "starte trotzdem", NICHT "ignoriere die Spieldaten": Findet
     # OpenLigaDB ein Spiel, werden Hashtag und Spieltagsinfo auch dann genutzt.
-    try:
-        match = get_todays_match()
-    except Exception as e:
-        log(f"Fehler beim OpenLigaDB-Abruf: {e}")
-        if not FORCE_RUN:
-            sys.exit(1)
-        match = None
+    # Ohne konfigurierten Verein (Sportart nicht bei OpenLigaDB) entfällt die
+    # Prüfung ganz - dann läuft der Ticker an jedem Tag, an dem er gestartet wird.
+    ohne_spielplan = not OPENLIGADB_TEAM_FILTER or not OPENLIGADB_TEAM_ID
+    match = None
+    if ohne_spielplan:
+        log("Kein Spielplan konfiguriert ([team] openligadb_filter leer) - "
+            "Spieltags-Prüfung entfällt.")
+    else:
+        try:
+            match = get_todays_match()
+        except Exception as e:
+            log(f"Fehler beim OpenLigaDB-Abruf: {e}")
+            if not FORCE_RUN:
+                sys.exit(1)
 
     if match:
         kickoff, desc, auto_hashtag, info = match
@@ -1145,10 +1152,11 @@ async def main():
         match_kickoff = kickoff
         log(f"⚽ Heute ist Spieltag: {desc}, {info}, Anstoß {kickoff.strftime('%H:%M')} Uhr. "
             f"Spiel-Hashtag: #{match_hashtag}")
-    elif FORCE_RUN:
+    elif FORCE_RUN or ohne_spielplan:
         note = "" if match_hashtag else " (ohne Spiel-Hashtag)"
-        log(f"SKYRELAY_FORCE=1 gesetzt - kein OpenLigaDB-Spiel für heute gefunden, "
-            f"laufe trotzdem{note}.")
+        grund = ("ohne Spielplan-Prüfung" if ohne_spielplan
+                 else "SKYRELAY_FORCE=1 gesetzt - kein OpenLigaDB-Spiel für heute gefunden")
+        log(f"{grund}, laufe trotzdem{note}.")
     else:
         log("Heute kein Spiel - Script beendet sich.")
         return

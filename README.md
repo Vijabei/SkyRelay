@@ -26,6 +26,10 @@ Quellenwechsel später keine Umbenennung erzwingt.
 
 * **Spieltagserkennung** über [OpenLigaDB](https://www.openligadb.de): An spielfreien
   Tagen beendet sich das Programm sofort und baut gar keine Verbindung auf.
+  Nicht auf Fußball beschränkt — gut gepflegt sind dort Fußball (1.–3. Liga,
+  DFB-Pokal, Frauen-Bundesliga) und Eishockey (DEL, DEL2). Für Sportarten ohne
+  Daten (etwa Basketball oder der Handball-Ligabetrieb) lässt sich die Erkennung
+  abschalten; der Ticker läuft dann an jedem Tag, an dem er gestartet wird.
 * **Spiel-Hashtag** wird automatisch erzeugt (`#KSCDSC` heim/auswärts korrekt herum),
   inklusive DFB-Pokal-Runden, und an jeden Beitrag gehängt.
 * **Profil-Statuszeile:** Die erste Zeile der Bluesky-Biografie schaltet zwischen
@@ -75,8 +79,11 @@ venv/bin/python skyrelay-setup.py
 
 Er fragt alles Nötige ab, **sucht den Verein direkt bei OpenLigaDB** (damit
 entfällt das Nachschlagen der Team-Nummer), **füllt die Kürzeltabelle für die
-Hashtags vor**, prüft auf Wunsch die Bluesky-Anmeldung und schreibt daraus die
-fertige `skyrelay.conf`. Ein erneuter Aufruf dient zum Ändern: Vorhandene Werte
+Hashtags vor** — für die Fußball-Ligen 1–3 mit den gebräuchlichen Kürzeln, sonst
+mit klar als Vorschlag markierten Ableitungen —, prüft auf Wunsch die
+Bluesky-Anmeldung und schreibt daraus die fertige `skyrelay.conf`. Neben Fußball
+stehen die weiteren bei OpenLigaDB gepflegten Ligen zur Auswahl (z. B. DEL),
+dazu die Möglichkeit, ganz ohne Spielplan zu arbeiten. Ein erneuter Aufruf dient zum Ändern: Vorhandene Werte
 werden als Vorgabe angeboten, und von der alten Datei wird eine Sicherung angelegt.
 
 Wer lieber von Hand arbeitet, kopiert die kommentierte Vorlage:

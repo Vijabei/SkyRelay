@@ -149,7 +149,7 @@ Sie steht in `.gitignore` und gehört **nicht** ins Repository.
 |---|---|
 | `[bluesky] handle` | Konto, auf dem gepostet wird. Das App-Passwort kommt **nicht** hierher, sondern in `BLUESKY_APP_PASSWORD`. |
 | `[source] channel_invite_link` | Einladungslink des WhatsApp-Kanals (Kanal → Teilen → Link kopieren) |
-| `[team] openligadb_filter` / `openligadb_team_id` | Verein bei OpenLigaDB. Team-Nummer nachschlagen unter `https://api.openligadb.de/getavailableteams/bl2/2026` |
+| `[team] openligadb_filter` / `openligadb_team_id` | Verein bei OpenLigaDB. Team-Nummer nachschlagen unter `https://api.openligadb.de/getavailableteams/bl2/2026`. **Leer bzw. `0` = keine Spieltags-Erkennung** — für Sportarten ohne OpenLigaDB-Daten; der Ticker läuft dann an jedem Starttag, Hashtag über `SKYRELAY_HASHTAG`. |
 | `[team] league_prefixes` | Nur diese Ligen zählen. OpenLigaDB liefert vereinzelt Fantasie-Ligen mit falschen Terminen (real gesehen: **„ESP8266"**) — ohne die Sperre liefe der Ticker an spielfreien Tagen. Verworfene Ligen stehen im Log. |
 | `[team] timezone` | Zeitzone für Anstoß und Tagesende |
 | `[team_codes]` | Kürzel je Team-Nummer für die Hashtag-Bildung. **Pokalgegner ggf. nachtragen** — unbekannte Teams bekommen ein 3-Buchstaben-Ersatzkürzel plus Warnung im Log. |

@@ -36,11 +36,37 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 VORLAGE = os.path.join(BASE_DIR, "skyrelay.conf.example")
 ZIEL = os.environ.get("SKYRELAY_CONFIG") or os.path.join(BASE_DIR, "skyrelay.conf")
 
-LIGEN = [
-    ("bl1", "1. Bundesliga"),
-    ("bl2", "2. Bundesliga"),
-    ("bl3", "3. Liga"),
+# Häufig gebrauchte Ligen zuerst - alles Weitere über "andere Liga suchen".
+# (leagueShortcut, Saison-Startjahr, Beschriftung)
+EMPFOHLENE_LIGEN = [
+    ("bl1", "2026", "Fußball · 1. Bundesliga"),
+    ("bl2", "2026", "Fußball · 2. Bundesliga"),
+    ("bl3", "2026", "Fußball · 3. Liga"),
+    ("dfb", "2026", "Fußball · DFB-Pokal"),
+    ("fbl1", "2025", "Frauenfußball · 1. Bundesliga"),
+    ("del", "2026", "Eishockey · DEL"),
+    ("del2", "2026", "Eishockey · DEL2"),
 ]
+
+# Gebräuchliche Kürzel je OpenLigaDB-Team-Nummer, wie sie in Ergebnisdiensten
+# und Hashtags verwendet werden. Bewusst nur Einträge, die belegt sind - für
+# alle übrigen Mannschaften schlägt der Assistent eine Ableitung aus dem Namen
+# vor, die erkennbar ein Vorschlag ist. Stand: Saison 2026/27.
+# Ergänzungen sind willkommen: Team-Nummer über die OpenLigaDB-Adresse
+# getavailableteams/<liga>/<saison> ermitteln.
+BEKANNTE_KUERZEL = {
+    # 1. Bundesliga
+    6: "B04", 7: "BVB", 9: "S04", 16: "VFB", 31: "SCP", 40: "FCB", 65: "KOE",
+    80: "FCU", 81: "M05", 87: "BMG", 91: "SGE", 95: "FCA", 100: "HSV",
+    112: "SCF", 134: "SVW", 175: "TSG", 198: "SVE", 1635: "RBL",
+    # 2. Bundesliga
+    36: "OSN", 54: "BSC", 55: "H96", 74: "EBS", 76: "FCK", 78: "FCM",
+    79: "FCN", 83: "DSC", 93: "FCE", 98: "STP", 104: "KSV", 105: "KSC",
+    115: "SGF", 118: "SVD", 129: "BOC", 131: "WOB", 177: "SGD", 199: "FCH",
+    # 3. Liga (nur belegte Kürzel)
+    23: "AAC", 102: "HRO", 107: "MSV", 109: "RWE", 114: "SCV", 171: "FCI",
+    174: "SVWW", 185: "F95", 417: "FCS",
+}
 
 
 # --------------------------------------------------------------- Darstellung
@@ -146,11 +172,21 @@ def setze_team_codes(zeilen, codes):
 
 # ------------------------------------------------------------------ Fachlich
 def kuerzel_vorschlag(team):
-    """Leitet ein Kürzel aus dem Kurznamen ab (Umlaute werden aufgelöst)."""
-    name = team.get("shortName") or team.get("teamName") or ""
+    """Liefert das gebräuchliche Kürzel, sonst eine Ableitung aus dem Namen.
+    Der zweite Rückgabewert sagt, ob es sich um ein belegtes Kürzel handelt."""
+    bekannt = BEKANNTE_KUERZEL.get(team.get("teamId"))
+    if bekannt:
+        return bekannt, True
+
+    name = (team.get("shortName") or team.get("teamName") or "").strip()
+    # Manche Ligen (z.B. die DEL) führen im Kurznamen bereits das offizielle
+    # Kürzel - dann unverändert übernehmen statt es zu beschneiden.
+    if 2 <= len(name) <= 5 and name.isupper() and name.isalpha():
+        return name, True
+
     normal = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
     buchstaben = re.sub(r"[^A-Za-z]", "", normal)
-    return (buchstaben[:3] or "XXX").upper()
+    return (buchstaben[:3] or "XXX").upper(), False
 
 
 def hole_teams(liga, saison):
@@ -159,6 +195,17 @@ def hole_teams(liga, saison):
     )
     antwort.raise_for_status()
     return antwort.json()
+
+
+def hole_aktuelle_ligen():
+    """Alle Ligen mit laufender oder kommender Saison, nach Sportart gruppiert."""
+    antwort = requests.get("https://api.openligadb.de/getavailableleagues", timeout=30)
+    antwort.raise_for_status()
+    aktuell = [l for l in antwort.json() if str(l.get("leagueSeason", "")) in ("2025", "2026")]
+    return sorted(
+        aktuell,
+        key=lambda l: ((l.get("sport") or {}).get("sportName", ""), l.get("leagueName", "")),
+    )
 
 
 def pruefe_kanal_link(wert):
@@ -247,19 +294,53 @@ def main():
                      pflicht=True, pruefung=pruefe_kanal_link)
         setze_wert(zeilen, "source", "channel_invite_link", link)
 
-        titel("Verein")
-        liga = auswahl([(k, b) for k, b in LIGEN] + [("andere", "andere Liga (Kürzel selbst eingeben)")],
-                       "Liga", 1)
-        if liga == "andere":
-            hinweis("Ligakürzel wie in der OpenLigaDB-Adresse, z.B. 'bl4' oder 'dfb'.")
-            liga = frage("Ligakürzel", "bl2", pflicht=True)
-        saison = frage("Saison (Startjahr)", "2026", pflicht=True)
+        titel("Liga und Verein")
+        hinweis("Daraus erkennt der Ticker, an welchen Tagen er überhaupt laufen muss,")
+        hinweis("und bildet den Spiel-Hashtag. Grundlage ist OpenLigaDB.")
+        wahl = auswahl(
+            [(k, b) for k, _, b in EMPFOHLENE_LIGEN]
+            + [("suchen", "andere Liga aus OpenLigaDB wählen …"),
+               ("ohne", "kein Spielplan (Sportart nicht bei OpenLigaDB) – Ticker läuft täglich")],
+            "Liga", 1,
+        )
 
-        try:
-            teams = hole_teams(liga, saison)
-        except Exception as fehler:
-            print(f"  ✗ Abruf fehlgeschlagen: {fehler}")
-            teams = []
+        liga = saison = None
+        if wahl == "ohne":
+            hinweis("Ohne Spielplan entfällt die Spieltags-Erkennung: Der Ticker läuft an")
+            hinweis("jedem Tag, an dem er gestartet wird, und der Spiel-Hashtag wird von")
+            hinweis("Hand über SKYRELAY_HASHTAG gesetzt. Cron entsprechend nur an")
+            hinweis("Spieltagen einrichten oder das Programm manuell starten.")
+            setze_wert(zeilen, "team", "openligadb_filter", "")
+            setze_wert(zeilen, "team", "openligadb_team_id", "0")
+        elif wahl == "suchen":
+            try:
+                ligen = hole_aktuelle_ligen()
+            except Exception as fehler:
+                print(f"  ✗ Abruf fehlgeschlagen: {fehler}")
+                ligen = []
+            if ligen:
+                hinweis(f"{len(ligen)} Ligen mit laufender Saison:")
+                gewaehlte = auswahl(
+                    [(l, f'{(l.get("sport") or {}).get("sportName", "?")} · '
+                         f'{l["leagueName"]} ({l["leagueShortcut"]}/{l["leagueSeason"]})')
+                     for l in ligen],
+                    "Liga",
+                )
+                liga, saison = gewaehlte["leagueShortcut"], str(gewaehlte["leagueSeason"])
+            else:
+                liga = frage("Ligakürzel", "bl2", pflicht=True)
+                saison = frage("Saison (Startjahr)", "2026", pflicht=True)
+        else:
+            liga = wahl
+            saison = next(s for k, s, _ in EMPFOHLENE_LIGEN if k == wahl)
+            saison = frage("Saison (Startjahr)", saison, pflicht=True)
+
+        teams = []
+        if liga:
+            try:
+                teams = hole_teams(liga, saison)
+            except Exception as fehler:
+                print(f"  ✗ Abruf fehlgeschlagen: {fehler}")
 
         if teams:
             print(f"\n  {len(teams)} Mannschaften in {liga}/{saison}:")
@@ -279,27 +360,36 @@ def main():
             # ------------------------------------------------ Kürzeltabelle
             titel("Kürzel für die Hashtags")
             hinweis("Aus Heim- und Auswärtskürzel entsteht der Spiel-Hashtag, z.B. #KSCDSC.")
-            hinweis("Die Vorschläge sind aus den Vereinsnamen abgeleitet und weichen oft von")
-            hinweis("den offiziellen ab (Hertha BSC ergibt 'HER', üblich wäre 'BSC').")
-            hinweis("Damit die Hashtags zu denen des Vereins passen, lohnt das Anpassen.")
-            codes = {t["teamId"]: kuerzel_vorschlag(t) for t in teams}
-            # bereits vorhandene Kürzel haben Vorrang vor dem Vorschlag
+            codes, belegt = {}, {}
+            for team in teams:
+                codes[team["teamId"]], belegt[team["teamId"]] = kuerzel_vorschlag(team)
+            # bereits gepflegte Kürzel haben Vorrang vor jedem Vorschlag
             for team_id, code in [(k, v) for k, v in
                                   [(z.split("=")[0].strip(), z.split("=")[1].strip())
                                    for z in alt if re.match(r"^\d+\s*=", z)]]:
                 if team_id.isdigit() and int(team_id) in codes:
                     codes[int(team_id)] = code
+                    belegt[int(team_id)] = True
+
+            anzahl_abgeleitet = sum(1 for t in teams if not belegt[t["teamId"]])
+            if anzahl_abgeleitet:
+                hinweis(f"{len(teams) - anzahl_abgeleitet} Kürzel sind hinterlegt, "
+                        f"{anzahl_abgeleitet} aus dem Namen abgeleitet (mit ? markiert).")
+                hinweis("Abgeleitete entsprechen oft nicht dem üblichen Kürzel - bitte prüfen.")
+            else:
+                hinweis("Für alle Mannschaften dieser Liga sind Kürzel hinterlegt.")
 
             eigenes = codes.get(gewaehlt["teamId"], "XXX")
             print(f"\n  Kürzel deines Vereins ({gewaehlt['teamName']}): {eigenes}")
             hinweis("Es steht in jedem Spiel-Hashtag - bitte genau prüfen.")
             codes[gewaehlt["teamId"]] = frage("Kürzel", eigenes, pflicht=True).upper()
 
-            print("\n  Vorschläge für die übrigen Mannschaften:")
+            print("\n  Übrige Mannschaften (? = abgeleitet, ungeprüft):")
             for team in sorted(teams, key=lambda t: t.get("shortName") or ""):
                 if team["teamId"] != gewaehlt["teamId"]:
-                    print(f"    {codes[team['teamId']]:5} {team['teamName']}")
-            if ja_nein("\n  Diese Kürzel einzeln anpassen?", False):
+                    marke = " " if belegt[team["teamId"]] else "?"
+                    print(f"   {marke} {codes[team['teamId']]:5} {team['teamName']}")
+            if ja_nein("\n  Diese Kürzel einzeln anpassen?", bool(anzahl_abgeleitet)):
                 for team in sorted(teams, key=lambda t: t.get("shortName") or ""):
                     if team["teamId"] == gewaehlt["teamId"]:
                         continue
