@@ -75,7 +75,9 @@ Trockenlauf.
 | **Nachrichtenabruf** | ✅ `REPLAY=1` liefert den Beitrag |
 | Medien | ✅ Video mit 16,7 MB heruntergeladen |
 | Beenden (regulär) | ✅ kein Absturz, nur die bekannte EOF-Warnung |
-| Live-Ereignisse | ⏳ noch offen — das Abo wird eingerichtet, während des Tests kam kein neuer Beitrag |
+| **Live-Ereignisse** | ✅ Beitrag 6831 kam während des Lauschens an und wurde verarbeitet (inkl. erkannter Link-Vorschaukarte) |
+| Tagesende | ✅ Selbstbeendigung um 23:59 ausgelöst — der Weg, den der Cron-Betrieb nimmt |
+| Zeitzone | ✅ auch auf einer Maschine mit UTC-Systemzeit korrekt: Tagesende und Beitragszeiten richten sich nach `[team] timezone` |
 
 ### Abweichung gegenüber 0.3.18
 
@@ -94,10 +96,22 @@ Folgen:
 
 ### Bewertung
 
-Der Umstieg ist **empfehlenswert**: Die beiden Fehler, die 0.4.0/0.4.1
-unbrauchbar machten, sind behoben, und das neuere whatsmeow macht den Ticker
-haltbarer gegenüber Änderungen am WhatsApp-Protokoll. Unverändert bestehen bleibt
-der Absturz bei gelöschten Kanalbeiträgen in REPLAY und CATCHUP.
+**Alle Prüfpunkte bestanden — der Umstieg wird übernommen.** Die beiden Fehler,
+die 0.4.0/0.4.1 unbrauchbar machten, sind behoben, und das neuere whatsmeow macht
+den Ticker haltbarer gegenüber Änderungen am WhatsApp-Protokoll. Unverändert
+bestehen bleibt der Absturz bei gelöschten Kanalbeiträgen in REPLAY und CATCHUP.
 
-Vor dem Umstieg auf dem Produktivsystem die Sitzungsdatei sichern — ein
-Rückschritt auf 0.3.18 erfordert sonst eine neue Kopplung.
+Vor dem Umstieg auf dem Produktivsystem die Sitzungsdatei sichern:
+
+```bash
+cp ~/SkyRelay/skyrelay_session.sqlite3 ~/skyrelay_session_0318.sqlite3.bak
+```
+
+Das ist die bestmögliche Rückfallebene, keine Garantie: Ein Rückschritt auf
+0.3.18 erfordert zusätzlich das Herabstufen des Pakets, und ob die Sitzungsdatei
+den Schemawechsel rückwärts übersteht, ist offen. Im Zweifel hilft eine neue
+Kopplung — sie dauert zwei Minuten.
+
+Ein Update **kurz vor einem Spieltag** ist die schlechtere Wahl: Bleibt Zeit für
+Nachbesserungen, läuft am Spieltag eine Fassung, die sich schon eine Woche
+bewährt hat.
