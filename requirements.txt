@@ -1,0 +1,22 @@
+# SkyRelay - Abhängigkeiten
+# Installation am besten über ./install.sh (legt ein venv an)
+
+# --- Bluesky-Anbindung (von beiden Programmen genutzt) ---
+atproto>=0.0.61
+Pillow>=11.1.0
+requests>=2.32.3
+
+# --- skyrelay-matchday.py (Quelle: WhatsApp-Kanal) ---
+# ACHTUNG: neonize ist BEWUSST auf diese Version gepinnt.
+# 0.4.0/0.4.1 lieferten korrupte Rückgabewerte ("Wire format was corrupt");
+# das ist zwar seit 0.4.2 behoben, die neueren Versionen sind hier aber
+# ungetestet. Vor einem Upgrade siehe README -> "Bekannte Einschränkungen".
+neonize==0.3.18.post0
+# protobuf NIEMALS unter die Gencode-Version der neonize-Wheels downgraden,
+# sonst scheitert schon der Import mit einem VersionError.
+protobuf>=7.34.1
+segno>=1.6.1
+
+# --- skyrelay-feed.py (Quelle: Instagram) ---
+# < 4.15.1 scheitert an Instagrams GraphQL-Umstellung
+instaloader>=4.15.2
