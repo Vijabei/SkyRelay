@@ -112,7 +112,15 @@ BLUESKY_APP_PASSWORD, PASSWORT_VARIABLE = hole_app_passwort(
     "BLUESKY_FEED_APP_PASSWORD",
     "SKYRELAY_FEED_APP_PASSWORD",  # früherer Name, weiterhin akzeptiert
     "BLUESKY_APP_PASSWORD")
-if not BLUESKY_APP_PASSWORD:
+
+# SKYRELAY_DRY_RUN=1 -> Instagram abfragen und Medien laden, aber nichts
+# veröffentlichen und die Merkliste nicht fortschreiben. Zum gefahrlosen Prüfen
+# der Einrichtung auf beliebigen Rechnern.
+DRY_RUN = os.environ.get("SKYRELAY_DRY_RUN") == "1"
+if DRY_RUN:
+    log("SKYRELAY_DRY_RUN=1 gesetzt - es wird NICHTS auf Bluesky veröffentlicht.")
+
+if not BLUESKY_APP_PASSWORD and not DRY_RUN:
     log(f"Fehler: Kein App-Passwort für das Feed-Konto @{BLUESKY_HANDLE} gesetzt.")
     log('Nutzt der Feed ein EIGENES Konto (anders als der Ticker):')
     log('    export BLUESKY_FEED_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"')
@@ -347,6 +355,25 @@ for post in latest_posts:
                     log(f"Fehler beim Verarbeiten von {img_path}: {e}")
 
         image_chunks = [bluesky_images[i:i + 4] for i in range(0, len(bluesky_images), 4)] if bluesky_images else []
+
+        # 7b. Trockenlauf: Alles bis hierher ist gelaufen (Abruf, Medien-Download,
+        # Textaufbereitung) - ab hier ginge es nach außen. Also nur berichten,
+        # was veröffentlicht würde, und weder anmelden noch die Merkliste
+        # fortschreiben. So bleibt der Beitrag für den echten Lauf erhalten.
+        if DRY_RUN:
+            medien = []
+            if bluesky_images:
+                medien.append(f"{len(bluesky_images)} Bild(er)")
+            anzahl_videos = (len(video_pairs) if is_multi_video_post and video_pairs
+                             else 1 if (is_video_post and mp4_files) else 0)
+            if anzahl_videos:
+                medien.append(f"{anzahl_videos} Video(s)")
+            log(f"   [DRY_RUN] Würde auf @{BLUESKY_HANDLE} posten: "
+                f"{len(text_chunks)} Beitrag/Beiträge"
+                + (f", {', '.join(medien)}" if medien else ", ohne Medien"))
+            log(f"   [DRY_RUN] Quelle: {insta_url}")
+            log(f"   [DRY_RUN] Text: {text_chunks[0][:120]}...")
+            continue
 
         # 8. Bluesky-Verbindung herstellen (erst wenn wirklich gebraucht).
         # Die Server-Adresse für den Video-Upload ermittelt das gemeinsame Modul.
