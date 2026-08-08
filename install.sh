@@ -68,11 +68,15 @@ done
 
 ok "Python: $("$PYTHON_BIN" --version) ($(command -v "$PYTHON_BIN"))"
 
-if ! "$PYTHON_BIN" -c "import venv" 2>/dev/null; then
-    abort "Das Modul 'venv' fehlt." \
-          "Installieren mit:  sudo apt install python3-venv"
+# Achtung Debian/Ubuntu: 'import venv' gelingt auch ohne das Paket python3-venv -
+# es fehlt dann aber ensurepip, und das erzeugte venv hätte kein pip.
+# Deshalb wird hier gezielt ensurepip geprüft.
+if ! "$PYTHON_BIN" -c "import venv, ensurepip" 2>/dev/null; then
+    PY_MM="$("$PYTHON_BIN" -c 'import sys; print("%d.%d" % sys.version_info[:2])')"
+    abort "venv/ensurepip fehlt - damit hätte die virtuelle Umgebung kein pip." \
+          "Installieren mit:  sudo apt install python3-venv   (ggf. python${PY_MM}-venv)"
 fi
-ok "venv-Modul vorhanden"
+ok "venv- und ensurepip-Modul vorhanden"
 
 # Zeitzonendaten werden für die Spieltags-Logik gebraucht (zoneinfo)
 if ! "$PYTHON_BIN" -c "from zoneinfo import ZoneInfo; ZoneInfo('Europe/Berlin')" 2>/dev/null; then
@@ -85,16 +89,36 @@ fi
 # ---------------------------------------------------------------- 3. venv
 step "3/5  Virtuelle Umgebung"
 
+VENV_PY="$VENV_DIR/bin/python"
+
+# Ein venv gilt nur dann als brauchbar, wenn darin auch pip läuft. Ein
+# abgebrochener Anlauf (z.B. ohne python3-venv) hinterlässt sonst eine Ruine,
+# die beim nächsten Lauf stillschweigend weiterverwendet würde.
+venv_ist_brauchbar() {
+    [ -x "$VENV_PY" ] && "$VENV_PY" -m pip --version >/dev/null 2>&1
+}
+
 if [ -d "$VENV_DIR" ]; then
-    ok "venv existiert bereits: $VENV_DIR"
+    if venv_ist_brauchbar; then
+        ok "venv existiert bereits: $VENV_DIR"
+    else
+        warn "Vorhandenes venv ist unvollständig (kein pip) - wird neu angelegt"
+        rm -rf "$VENV_DIR"
+        "$PYTHON_BIN" -m venv "$VENV_DIR"
+        ok "venv neu angelegt: $VENV_DIR"
+    fi
 else
     "$PYTHON_BIN" -m venv "$VENV_DIR"
     ok "venv angelegt: $VENV_DIR"
 fi
 
-VENV_PY="$VENV_DIR/bin/python"
-[ -x "$VENV_PY" ] || abort "venv scheint unvollständig zu sein: $VENV_PY fehlt." \
-                           "Verzeichnis '$VENV_DIR' löschen und install.sh erneut ausführen."
+# Letzter Rettungsversuch, falls pip trotzdem fehlt
+if ! venv_ist_brauchbar; then
+    "$VENV_PY" -m ensurepip --upgrade >/dev/null 2>&1 || true
+fi
+
+venv_ist_brauchbar || abort "In der virtuellen Umgebung fehlt pip." \
+    "Paket nachinstallieren (sudo apt install python3-venv), dann: rm -rf '$VENV_DIR' && ./install.sh"
 
 # ---------------------------------------------------------------- 4. Pakete
 step "4/5  Abhängigkeiten installieren"
