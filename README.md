@@ -103,7 +103,28 @@ Am einfachsten mit dem Einrichtungsassistenten:
 venv/bin/python skyrelay-setup.py
 ```
 
-Er fragt zuerst nach dem Einsatzzweck und führt dann unterschiedlich weiter:
+Er öffnet ein **Menü im Stil von `raspi-config`** — mit Pfeiltasten bedienbar, auch
+über SSH. Aus dem Hauptmenü lassen sich die Bereiche einzeln ansteuern, statt sich
+durch alle Fragen am Stück zu arbeiten:
+
+```
+  1  Spieltags-Ticker    WhatsApp-Kanal → Bluesky
+  2  Instagram-Feed      Instagram → Bluesky
+  3  Kürzel für Hashtags
+  4  Beiträge und Profil
+  5  Zeitfenster
+  6  Anmeldung bei Bluesky prüfen
+  7  Speichern und beenden
+```
+
+Das ist auch der bequeme Weg für spätere Änderungen: Ein einzelnes Kürzel
+korrigieren oder das Zeitfenster verschieben dauert damit Sekunden. Oben zeigt das
+Menü an, welche Pflichtangaben noch fehlen.
+
+Fehlt `whiptail` auf dem System, fällt der Assistent automatisch auf eine
+zeilenweise Abfrage zurück; erzwingen lässt sie sich mit `SKYRELAY_SETUP_TEXT=1`.
+
+Beim ersten Einrichten führt der Assistent durch dieselben Punkte wie zuvor:
 
 | Zweck | Ablauf |
 |---|---|

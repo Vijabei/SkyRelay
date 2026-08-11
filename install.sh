@@ -78,6 +78,14 @@ if ! "$PYTHON_BIN" -c "import venv, ensurepip" 2>/dev/null; then
 fi
 ok "venv- und ensurepip-Modul vorhanden"
 
+# whiptail treibt die Menüoberfläche der Einrichtung an (wie bei raspi-config)
+if command -v whiptail >/dev/null 2>&1; then
+    ok "whiptail vorhanden (Menüoberfläche für die Einrichtung)"
+else
+    warn "whiptail fehlt - die Einrichtung läuft dann zeilenweise statt im Menü."
+    printf '    Nachinstallieren mit:  sudo apt install whiptail\n'
+fi
+
 # Zeitzonendaten werden für die Spieltags-Logik gebraucht (zoneinfo)
 if ! "$PYTHON_BIN" -c "from zoneinfo import ZoneInfo; ZoneInfo('Europe/Berlin')" 2>/dev/null; then
     warn "Zeitzonendaten fehlen - 'Europe/Berlin' ist nicht auflösbar."
