@@ -377,11 +377,26 @@ for post in latest_posts:
 
         # 8. Bluesky-Verbindung herstellen (erst wenn wirklich gebraucht).
         # Die Server-Adresse für den Video-Upload ermittelt das gemeinsame Modul.
+        #
+        # Wichtig: `client` erst NACH erfolgreicher Anmeldung setzen. Sonst bliebe
+        # nach einem gescheiterten Login ein unangemeldetes Objekt zurück, die
+        # Bedingung unten wäre nie wieder wahr, und alle folgenden Beiträge
+        # liefen ohne Anmeldung ins Leere ("AuthMissing").
+        # Klappt die Anmeldung nicht, endet der Lauf: Ohne sie lässt sich nichts
+        # veröffentlichen, und weitere Versuche würden nur das Anmeldelimit
+        # aufbrauchen (Bluesky erlaubt 10 Anmeldungen pro Tag und Konto).
         if client is None:
             log("Verbinde mit Bluesky...")
-            client = Client()
-            melde_bei_bluesky_an(client, BLUESKY_HANDLE, BLUESKY_APP_PASSWORD,
-                                 PASSWORT_VARIABLE)
+            verbindung = Client()
+            try:
+                melde_bei_bluesky_an(verbindung, BLUESKY_HANDLE, BLUESKY_APP_PASSWORD,
+                                     PASSWORT_VARIABLE)
+            except Exception:
+                log("Ohne Anmeldung kann nichts veröffentlicht werden - Lauf wird beendet.")
+                log("Die noch nicht übernommenen Beiträge bleiben offen und werden")
+                log("beim nächsten Lauf erneut versucht.")
+                sys.exit(1)
+            client = verbindung
 
         # 9. Video-Uploads zur Bluesky-Video-API (einzeln oder mehrfach bei Multi-Video-Sidecar)
         # Priorität: Video. Backup bei Fehlschlag: das jeweilige Cover-Bild.

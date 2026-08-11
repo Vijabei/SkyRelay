@@ -497,6 +497,7 @@ def build_external_embed(url):
 
 
 bsky_client = None
+_anmeldeversuche = 0  # begrenzt Wiederholungen, siehe ensure_bsky()
 match_hashtag = None  # wird in main() aus den OpenLigaDB-Daten gesetzt (z.B. "DSCWOB")
 match_info = None     # Kurzinfo zum heutigen Spiel, z.B. "1. Spieltag" (für die Profilzeile)
 match_kickoff = None  # Anstoßzeit des heutigen Spiels (für die Profilzeile)
@@ -505,11 +506,25 @@ match_kickoff = None  # Anstoßzeit des heutigen Spiels (für die Profilzeile)
 def ensure_bsky():
     """Stellt die Bluesky-Verbindung her (lazy, einmalig pro Lauf)."""
     global bsky_client
-    if bsky_client is None:
-        log("Verbinde mit Bluesky...")
-        bsky_client = Client()
-        melde_bei_bluesky_an(bsky_client, BLUESKY_HANDLE, BLUESKY_APP_PASSWORD,
-                             PASSWORT_VARIABLE)
+    global _anmeldeversuche
+    if bsky_client is not None:
+        return
+    # Nach mehreren Fehlschlägen nicht weiter probieren: Bluesky erlaubt nur
+    # 10 Anmeldungen pro Tag und Konto, und an einem Spieltag kämen sonst
+    # dutzende Versuche zusammen - danach wäre auch ein korrigiertes Passwort
+    # für den Rest des Tages gesperrt.
+    if _anmeldeversuche >= 3:
+        raise RuntimeError("Anmeldung bei Bluesky mehrfach fehlgeschlagen - "
+                           "keine weiteren Versuche in diesem Lauf.")
+    _anmeldeversuche += 1
+    log("Verbinde mit Bluesky...")
+    verbindung = Client()
+    # Erst nach erfolgreicher Anmeldung übernehmen: Sonst bliebe ein
+    # unangemeldetes Objekt zurück, und alle folgenden Beiträge liefen
+    # ohne Anmeldung ins Leere ("AuthMissing").
+    melde_bei_bluesky_an(verbindung, BLUESKY_HANDLE, BLUESKY_APP_PASSWORD,
+                         PASSWORT_VARIABLE)
+    bsky_client = verbindung
 
 
 # --- Profil-Statuszeile -------------------------------------------------------
