@@ -12,9 +12,11 @@ import atexit
 import configparser
 import io
 import os
+import re
 import sys
 import threading
 import time
+from datetime import datetime
 
 import requests
 from PIL import Image
@@ -164,14 +166,21 @@ def melde_bei_bluesky_an(client, handle, passwort, passwort_variable):
         client.login(handle, passwort)
     except Exception as fehler:
         log(f"✗ Anmeldung bei Bluesky als @{handle} fehlgeschlagen: {fehler}")
-        if "Invalid identifier or password" in str(fehler):
+        if "RateLimitExceeded" in str(fehler):
+            log("   Das Anmeldelimit ist erschöpft: Bluesky erlaubt 10 Anmeldungen")
+            log("   pro Tag und Konto. Dagegen hilft nur warten - weitere Versuche")
+            log("   verlängern die Sperre zwar nicht, bringen aber auch nichts.")
+            treffer = re.search(r"['\"]ratelimit-reset['\"]:\s*['\"](\d+)['\"]", str(fehler))
+            if treffer:
+                frei_ab = datetime.fromtimestamp(int(treffer.group(1)))
+                log(f"   Wieder möglich ab: {frei_ab.strftime('%d.%m.%Y %H:%M')} (Ortszeit)")
+        elif "Invalid identifier or password" in str(fehler):
             log(f"   Gehört das App-Passwort aus {passwort_variable} wirklich zu")
             log(f"   genau diesem Konto? Werden Ticker und Feed auf getrennten")
             log(f"   Konten betrieben, brauchen sie auch getrennte Passwörter:")
             log(f"     Ticker: BLUESKY_TICKER_APP_PASSWORD")
             log(f"     Feed:   BLUESKY_FEED_APP_PASSWORD")
-            log(f"   (Bei einem gemeinsamen Konto genügt BLUESKY_APP_PASSWORD.)")
-        log("   Hinweis: Bluesky erlaubt nur 10 Anmeldeversuche pro Tag und Konto.")
+            log("   Achtung: Nur 10 Anmeldeversuche pro Tag - nicht blind wiederholen.")
         raise
 
 
