@@ -256,6 +256,7 @@ es unter `[feed] bluesky_handle` ein und gibst die App-Passwörter getrennt an
 | `skyrelay-setup.py` | Einrichtungsassistent (erzeugt und ändert `skyrelay.conf`) |
 | `skyrelay.conf.example` | kommentierte Vorlage aller Einstellungen |
 | `skyrelay_common.py` | gemeinsame Bausteine beider Programme (Protokoll, Konfiguration, Bilder, Video-Upload) |
+| `skyrelay-testlauf.py` | spielt echte Kanal-Nachrichten durch die Ticker-Pipeline, ohne zu veröffentlichen |
 | `CHEATSHEET-matchday.md` | alle Umgebungsvariablen, Betriebsarten, Dateien, Fehlerbehebung |
 | `ISSUE-DRAFT-neonize-newsletter-panic.md` | vorbereiteter Fehlerbericht an **neonize**: Absturz beim Verlaufsabruf |
 | `ISSUE-DRAFT-whatsmeow-newsletter-audio-hmac.md` | vorbereiteter Fehlerbericht an **whatsmeow**: Sprachnachrichten nicht ladbar |
@@ -270,10 +271,20 @@ es unter `[feed] bluesky_handle` ein und gibst die App-Passwörter getrennt an
   bleibt auf „Bot ist an" stehen. Beobachtet wurde das einmal; im Regelfall läuft
   das Aufräumen normal. Zurücksetzen notfalls mit `SKYRELAY_PROFILE=off`. Im
   cron-Betrieb ohne Bedeutung — dort endet der Ticker regulär zum Tagesende.
-* **Absturz bei gelöschten Kanalbeiträgen:** Löscht der Kanal einen Beitrag, bleibt
+* **Absturz bei inhaltslosen Kanalbeiträgen:** Löscht der Kanal einen Beitrag, bleibt
   eine leere Nachricht zurück, an der der zugrundeliegende Go-Programmteil abstürzt.
-  Betrifft **nur** die Nachhol-Betriebsarten (kleineren Wert wählen), nicht den
-  Dauerbetrieb — dieser lauscht auf Ereignisse und ist davon nicht betroffen.
+  Betrifft **nur** die Nachhol-Betriebsarten, nicht den Dauerbetrieb — dieser lauscht
+  auf Ereignisse und ist davon nicht betroffen.
+  **Stand 19.08.2026 liegt so eine Nachricht direkt hinter dem neuesten Beitrag.**
+  Damit ist `SKYRELAY_REPLAY` praktisch unbrauchbar: schon der Abruf von zwei
+  Nachrichten stürzt ab, nur `1` läuft durch. Zum Prüfen an echtem Material
+  stattdessen `skyrelay-testlauf.py` nehmen — das blättert mit einem
+  ausdrücklichen Startpunkt rückwärts an der kaputten Stelle vorbei:
+
+  ```
+  venv/bin/python3 skyrelay-testlauf.py --neueste
+  venv/bin/python3 skyrelay-testlauf.py --vor <ServerID> --typ audio,sticker
+  ```
 * **`instaloader` ist auf 4.15.2 festgelegt.** Version 4.15.3 stellte die
   Profilabfrage auf einen Endpunkt um, den Instagram seit Anfang August 2026
   drosselt — schon die erste Anfrage endet mit „429 Too Many Requests"
