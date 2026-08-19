@@ -85,10 +85,36 @@ image_placeholder = 📸 Neues Bild im Kanal
 video_placeholder = 🎥 Neues Video im Kanal
 # Hinweis, der angehängt wird, wenn ein Video nicht übertragen werden konnte.
 video_hint = 🎥 (Video im Original-Kanal)
+# Platzhaltertexte fuer Nachrichten, die nur aus einer Sprachnachricht bzw.
+# einem Sticker bestehen - beides kommt im Kanal fast immer ohne Text.
+audio_placeholder = 🔊 Neue Sprachnachricht im Kanal
+sticker_placeholder = ✨ Neuer Sticker im Kanal
 # Präfix der hochgeladenen Videodateien (nur intern sichtbar).
 media_prefix = skyrelay
 # Text der Antwort, mit der ein zunaechst gescheitertes Video nachgereicht wird.
 video_retry_text = 🎥 Nachgereicht: das Video zum Beitrag oben.
+
+
+[audio]
+# ---------------------------------------------------------------------------
+#  Sprachnachrichten aus dem WhatsApp-Kanal.
+#  Bluesky kennt kein Audio-Format. SkyRelay macht aus einer Sprachnachricht
+#  deshalb ein Video mit animierter Wellenform - der Ton bleibt erhalten.
+#  Setzt ffmpeg auf dem System voraus.
+# ---------------------------------------------------------------------------
+# Kantenlaenge des erzeugten Videos.
+size = 720x720
+# Farbe der Wellenform.
+# ACHTUNG: Hier geht NUR ein ffmpeg-Farbname, etwa White, DodgerBlue, Cyan,
+# Gold, Orange. Eine Hex-Angabe wie 0x38BDF8 oder #38BDF8 verwirft ffmpeg
+# stillschweigend und zeichnet gruen - ohne jede Fehlermeldung. SkyRelay warnt
+# im Protokoll, wenn hier etwas mit 0x oder # steht.
+waveform_color = White
+# Hintergrund des Videos. Hier ist Hex erlaubt (0xRRGGBB) oder ein Farbname.
+background_color = 0x0b1220
+# Hintergrund, auf den transparente Sticker gelegt werden. Ohne das staende
+# das Motiv auf Schwarz, weil beim Verwerfen der Transparenz nichts bleibt.
+sticker_background = white
 
 
 [feed]

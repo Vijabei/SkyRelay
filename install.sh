@@ -86,6 +86,15 @@ else
     printf '    Nachinstallieren mit:  sudo apt install whiptail\n'
 fi
 
+# ffmpeg wandelt Sprachnachrichten in Videos mit Wellenform - ohne das Werkzeug
+# werden Sprachnachrichten aus dem Kanal übersprungen, alles andere läuft weiter.
+if command -v ffmpeg >/dev/null 2>&1; then
+    ok "ffmpeg vorhanden (Sprachnachrichten aus dem WhatsApp-Kanal)"
+else
+    warn "ffmpeg fehlt - Sprachnachrichten können nicht übertragen werden."
+    printf '    Nachinstallieren mit:  sudo apt install ffmpeg\n'
+fi
+
 # Zeitzonendaten werden für die Spieltags-Logik gebraucht (zoneinfo)
 if ! "$PYTHON_BIN" -c "from zoneinfo import ZoneInfo; ZoneInfo('Europe/Berlin')" 2>/dev/null; then
     warn "Zeitzonendaten fehlen - 'Europe/Berlin' ist nicht auflösbar."

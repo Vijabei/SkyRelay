@@ -14,7 +14,10 @@ import io
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
 import threading
 import time
 from datetime import datetime
@@ -506,3 +509,115 @@ def reiche_videos_nach(client, ordner, antwort_text, max_versuche=8,
                 log(f"   ⚠️ Versuchszähler nicht gespeichert: {schreib_fehler}")
 
     return erledigt
+
+
+# ------------------------------------------- Sprachnachrichten und Sticker
+#
+# Bluesky kennt weder ein Audio-Format noch Animationen. Beides lässt sich aber
+# in etwas übersetzen, das Bluesky darstellt:
+#   Sprachnachricht -> Video mit animierter Wellenform (Ton bleibt erhalten)
+#   Sticker         -> einzelnes Bild (bei animierten Stickern das erste)
+
+def _ffmpeg_vorhanden():
+    return shutil.which("ffmpeg") is not None
+
+
+def audio_zu_video(audio_daten, groesse="720x720", wellenfarbe="White",
+                   hintergrund="0x0b1220", timeout_seconds=120):
+    """Baut aus einer Sprachnachricht ein Video mit animierter Wellenform und
+    unveränderter Tonspur. Liefert die mp4-Daten.
+
+    ACHTUNG bei `wellenfarbe`: Der ffmpeg-Filter showwaves nimmt ausschließlich
+    FARBNAMEN ("White", "DodgerBlue", "Cyan", ...). Hex-Angaben wie 0x38BDF8
+    oder #38BDF8 verwirft er stillschweigend und zeichnet stattdessen grün -
+    ohne Fehlermeldung. Für `hintergrund` gilt das nicht, der nimmt auch Hex.
+    """
+    if not _ffmpeg_vorhanden():
+        raise RuntimeError("ffmpeg ist nicht installiert - Sprachnachrichten "
+                           "lassen sich ohne ffmpeg nicht umwandeln.")
+
+    if wellenfarbe.startswith(("0x", "#")):
+        log(f"   ⚠️ Wellenfarbe {wellenfarbe!r} ist eine Hex-Angabe - ffmpeg "
+            f"ignoriert die und zeichnet grün. Bitte einen Farbnamen eintragen.")
+
+    try:
+        breite, hoehe = (int(t) for t in groesse.lower().split("x"))
+    except ValueError:
+        raise RuntimeError(f"Ungültige Größenangabe für das Audio-Video: {groesse!r} "
+                           f"(erwartet z.B. 720x720).")
+    wellen_hoehe = max(2, hoehe // 2)
+
+    filter_kette = (
+        f"color=c={hintergrund}:s={breite}x{hoehe}:r=25[bg];"
+        f"[0:a]showwaves=s={breite}x{wellen_hoehe}:mode=cline:"
+        f"colors={wellenfarbe}:scale=sqrt:r=25[w];"
+        f"[bg][w]overlay=(W-w)/2:(H-h)/2:shortest=1,format=yuv420p[v]"
+    )
+
+    with tempfile.TemporaryDirectory(prefix="skyrelay-audio-") as ordner:
+        quelle = os.path.join(ordner, "stimme")
+        ziel = os.path.join(ordner, "stimme.mp4")
+        with open(quelle, "wb") as f:
+            f.write(audio_daten)
+
+        ergebnis = subprocess.run(
+            ["ffmpeg", "-y", "-i", quelle, "-filter_complex", filter_kette,
+             "-map", "[v]", "-map", "0:a",
+             "-c:v", "libx264", "-preset", "veryfast", "-crf", "28",
+             "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart",
+             ziel, "-loglevel", "error"],
+            capture_output=True, text=True, timeout=timeout_seconds)
+
+        if ergebnis.returncode != 0 or not os.path.exists(ziel):
+            meldung = (ergebnis.stderr or "").strip()[:300] or "keine Ausgabe"
+            raise RuntimeError(f"ffmpeg konnte kein Video erzeugen: {meldung}")
+
+        with open(ziel, "rb") as f:
+            return f.read()
+
+
+def video_standbild(video_daten, zeitpunkt=1.0, timeout_seconds=60):
+    """Zieht ein Einzelbild aus einem Video - als Ersatzbild, falls der
+    Video-Upload scheitert. Liefert JPEG-Daten oder None."""
+    if not _ffmpeg_vorhanden():
+        return None
+    try:
+        with tempfile.TemporaryDirectory(prefix="skyrelay-frame-") as ordner:
+            quelle = os.path.join(ordner, "video.mp4")
+            ziel = os.path.join(ordner, "bild.jpg")
+            with open(quelle, "wb") as f:
+                f.write(video_daten)
+            ergebnis = subprocess.run(
+                ["ffmpeg", "-y", "-ss", str(zeitpunkt), "-i", quelle,
+                 "-frames:v", "1", ziel, "-loglevel", "error"],
+                capture_output=True, text=True, timeout=timeout_seconds)
+            if ergebnis.returncode != 0 or not os.path.exists(ziel):
+                return None
+            with open(ziel, "rb") as f:
+                return f.read()
+    except Exception as fehler:
+        log(f"   ⚠️ Standbild nicht erzeugbar: {fehler}")
+        return None
+
+
+def sticker_zu_bild(daten, hintergrund="white", max_dim=2000, max_bytes=1_500_000):
+    """Macht aus einem WhatsApp-Sticker ein Bild für Bluesky. Sticker sind WebP,
+    meist mit transparentem Grund und manchmal animiert. Genommen wird das erste
+    Einzelbild, und die Transparenz kommt auf einen festen Hintergrund - sonst
+    stünde das Motiv auf Schwarz, weil beim Verwerfen des Alphakanals nichts
+    anderes übrig bleibt."""
+    bild = Image.open(io.BytesIO(daten) if isinstance(daten, (bytes, bytearray)) else daten)
+
+    # Animierte Sticker: erstes Einzelbild. Bei unbewegten ist seek(0) folgenlos.
+    try:
+        bild.seek(0)
+    except EOFError:
+        pass
+
+    bild = bild.convert("RGBA")
+    grund = Image.new("RGB", bild.size, hintergrund)
+    grund.paste(bild, mask=bild.split()[3])
+
+    puffer = io.BytesIO()
+    grund.save(puffer, format="PNG")
+    return compress_image_for_bluesky(puffer.getvalue(), max_dim, max_bytes)

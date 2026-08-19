@@ -86,6 +86,9 @@ from skyrelay_common import (
     merke_video_daten,
     merke_nachreich_ziel,
     reiche_videos_nach,
+    audio_zu_video,
+    video_standbild,
+    sticker_zu_bild,
 )
 
 # httpx (der HTTP-Client der atproto-Bibliothek) protokolliert sonst jede Anfrage.
@@ -126,6 +129,15 @@ STANDING_HASHTAG = cfg("post", "standing_hashtag", "").strip().lstrip("#")
 IMAGE_PLACEHOLDER = cfg("post", "image_placeholder", "📸 Neues Bild im Kanal")
 VIDEO_PLACEHOLDER = cfg("post", "video_placeholder", "🎥 Neues Video im Kanal")
 VIDEO_HINT = cfg("post", "video_hint", "🎥 (Video im Original-Kanal)")
+AUDIO_PLACEHOLDER = cfg("post", "audio_placeholder",
+                       "🔊 Neue Sprachnachricht im Kanal")
+STICKER_PLACEHOLDER = cfg("post", "sticker_placeholder",
+                         "✨ Neuer Sticker im Kanal")
+# Sprachnachrichten werden als Video mit Wellenform übertragen (siehe [audio]).
+AUDIO_SIZE = cfg("audio", "size", "720x720")
+AUDIO_WAVE_COLOR = cfg("audio", "waveform_color", "White")
+AUDIO_BG_COLOR = cfg("audio", "background_color", "0x0b1220")
+STICKER_BACKGROUND = cfg("audio", "sticker_background", "white")
 MEDIA_PREFIX = cfg("post", "media_prefix", "skyrelay")
 
 PROFILE_STATUS_ENABLED = cfg_bool("profile", "enabled", True)
@@ -620,7 +632,8 @@ def set_profile_status(on):
 # ------------------------------------------------------------------------------
 
 
-def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None, media_name="video"):
+def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None,
+                    media_name="video", platzhalter=None):
     """Postet eine Kanal-Nachricht im Format des Instagram-Reposters: Hauptpost mit
     "[Inoffizieller Bot]"-Präfix + Quell-Link, bei Überlänge Folge-Chunks als Replies.
     URLs im Text werden klickbar. Embed-Priorität (ein Post = ein Embed):
@@ -640,7 +653,7 @@ def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None, media
     card_url_match = URL_REGEX.search(text) if not image_blobs and not video_bytes else None
 
     if DRY_RUN:
-        preview = text_chunks[0][:120] if text_chunks else "(nur Medien)"
+        preview = text_chunks[0][:120] if text_chunks else (platzhalter or "(nur Medien)")
         tags = " ".join(f"#{t}" for t in hashtags)
         card = f", Link-Karte für {card_url_match.group(0)}" if card_url_match else ""
         video = f", 1 Video ({len(video_bytes)} Bytes)" if video_bytes else ""
@@ -651,7 +664,8 @@ def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None, media
     ensure_bsky()
 
     if not text_chunks:
-        text_chunks = [VIDEO_PLACEHOLDER if video_bytes else IMAGE_PLACEHOLDER]
+        text_chunks = [platzhalter or
+                       (VIDEO_PLACEHOLDER if video_bytes else IMAGE_PLACEHOLDER)]
 
     # Video-Upload zuerst versuchen; bei Fehlschlag Vorschaubild als Bild-Fallback
     # und das Video zum Nachreichen vormerken.
@@ -767,6 +781,7 @@ async def process_newsletter_message(client, raw_msg, server_id):
     image_blobs = []
     video_bytes = None
     video_thumb = None
+    platzhalter = None
     if msg.HasField("imageMessage"):
         try:
             raw = await client.download_any(msg)
@@ -791,10 +806,44 @@ async def process_newsletter_message(client, raw_msg, server_id):
                     pass
             if text:
                 text += f"\n\n{VIDEO_HINT}"
+    elif msg.HasField("audioMessage"):
+        # Bluesky kennt kein Audio-Format. Aus der Sprachnachricht wird deshalb
+        # ein Video mit animierter Wellenform - der Ton bleibt dabei erhalten.
+        platzhalter = AUDIO_PLACEHOLDER
+        sekunden = msg.audioMessage.seconds or 0
+        try:
+            log("   Lade Sprachnachricht aus dem Kanal herunter...")
+            audio = await client.download_any(msg)
+            log(f"   ✓ Sprachnachricht geladen ({len(audio)} Bytes, {sekunden}s).")
+            log("   Erzeuge Video mit Wellenform...")
+            video_bytes = audio_zu_video(audio, AUDIO_SIZE, AUDIO_WAVE_COLOR,
+                                         AUDIO_BG_COLOR)
+            video_thumb = video_standbild(video_bytes)
+            log(f"   ✓ Video erzeugt ({len(video_bytes)} Bytes).")
+        except Exception as audio_err:
+            log(f"   ⚠️ Sprachnachricht nicht übertragbar: {audio_err}")
+            if not text:
+                log("   (ohne Text bleibt nichts zu posten - übersprungen)")
+                return []
+    elif msg.HasField("stickerMessage"):
+        # Sticker sind WebP, oft transparent und manchmal animiert. Bluesky
+        # spielt keine Animationen ab, also geht das erste Einzelbild raus.
+        platzhalter = STICKER_PLACEHOLDER
+        try:
+            log("   Lade Sticker aus dem Kanal herunter...")
+            roh = await client.download_any(msg)
+            image_blobs.append(sticker_zu_bild(roh, STICKER_BACKGROUND))
+            log(f"   ✓ Sticker umgewandelt ({len(roh)} Bytes Ausgangsmaterial).")
+        except Exception as sticker_err:
+            log(f"   ⚠️ Sticker nicht übertragbar: {sticker_err}")
+            if not text:
+                log("   (ohne Text bleibt nichts zu posten - übersprungen)")
+                return []
 
     log(f"   Text ({len(text)} Zeichen): {text[:100]!r}...")
     return post_to_bluesky(text, image_blobs, video_bytes, video_thumb,
-                           media_name=f"{MEDIA_PREFIX}_{server_id}")
+                           media_name=f"{MEDIA_PREFIX}_{server_id}",
+                           platzhalter=platzhalter)
 
 
 async def handle_edit(client, event, server_id, posts_map):
@@ -803,7 +852,8 @@ async def handle_edit(client, event, server_id, posts_map):
     Version gepostet; unveränderte Wiederzustellungen werden ignoriert."""
     msg = unwrap_message(event.Message)
     new_text = extract_text(msg)
-    has_media = msg.HasField("imageMessage") or msg.HasField("videoMessage")
+    has_media = any(msg.HasField(feld) for feld in
+                    ("imageMessage", "videoMessage", "audioMessage", "stickerMessage"))
 
     if not new_text and not has_media:
         log(f"   (ServerID {server_id}: Meta-Nachricht ohne Inhalt - übersprungen)")

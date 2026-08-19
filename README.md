@@ -63,6 +63,9 @@ Quelle und Ablaufsteuerung. Sprich uns über ein Issue an.
 * **Bearbeitungen** im Kanal werden erkannt: Der alte Bluesky-Beitrag wird gelöscht
   und durch die korrigierte Fassung ersetzt.
 * Überträgt Text, Bilder, Videos und erzeugt Link-Vorschaukarten.
+* **Sprachnachrichten und Sticker** aus dem WhatsApp-Kanal werden übernommen.
+  Bluesky kennt beides nicht: Aus einer Sprachnachricht wird ein Video mit
+  animierter Wellenform (der Ton bleibt erhalten), aus einem Sticker ein Bild.
 * **Videos werden nachgereicht:** Scheitert der Upload zur Video-API von
   Bluesky, geht der Beitrag sofort mit dem Vorschaubild raus — beim Ticker
   zählt die Zeit. Das Video bleibt liegen und wird in späteren Läufen erneut
@@ -83,6 +86,9 @@ im Code steht nichts Vereinsspezifisches mehr.
 * **Linux, 64 Bit** (`x86_64` oder `aarch64`). Ein Raspberry Pi 3B+ genügt, aber das
   System muss 64-Bit sein — für 32-Bit (`armv7l`) gibt es keine passenden Pakete.
 * **Python 3.10** oder neuer, dazu `python3-venv` und `tzdata`.
+* **`ffmpeg`** (`sudo apt install ffmpeg`) — nur für Sprachnachrichten aus dem
+  WhatsApp-Kanal. Fehlt es, werden Sprachnachrichten übersprungen, alles andere
+  läuft unverändert weiter.
 * Ein **Bluesky-Konto** für den Bot samt App-Passwort
   (Einstellungen → Datenschutz und Sicherheit → App-Passwörter).
 * Für `skyrelay-matchday.py`: eine **separate WhatsApp-Nummer**, deren Verlust
@@ -273,6 +279,14 @@ es unter `[feed] bluesky_handle` ein und gibst die App-Passwörter getrennt an
   ([instaloader#2726](https://github.com/instaloader/instaloader/issues/2726),
   offen). Erst nach dessen Lösung aktualisieren.
 * **Umfragen** werden übersprungen: Bluesky kennt dieses Format nicht.
+* **Animierte Sticker** verlieren ihre Bewegung — übertragen wird das erste
+  Einzelbild, weil Bluesky keine Animationen abspielt.
+* **Sprachnachrichten** erscheinen als Video und haben damit keine sinnvolle
+  Bildbeschreibung. Wer auf Barrierefreiheit Wert legt, sollte das bedenken.
+* **Wellenform-Farbe:** `waveform_color` in `[audio]` nimmt ausschließlich
+  ffmpeg-*Farbnamen* (`White`, `DodgerBlue`, …). Hex-Angaben wie `0x38BDF8`
+  verwirft ffmpeg stillschweigend und zeichnet grün; SkyRelay warnt dann im
+  Protokoll.
 * **Videos** bis rund 100 MB; größere werden nicht übertragen (Bluesky-Grenze).
 * **Nachgereichte Videos** landen als Antwort unter dem Beitrag, nicht im
   Beitrag selbst — Bluesky kennt kein nachträgliches Ändern von Beiträgen.
