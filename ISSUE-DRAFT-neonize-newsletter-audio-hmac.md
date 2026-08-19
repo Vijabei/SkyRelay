@@ -2,59 +2,57 @@
 =============================================================================
 DEUTSCHER VORSPANN - VOR DEM ABSENDEN LÖSCHEN
 =============================================================================
-Entwurf für ein GitHub-Issue bei https://github.com/krypton-byte/neonize/issues
-("New issue" -> Titel + Text unten einfügen).
+Entwurf für ein GitHub-Issue.
 
-Stand: 19.08.2026, gemessen auf neonize 0.4.3.post0 gegen einen echten
-WhatsApp-Kanal.
+ZIEL-REPOSITORY: https://github.com/tulir/whatsmeow/issues
+Nicht mehr neonize! Die Ursache steht nachweislich in whatsmeows download.go,
+neonize reicht den Aufruf nur durch. (Der Dateiname bleibt, damit Verweise
+darauf nicht brechen - der Inhalt zielt auf whatsmeow.)
+
+Stand: 19.08.2026, gemessen gegen einen echten WhatsApp-Kanal.
 
 Bitte vor dem Absenden prüfen:
-1. Die Zahlen sind alle aus dem Lauf vom 19.08.2026: 0 von 5 Sprachnachrichten
-   luden regulär, 5 von 5 ohne mediaKey, jeweils byte-genau.
+1. Alle Zahlen stammen aus dem Lauf vom 19.08.2026: 0 von 5 Sprachnachrichten
+   luden regulär, 5 von 5 ohne mediaKey, jeweils byte-genau, und der SHA-256
+   stimmt mit fileSHA256 aus der Nachricht überein.
 2. Die Kanal-Kennung 120363246785630110 steht im Text. Das ist der öffentliche
    Arminia-Kanal - unkritisch, aber falls du ihn nicht nennen willst, vorher
    herausnehmen. Die Einladungs-URL steht bewusst NICHT drin.
-3. Die Ursachenanalyse ist als Vermutung gekennzeichnet ("appears to"). Der
-   whatsmeow-Quelltext wurde NICHT gelesen - beobachtet ist nur das Verhalten
-   von außen. Bitte so lassen, sonst wird aus einer Messung eine Behauptung.
+3. Die Ursachenanalyse stützt sich jetzt auf gelesenen whatsmeow-Quelltext
+   (download.go, upload.go), nicht mehr auf Vermutung.
 4. Der Disclosure-Satz am Ende ist bewusst enthalten.
-
-Hinweis: Der Fehler steckt vermutlich in whatsmeow, nicht in neonize selbst.
-Es kann sein, dass das Projekt dich an https://github.com/tulir/whatsmeow
-weiterverweist - der Bericht ist so geschrieben, dass er dort ebenso passt.
 =============================================================================
 -->
 
 # Titel (in das GitHub-Titelfeld):
 
-`download_any` fails with "invalid media hmac" for newsletter voice notes — clearing `mediaKey` makes the identical file download successfully
+Newsletter voice notes fail to download with "invalid media hmac": the plaintext branch in `downloadAndDecrypt` requires `mediaKey == nil`, but WhatsApp sends a `MediaKey` for unencrypted newsletter audio
 
 # Text (in das Beschreibungsfeld):
 
 ## Describe the bug
 
-Voice notes (`audioMessage`, PTT) posted in a WhatsApp **channel** (newsletter) cannot be downloaded. Every call to `download_any()` fails with:
+Voice notes (`AudioMessage`, PTT) posted in a WhatsApp **channel** (newsletter) can never be downloaded. Every attempt fails with:
 
 ```
-DownloadError: failed to download media from last host: invalid media hmac
+failed to download media from last host: invalid media hmac
 ```
 
-Images, videos and stickers from the *same* channel download without any problem. The difference is not the media type as such — it is that voice notes are the only kind that still carry a **`mediaKey`**.
+Images, videos and stickers from the *same* channel download fine. The difference is not the media type: voice notes are the only kind whose message still carries a **`MediaKey`**, and its mere presence is enough to send the download down the decryption path — for media that is not encrypted.
 
-Removing that key makes the very same file download instantly and byte-exactly.
+The media is plaintext, and that is provable: fetching it with `MediaKey` cleared returns exactly `FileLength` bytes whose SHA-256 matches the message's own `FileSHA256`.
 
 ## Environment
 
-- **neonize:** 0.4.3.post0 (prebuilt `manylinux2014_aarch64` wheel from PyPI)
-- **Python:** 3.13.5
+- **whatsmeow:** as bundled in `neonize` 0.4.3.post0 (`manylinux2014_aarch64` wheel)
 - **OS:** Debian GNU/Linux 13 (trixie), kernel 6.18.39, aarch64 (Raspberry Pi)
 - Channel: a large public channel I follow (`120363246785630110@newsletter`), followed and subscribed
 
 ## Measurements
 
-All five voice notes found in the channel history behaved identically:
+All five voice notes in the channel history behaved identically:
 
-| ServerID | mimetype | fileLength | seconds | regular download |
+| ServerID | mimetype | FileLength | seconds | regular download |
 |---|---|---|---|---|
 | 6896 | `audio/ogg; codecs=opus` | 21081 | 8 | ✗ invalid media hmac |
 | 6892 | `audio/ogg; codecs=opus` | 13314 | 5 | ✗ invalid media hmac |
@@ -62,109 +60,101 @@ All five voice notes found in the channel history behaved identically:
 | 6885 | `audio/ogg; codecs=opus` | 24859 | 10 | ✗ invalid media hmac |
 | 6881 | `audio/ogg; codecs=opus` | 16283 | 6 | ✗ invalid media hmac |
 
-**0 of 5 downloaded. After clearing `mediaKey`, 5 of 5 downloaded**, each one exactly `fileLength` bytes. For ServerID 6896 the result is a valid file — `ffprobe` reports `codec_name=opus, sample_rate=48000, channels=1, duration=8.9665`, matching the announced 8 seconds.
+**0 of 5 downloaded normally. With `MediaKey` cleared, 5 of 5 downloaded**, each exactly `FileLength` bytes.
 
-The decisive observation is what the message fields actually contain:
+For ServerID 6896 the result is demonstrably the correct, intact file:
 
-| field | `audioMessage` | `videoMessage` | `stickerMessage` |
+```
+SHA-256 of downloaded bytes : 4d6b36a2978b960435f38ff85ff0e1bdac0cbcd1ae3f7d593f2ee16d159e55cc
+FileSHA256 from the message : 4d6b36a2978b960435f38ff85ff0e1bdac0cbcd1ae3f7d593f2ee16d159e55cc
+```
+
+`ffprobe` on it reports `codec_name=opus, sample_rate=48000, channels=1, duration=8.9665`, matching the announced 8 seconds.
+
+This is the decisive point: `FileSHA256` is the hash of the **plaintext**, and the bytes stored on the media host match it exactly. The media is not encrypted — while the message nevertheless carries a 32-byte `MediaKey`.
+
+Field layout across message types in the same channel:
+
+| field | `AudioMessage` | `VideoMessage` | `StickerMessage` |
 |---|---|---|---|
 | `URL` | empty | empty | set |
-| `directPath` | set | set | set |
-| `mediaKey` | **32 bytes** | **empty** | **empty** |
-| `fileSHA256` | 32 bytes | 32 bytes | 32 bytes |
-| `fileEncSHA256` | **empty** | **empty** | **empty** |
-| `download_any` | ✗ hmac | ✓ | ✓ |
+| `DirectPath` | set | set | set |
+| `MediaKey` | **32 bytes** | **empty** | **empty** |
+| `FileSHA256` | 32 bytes | 32 bytes | 32 bytes |
+| `FileEncSHA256` | **empty** | **empty** | **empty** |
+| download | ✗ hmac | ✓ | ✓ |
 
-The pattern is exact: every message type that arrives **without** a `mediaKey`
-downloads fine, and the one type that arrives **with** one fails. `fileEncSHA256`
-is empty on all of them.
+The pattern is exact: every type that arrives **without** a `MediaKey` downloads fine — a video of 4566697 bytes and a sticker of 139420 bytes, both byte-exact — and the one type that arrives **with** one fails.
 
-A `videoMessage` with an empty `mediaKey` and an empty `fileEncSHA256` downloads perfectly: ServerID 6883, `fileLength` 4566697, and `download_any` returns exactly 4566697 bytes. A `stickerMessage` behaves the same way: ServerID 6897, empty `mediaKey`, empty `fileEncSHA256`, `download_any` returns exactly its 139420 bytes. So a missing key is not a problem at all here — it is the *presence* of a key that breaks the download.
+## Root cause
 
-## Root cause analysis
+In [`download.go`](https://github.com/tulir/whatsmeow/blob/main/download.go), `downloadAndDecrypt` selects the plaintext path with a three-part condition:
 
-This is inference from the observed behaviour; I have not read the whatsmeow media code.
+```go
+} else if mediaKey == nil && fileEncSHA256 == nil && mac == nil {
+	// Unencrypted media, just check the hash and return
+	data = ciphertext
+	if fileSHA256 != nil && (len(fileSHA256) != 32 || sha256.Sum256(data) != *(*[32]byte)(fileSHA256)) {
+		err = ErrInvalidUnencryptedMediaSHA256
+	}
+}
+```
 
-Newsletter media appears to be served **unencrypted** behind `directPath`. Images and videos carry no `mediaKey`, so the download path fetches them plainly and they work. Voice notes appear to keep a `mediaKey` from the ordinary chat flow, where PTT media *is* encrypted. Its presence appears to send the download down the decrypt-and-verify path, which then fails the HMAC check against content that was never encrypted with that key in the first place.
+For these voice notes `fileEncSHA256` is nil and `mac` is nil — but `mediaKey` is **not** nil. The condition therefore fails, control falls through to `validateMedia(iv, ciphertext, macKey, mac)`, and that returns `ErrInvalidMediaHMAC`: there is no MAC to validate, and nothing was ever encrypted with that key.
 
-That `fileEncSHA256` is empty on all of these messages points the same way: there is no ciphertext hash to verify against, because there is no ciphertext.
+Had the plaintext branch been taken, the very check it performs would have **succeeded** — as measured above, `sha256(data) == fileSHA256`.
 
-Passing a different `MediaType` does not help — with `download_media_with_path` and each of `MediaAudio`, `MediaImage`, `MediaVideo`, `MediaDocument` the call fails earlier, at `invalid checksum length: expected 32, got 0`, which is the empty `fileEncSHA256`. So this is not a wrong key-derivation string; the media simply is not encrypted.
+That newsletter media is unencrypted is whatsmeow's own design. `UploadNewsletter` sets only `FileLength` and `FileSHA256` before calling `rawUpload(..., newsletter=true, ...)`, and `UploadNewsletterReader` is documented as uploading "without encrypting it first". Neither ever produces a `MediaKey` or `FileEncSHA256`. The same fact was observed independently from the upload side in [krypton-byte/neonize#208](https://github.com/krypton-byte/neonize/issues/208).
 
-## Related issues (checked before filing)
-
-I searched the tracker for prior reports and did not find this case:
-
-- **#727** *client.DownloadToFile return error invalid media hmac* (closed the
-  next day) — a `DocumentMessage` in a **normal chat**; the reporter concluded
-  the individual file was at fault. No newsletter involved.
-- **#127** *Media File Length and Invalid HMAC* (2022, closed as completed) —
-  about `file_length` being used for validation. Different cause, no newsletter
-  involved.
-
-Neither covers media from a **newsletter**, and nothing in the tracker describes
-a download failing because a `mediaKey` is present on media that is not
-encrypted. If I have missed an existing report, I am happy to have this closed
-as a duplicate.
+What I cannot explain is why WhatsApp's own client puts a `MediaKey` into the `AudioMessage` of a channel post at all, when the upload is plaintext. Whatever the reason, that is what the server delivers, and whatsmeow currently cannot read those messages because of it.
 
 ## Reproduction
 
+Any channel post that is a voice note reproduces it. Via the Python binding the shape is:
+
 ```python
-import asyncio
-from neonize.aioze.client import NewAClient
-from neonize.types import MessageServerID
+nm = ...  # a newsletter message whose Message has an audioMessage
 
-client = NewAClient("session.sqlite3")  # already paired, channel followed
+# 1) regular way -> invalid media hmac
+await client.download_any(nm.Message)
 
-async def main():
-    await client.connect()
-    await asyncio.sleep(5)
-    meta = await client.get_newsletter_info_with_invite("https://whatsapp.com/channel/<code>")
-
-    # Pick any message that has an audioMessage. Use an explicit `before`
-    # cursor rather than the newest messages - see the separate panic issue.
-    msgs = await client.get_newsletter_messages(meta.ID, 3, MessageServerID(<id>))
-    nm = next(m for m in msgs if m.Message.HasField("audioMessage"))
-
-    # 1) regular way -> DownloadError: invalid media hmac
-    try:
-        await client.download_any(nm.Message)
-    except Exception as e:
-        print("with mediaKey :", e)
-
-    # 2) same message without the key -> works, exactly fileLength bytes
-    copy = type(nm.Message)()
-    copy.CopyFrom(nm.Message)
-    copy.audioMessage.ClearField("mediaKey")
-    data = await client.download_any(copy)
-    print("without key   :", len(data), "bytes, expected",
-          nm.Message.audioMessage.fileLength)
-
-asyncio.run(main())
+# 2) same message, key cleared -> works, exactly FileLength bytes
+copy = type(nm.Message)()
+copy.CopyFrom(nm.Message)
+copy.audioMessage.ClearField("mediaKey")
+data = await client.download_any(copy)
+assert hashlib.sha256(data).hexdigest() == nm.Message.audioMessage.fileSHA256.hex()
 ```
 
-Output on my machine:
-
-```
-with mediaKey : failed to download media from last host: invalid media hmac
-without key   : 21081 bytes, expected 21081
-```
+In Go the equivalent is to nil out `MediaKey` on the `AudioMessage` before calling `Download`.
 
 ## Expected behavior
 
-`download_any()` should return the audio bytes for a newsletter voice note, the same way it already does for newsletter images and videos.
+A newsletter voice note should download like any other newsletter media.
 
 ## Suggested fix
 
-I do not know which layer this belongs in, so these are alternatives rather than a recommendation:
+Relax the plaintext condition so that a stray `MediaKey` does not force decryption when there is demonstrably nothing to decrypt. `fileEncSHA256 == nil && mac == nil` already characterises unencrypted media — the media host returned no MAC, and the message carries no ciphertext hash:
 
-1. For newsletter messages, take the plaintext path regardless of `mediaKey` — this is effectively what already happens for images and videos, since those arrive without a key.
-2. Or treat an empty `fileEncSHA256` as "not encrypted" and skip decryption and HMAC verification.
-3. Or, if neither is safe in general, fall back to the plaintext path when HMAC verification fails and there is no `fileEncSHA256` to verify against — and surface a clearer error than `invalid media hmac` when it genuinely is a key mismatch.
+```go
+} else if fileEncSHA256 == nil && mac == nil {
+```
+
+The existing `ErrInvalidUnencryptedMediaSHA256` check inside that branch keeps this safe: were the bytes in fact encrypted, the plaintext hash would not match and the download would still fail — with a far more accurate error than `invalid media hmac`.
+
+If changing the condition generally is too broad, the same effect could be limited to newsletter messages, since that is where plaintext media occurs by design.
+
+## Related issues (checked before filing)
+
+- **#727** *client.DownloadToFile return error invalid media hmac* — a `DocumentMessage` in a **normal chat**; the reporter concluded the individual file was at fault. No newsletter involved.
+- **#127** *Media File Length and Invalid HMAC* (2022) — about `file_length` being used for validation. Different cause, no newsletter involved.
+- **[krypton-byte/neonize#208](https://github.com/krypton-byte/neonize/issues/208)** — not a whatsmeow issue, but describes the same underlying fact from the *upload* side: newsletter uploads legitimately produce no `MediaKey`/`FileEncSHA256`.
+
+I found no existing report of newsletter media failing to download. If I have missed one, I am happy to have this closed as a duplicate.
 
 ## Workaround (for anyone hitting this)
 
-Clear `mediaKey` on a copy of the message and download that copy, as in the snippet above. Worth doing only on an HMAC failure, so that properly encrypted media keeps going through the normal path if this ever changes:
+Clear `MediaKey` and download again, but only after an HMAC failure, so that genuinely encrypted media keeps taking the normal path:
 
 ```python
 async def download_channel_media(client, msg):
@@ -185,4 +175,4 @@ async def download_channel_media(client, msg):
 
 ---
 
-*Disclosure: the analysis and this write-up were done with the help of an AI assistant (Claude). All measurements, field dumps and error messages are from my own testing against my own device and a channel I follow.*
+*Disclosure: the analysis and this write-up were done with the help of an AI assistant (Claude). All measurements, field dumps, hashes and error messages are from my own testing against my own device and a channel I follow.*

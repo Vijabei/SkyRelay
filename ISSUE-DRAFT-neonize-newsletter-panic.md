@@ -164,6 +164,15 @@ main.GetNewsletterMessages(0x7f860bb1d0, 0x7f7c1e4320, 0x28, 0x1e, 0x0)
 
 `GetNewsletterMessageUpdate` shares the same encoder and should be affected the same way.
 
+## Related issues (checked before filing)
+
+This is not a duplicate, but it is not an isolated case either — it is the
+third instance of the same pattern I can find:
+
+- **#208** *UploadNewsletter panics the whole process — UploadResponse.MediaKey/FileEncSHA256 marked required but always nil for newsletter uploads* (open, filed 2026-08-18). **Same bug class, same crash site.** That report panics in `ProtoReturnV3` at `goneonize/main.go:380` — the exact line in my own trace above — only from `UploadNewsletter` (`main.go:422`) instead of `GetNewsletterMessages` (`main.go:1710`), and over `UploadResponse.MediaKey` instead of `NewsletterMessage.Message`. Both are `required` proto2 fields that whatsmeow legitimately leaves unset. Fixing one will not fix the other, but they deserve to be looked at together.
+- **Commit [`fbdd740`](https://github.com/krypton-byte/neonize/commit/fbdd740786421ec5367e64b4f02d68d6b80600b7)** (14 Oct 2025) — *"fix proto: required field neonize.ProfilePictureInfo.Hash not set"*. Precedent: exactly this problem was already solved once by relaxing the field in `Neonize.proto`.
+- **#194**, **#201**, **#181** — unrelated causes, but all of them are Go panics that take the whole Python process down. That recurrence is the argument for fixing the panic behaviour itself, not only the individual fields.
+
 ## Expected behavior
 
 Messages without content should either be skipped, or returned with an empty/absent `Message` field — and marshal failures should surface as a Python exception, never as a process-killing panic.
@@ -175,6 +184,8 @@ Any of these would solve it (the first two are tiny):
 1. Skip newsletter messages with `Message == nil` in `GetNewsletterMessages` / `GetNewsletterMessageUpdate`, or
 2. change `NewsletterMessage.Message` from `required` to `optional` in `Neonize.proto`, or
 3. make `ProtoReturn*` return an error payload instead of panicking, so callers get a catchable Python exception.
+
+Option 2 has precedent in `fbdd740`, where `ProfilePictureInfo.Hash` was relaxed from `required` for exactly this reason. Option 3 is the one that would end the class: as long as any `required` field can be left unset by whatsmeow, the next such field will crash the host process again — #208 is that next one, filed while this report was being written.
 
 ## Workaround (for anyone hitting this)
 
