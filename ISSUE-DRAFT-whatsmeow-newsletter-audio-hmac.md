@@ -59,6 +59,16 @@ All five voice notes in the channel history behaved identically:
 | 6885 | `audio/ogg; codecs=opus` | 24859 | 10 | ✗ invalid media hmac |
 | 6881 | `audio/ogg; codecs=opus` | 16283 | 6 | ✗ invalid media hmac |
 
+whatsmeow tries every media host before giving up, so this is not a single
+bad CDN node:
+
+```
+[whatsmeow.Client WARNING] - Failed to download media: invalid media hmac, trying with next host...
+[whatsmeow.Client WARNING] - Failed to download media: invalid media hmac, trying with next host...
+[whatsmeow.Client WARNING] - Failed to download media: invalid media hmac, trying with next host...
+[whatsmeow.Client WARNING] - Failed to download media: invalid media hmac, trying with next host...
+```
+
 **0 of 5 downloaded normally. With `MediaKey` cleared, 5 of 5 downloaded**, each exactly `FileLength` bytes.
 
 For ServerID 6896 the result is demonstrably the correct, intact file:

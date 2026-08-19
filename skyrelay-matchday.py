@@ -137,6 +137,7 @@ STICKER_PLACEHOLDER = cfg("post", "sticker_placeholder",
 AUDIO_SIZE = cfg("audio", "size", "720x720")
 AUDIO_WAVE_COLOR = cfg("audio", "waveform_color", "White")
 AUDIO_BG_COLOR = cfg("audio", "background_color", "0x0b1220")
+AUDIO_FRAMERATE = cfg_int("audio", "framerate", 25)
 STICKER_BACKGROUND = cfg("audio", "sticker_background", "white")
 MEDIA_PREFIX = cfg("post", "media_prefix", "skyrelay")
 
@@ -856,7 +857,7 @@ async def process_newsletter_message(client, raw_msg, server_id):
             log(f"   ✓ Sprachnachricht geladen ({len(audio)} Bytes, {sekunden}s).")
             log("   Erzeuge Video mit Wellenform...")
             video_bytes = audio_zu_video(audio, AUDIO_SIZE, AUDIO_WAVE_COLOR,
-                                         AUDIO_BG_COLOR)
+                                         AUDIO_BG_COLOR, AUDIO_FRAMERATE)
             video_thumb = video_standbild(video_bytes)
             log(f"   ✓ Video erzeugt ({len(video_bytes)} Bytes).")
         except Exception as audio_err:

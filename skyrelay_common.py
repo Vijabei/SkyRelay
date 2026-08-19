@@ -523,7 +523,7 @@ def _ffmpeg_vorhanden():
 
 
 def audio_zu_video(audio_daten, groesse="720x720", wellenfarbe="White",
-                   hintergrund="0x0b1220", timeout_seconds=120):
+                   hintergrund="0x0b1220", bildrate=25, timeout_seconds=120):
     """Baut aus einer Sprachnachricht ein Video mit animierter Wellenform und
     unveränderter Tonspur. Liefert die mp4-Daten.
 
@@ -548,9 +548,9 @@ def audio_zu_video(audio_daten, groesse="720x720", wellenfarbe="White",
     wellen_hoehe = max(2, hoehe // 2)
 
     filter_kette = (
-        f"color=c={hintergrund}:s={breite}x{hoehe}:r=25[bg];"
+        f"color=c={hintergrund}:s={breite}x{hoehe}:r={bildrate}[bg];"
         f"[0:a]showwaves=s={breite}x{wellen_hoehe}:mode=cline:"
-        f"colors={wellenfarbe}:scale=sqrt:r=25[w];"
+        f"colors={wellenfarbe}:scale=sqrt:r={bildrate}[w];"
         f"[bg][w]overlay=(W-w)/2:(H-h)/2:shortest=1,format=yuv420p[v]"
     )
 

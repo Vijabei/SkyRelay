@@ -104,8 +104,16 @@ video_retry_text = 🎥 Nachgereicht: das Video zum Beitrag oben.
 #  deshalb ein Video mit animierter Wellenform - der Ton bleibt erhalten.
 #  Setzt ffmpeg auf dem System voraus.
 # ---------------------------------------------------------------------------
-# Kantenlaenge des erzeugten Videos.
+# Kantenlaenge des erzeugten Videos. Kostet spuerbar Rechenzeit: auf einem
+# Raspberry Pi brauchte eine 8-Sekunden-Sprachnachricht gemessen
+#   720x720 @25 fps -> 11,0 s und 1401 KB
+#   720x720 @15 fps ->  7,1 s und 1265 KB
+#   480x480 @25 fps ->  4,6 s und  759 KB
+# Am Spieltag zaehlt Zeit - 480x480 ist der beste Tausch, eine Wellenform
+# hat keine feinen Details, die unter der kleineren Aufloesung litten.
 size = 720x720
+# Bilder je Sekunde. Weniger ist schneller, laesst die Welle aber hakeln.
+framerate = 25
 # Farbe der Wellenform.
 # ACHTUNG: Hier geht NUR ein ffmpeg-Farbname, etwa White, DodgerBlue, Cyan,
 # Gold, Orange. Eine Hex-Angabe wie 0x38BDF8 oder #38BDF8 verwirft ffmpeg
