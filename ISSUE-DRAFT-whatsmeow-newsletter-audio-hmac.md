@@ -5,9 +5,8 @@ DEUTSCHER VORSPANN - VOR DEM ABSENDEN LÖSCHEN
 Entwurf für ein GitHub-Issue.
 
 ZIEL-REPOSITORY: https://github.com/tulir/whatsmeow/issues
-Nicht mehr neonize! Die Ursache steht nachweislich in whatsmeows download.go,
-neonize reicht den Aufruf nur durch. (Der Dateiname bleibt, damit Verweise
-darauf nicht brechen - der Inhalt zielt auf whatsmeow.)
+NICHT neonize. Die Ursache steht in whatsmeows download.go; neonize reicht
+den Aufruf nur durch.
 
 Stand: 19.08.2026, gemessen gegen einen echten WhatsApp-Kanal.
 

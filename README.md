@@ -257,8 +257,8 @@ es unter `[feed] bluesky_handle` ein und gibst die App-Passwörter getrennt an
 | `skyrelay.conf.example` | kommentierte Vorlage aller Einstellungen |
 | `skyrelay_common.py` | gemeinsame Bausteine beider Programme (Protokoll, Konfiguration, Bilder, Video-Upload) |
 | `CHEATSHEET-matchday.md` | alle Umgebungsvariablen, Betriebsarten, Dateien, Fehlerbehebung |
-| `ISSUE-DRAFT-neonize-newsletter-panic.md` | vorbereiteter Fehlerbericht: Absturz beim Verlaufsabruf |
-| `ISSUE-DRAFT-neonize-newsletter-audio-hmac.md` | vorbereiteter Fehlerbericht: Sprachnachrichten nicht ladbar |
+| `ISSUE-DRAFT-neonize-newsletter-panic.md` | vorbereiteter Fehlerbericht an **neonize**: Absturz beim Verlaufsabruf |
+| `ISSUE-DRAFT-whatsmeow-newsletter-audio-hmac.md` | vorbereiteter Fehlerbericht an **whatsmeow**: Sprachnachrichten nicht ladbar |
 
 ## Bekannte Einschränkungen
 
