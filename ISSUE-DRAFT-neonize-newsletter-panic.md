@@ -5,27 +5,51 @@ DEUTSCHER VORSPANN - VOR DEM ABSENDEN LÖSCHEN
 Entwurf für ein GitHub-Issue bei https://github.com/krypton-byte/neonize/issues
 ("New issue" -> Titel + Text unten einfügen).
 
+Stand: 19.08.2026 - auf neonize 0.4.3.post0 nachgestellt, der Version, die
+SkyRelay laut requirements.txt tatsächlich verwendet. Der Fehler war damit
+nicht mehr nur hergeleitet, sondern ist direkt beobachtet.
+
 Bitte vor dem Absenden prüfen:
-1. Stimmen die beiden Stacktraces mit deinen Logs überein? (Sind 1:1 aus
-   deinen Terminal-Ausgaben vom 13.07. übernommen.)
-2. Stimmt die Beschreibung der Reproduktion (N=3 ok, N=4 crash)?
-3. Python-Version ggf. anpassen (angenommen: 3.13 laut deinen Tracebacks).
+1. Die Stacktraces stammen jetzt aus dem Lauf vom 19.08.2026 auf 0.4.3.post0
+   (Zeilennummern main.go:380/1710). Die alten von 0.3.18.post0
+   (main.go:327/1633) stehen als Beleg für die Zeitspanne darunter.
+2. Reproduktion neu vermessen: count=1 läuft, ab count=2 stürzt es ab -
+   eine einzige inhaltslose Nachricht im Fenster genügt.
+3. Versionsangaben sind aus dem laufenden System ausgelesen, nicht geschätzt.
 4. Der Disclosure-Satz am Ende ist bewusst enthalten - streichen wäre
    unehrlich, umformulieren jederzeit ok.
-Alles, was du nicht selbst beobachtet hast, ist als Analyse ("appears to",
-"root cause analysis") gekennzeichnet, nicht als Beobachtung.
+Alles, was nicht selbst beobachtet wurde, ist als Analyse ("appears to",
+"root cause analysis") gekennzeichnet, nicht als Beobachtung. Neu ist auch:
+Für den Lauf vom 19.08. wurde NICHT unabhängig geprüft, ob die auslösende
+Nachricht ein gelöschter Beitrag ist - das steht entsprechend vorsichtig da.
 =============================================================================
 -->
 
 # Titel (in das GitHub-Titelfeld):
 
-`get_newsletter_messages` causes uncatchable Go panic ("required field neonize.NewsletterMessage.Message not set") when the fetch window contains a deleted channel post
+`get_newsletter_messages` causes uncatchable Go panic ("required field neonize.NewsletterMessage.Message not set") when the fetch window contains a content-less channel post (e.g. a deleted one)
 
 # Text (in das Beschreibungsfeld):
 
 ## Describe the bug
 
 Calling `get_newsletter_messages()` on a WhatsApp channel (newsletter) crashes the **entire Python process** with a Go panic when the fetched window contains a message without content — in my case a **deleted channel post**. Deleted posts keep their `MessageServerID` but have no message body, so `types.NewsletterMessage.Message` is `nil` on the whatsmeow side. Because `Neonize.proto` declares this field as `required`, `proto.Marshal` fails inside `ProtoReturnV3`, which panics — and a Go panic cannot be caught from Python (`try/except` never sees it, the process just aborts).
+
+On **0.4.3.post0** (19 Aug 2026), fetching the five newest messages of a
+channel (`0x5` in the trace is the `count` argument):
+
+```
+panic: proto: required field neonize.NewsletterMessage.Message not set
+
+goroutine 51 [running, locked to thread]:
+main.ProtoReturnV3({0x7f85c066a8, 0x7f2e25e780})
+        /home/runner/work/neonize/neonize/goneonize/main.go:380 +0x1f8
+main.GetNewsletterMessages(0x7f8c3a7430, 0x7f7c320640, 0x28, 0x5, 0x0)
+        /home/runner/work/neonize/neonize/goneonize/main.go:1710 +0x598
+```
+
+The same crash on **0.3.18.post0** (13 Jul 2026), where I first hit it — same
+call, same failure, different line numbers:
 
 ```
 panic: proto: required field neonize.NewsletterMessage.Message not set
@@ -38,6 +62,8 @@ main.GetNewsletterMessages(0x7fa6f033b0, 0x7fa6f2b890, 0x28, 0x4, 0x0)
 Aborted
 ```
 
+It has therefore survived at least from 0.3.18.post0 to 0.4.3.post0.
+
 When the same message was originally received live, whatsmeow logged (and skipped it — live events are unaffected):
 
 ```
@@ -46,12 +72,21 @@ When the same message was originally received live, whatsmeow logged (and skippe
 
 ## Environment
 
-- **neonize:** 0.3.18.post0 (prebuilt `manylinux2014_aarch64` wheel from PyPI)
+- **neonize:** 0.4.3.post0 (prebuilt `manylinux2014_aarch64` wheel from PyPI)
+  — also reproduced on 0.3.18.post0
 - **protobuf:** ≥ 7.34 (runtime matching the wheel's gencode 7.34.1)
-- **Python:** 3.13
-- **OS:** Raspberry Pi OS 64-bit (Debian, kernel 6.12, aarch64)
+- **Python:** 3.13.5
+- **OS:** Debian GNU/Linux 13 (trixie), kernel 6.18.39, aarch64 (Raspberry Pi)
 
-**Why tested on 0.3.18 instead of the latest release:** I was pinned to 0.3.18.post0 because on 0.4.0/0.4.1 this call path was unusable for a different reason — every return value failed to parse with `DecodeError: Wire format was corrupt` (#199, apparently resolved by #198 in 0.4.2). The code paths involved in *this* issue are unchanged on current `master` as of 0.4.3.post0 (`EncodeNewsletterMessage` passes `message.Message` through as-is; `NewsletterMessage.Message` is `required` in `Neonize.proto`; all `ProtoReturn*` variants panic on marshal errors), so the latest release is affected as well.
+**Version history of this report:** I first hit this on 0.3.18.post0, where I
+was pinned because 0.4.0/0.4.1 made this call path unusable for an unrelated
+reason — every return value failed to parse with `DecodeError: Wire format was
+corrupt` (#199, apparently resolved by #198 in 0.4.2). I have since moved to
+0.4.3.post0 and **re-confirmed the crash there directly**, so this is no longer
+an inference from reading the source: `EncodeNewsletterMessage` still passes
+`message.Message` through as-is, `NewsletterMessage.Message` is still `required`
+in `Neonize.proto`, and all `ProtoReturn*` variants still panic on marshal
+errors.
 
 ## Reproduction
 
@@ -70,14 +105,45 @@ async def main():
     meta = await client.get_newsletter_info_with_invite(
         "https://whatsapp.com/channel/<invite-code>"
     )
-    # count=3 -> newest 3 messages, all with content -> works fine
-    # count=4 -> window now includes the deleted post -> hard crash (panic above)
-    msgs = await client.get_newsletter_messages(meta.ID, 4, MessageServerID(0))
+    # 0.3.18.post0, deleted post at ServerID 6542:
+    #   count=3 -> newest 3 messages, all with content -> works fine
+    #   count=4 -> window now includes the deleted post -> hard crash
+    #
+    # 0.4.3.post0, content-less message directly behind the newest post:
+    #   count=1 -> works, returns ServerID 6940
+    #   count=2 -> hard crash
+    # and the minimal case, one single message is enough:
+    #   get_newsletter_messages(meta.ID, 1, MessageServerID(6940)) -> hard crash
+    msgs = await client.get_newsletter_messages(meta.ID, 2, MessageServerID(0))
 
 asyncio.run(main())
 ```
 
-I narrowed it down experimentally: `count=3` (excluding the deleted post) succeeds every time, `count=4` (including it) panics every time. The same crash also killed a long-running poller that fetched the newest 30 messages (`count=30` — the `0x1e` in the trace below) as soon as the deleted post appeared in the channel:
+I narrowed it down experimentally, twice.
+
+On 0.3.18.post0: `count=3` (excluding the deleted post) succeeded every time,
+`count=4` (including it) panicked every time.
+
+On 0.4.3.post0, against the same channel on 19 Aug 2026, the boundary is even
+tighter — a content-less message now sits directly behind the newest post:
+
+| call | result |
+|---|---|
+| `count=1, before=0` | OK — returns exactly one message, ServerID 6940 |
+| `count=2, before=0` | **panic** |
+| `count=3, before=0` | **panic** |
+| `count=4, before=0` | **panic** |
+| `count=1, before=6940` | **panic** — the single message before 6940 is enough |
+
+The last line is the minimal case: fetching **one** message crashes the process,
+because that one message has no content. Note that for this 2026 run I could not
+inspect the offending message (it cannot be decoded — that is the bug), so I
+cannot independently confirm it is a *deleted* post rather than some other
+content-less entry; on the 2025 run the deleted post was identified.
+
+The same crash also killed a long-running poller that fetched the newest 30
+messages (`count=30` — the `0x1e` in the trace below) as soon as the deleted
+post appeared in the channel:
 
 ```
 panic: proto: required field neonize.NewsletterMessage.Message not set
@@ -113,7 +179,14 @@ Any of these would solve it (the first two are tiny):
 ## Workaround (for anyone hitting this)
 
 - For live operation, consume newsletter posts via `MessageEv` events instead of polling — whatsmeow filters content-less messages before dispatch.
-- For history fetches, reduce `count` until the window no longer includes the deleted post.
+- For history fetches, reduce `count` until the window no longer includes the
+  content-less message. Note this fails when the message sits directly behind
+  the newest post — `count=1` is then already too much.
+- More robustly, page **around** it with the `before` cursor: pass an explicit
+  `MessageServerID` from before the bad message and walk backwards in small
+  blocks. In my case `get_newsletter_messages(jid, 3, MessageServerID(6900))`
+  and every further block below it worked without a single crash, while any
+  fetch anchored at the newest message failed.
 
 ---
 
