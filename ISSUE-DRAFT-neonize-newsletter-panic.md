@@ -157,7 +157,7 @@ main.GetNewsletterMessages(0x7f860bb1d0, 0x7f7c1e4320, 0x28, 0x1e, 0x0)
 
 ## Root cause analysis
 
-- whatsmeow returns the deleted post as a `types.NewsletterMessage` whose `Message` field is `nil`.
+- whatsmeow returns the deleted post as a `types.NewsletterMessage` whose `Message` field is `nil`. That whatsmeow does hand out newsletter messages with a `nil` `Message` is not only my inference — it was reported upstream in [tulir/whatsmeow#761](https://github.com/tulir/whatsmeow/issues/761) (*"GetNewsletterMessageUpdates return nil Message"*, closed as *not planned* without any discussion). Whatever upstream decides, neonize has to survive it rather than abort the host process.
 - `goneonize/utils/encoder.go` → `EncodeNewsletterMessage()` assigns it unchanged: `Message: message.Message`.
 - `Neonize.proto` declares `required WAWebProtobufsE2E.Message Message = 4;` in `message NewsletterMessage`.
 - `proto.Marshal` therefore returns an error, and `ProtoReturnV3` (`goneonize/main.go`) panics on any marshal error, taking the host process down with it.

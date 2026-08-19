@@ -91,6 +91,22 @@ That `fileEncSHA256` is empty on all of these messages points the same way: ther
 
 Passing a different `MediaType` does not help — with `download_media_with_path` and each of `MediaAudio`, `MediaImage`, `MediaVideo`, `MediaDocument` the call fails earlier, at `invalid checksum length: expected 32, got 0`, which is the empty `fileEncSHA256`. So this is not a wrong key-derivation string; the media simply is not encrypted.
 
+## Related issues (checked before filing)
+
+I searched the tracker for prior reports and did not find this case:
+
+- **#727** *client.DownloadToFile return error invalid media hmac* (closed the
+  next day) — a `DocumentMessage` in a **normal chat**; the reporter concluded
+  the individual file was at fault. No newsletter involved.
+- **#127** *Media File Length and Invalid HMAC* (2022, closed as completed) —
+  about `file_length` being used for validation. Different cause, no newsletter
+  involved.
+
+Neither covers media from a **newsletter**, and nothing in the tracker describes
+a download failing because a `mediaKey` is present on media that is not
+encrypted. If I have missed an existing report, I am happy to have this closed
+as a duplicate.
+
 ## Reproduction
 
 ```python
