@@ -254,7 +254,12 @@ def team_code(team):
     """DFL-Kürzel zu einem OpenLigaDB-Team; Fallback für unbekannte (Pokal-)Gegner."""
     code = TEAM_CODES.get(team["teamId"])
     if code is None:
-        code = re.sub(r"[^A-Za-zÄÖÜäöü]", "", team["shortName"] or team["teamName"])[:3].upper()
+        # Nur Buchstaben behalten, dann erst großschreiben. isalpha() statt einer
+        # Zeichenklasse, weil dort das ß fehlte und stillschweigend verschwand
+        # ("Großaspach" -> "Groaspach"). Großschreiben VOR dem Kürzen, denn
+        # "ß".upper() ergibt "SS" und hätte das Kürzel sonst vierstellig gemacht.
+        name = team["shortName"] or team["teamName"]
+        code = "".join(z for z in name if z.isalpha()).upper()[:3]
         log(f'⚠️ Kein DFL-Kürzel für "{team["teamName"]}" (teamId {team["teamId"]}) hinterlegt - '
             f'nutze Fallback "{code}". Bitte in TEAM_CODES nachtragen.')
     return code
