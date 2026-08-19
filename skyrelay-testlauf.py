@@ -15,15 +15,19 @@ heran, ohne die kaputte Stelle zu berühren.
 Es wird NICHTS gepostet: SKYRELAY_DRY_RUN wird erzwungen, bevor der Ticker
 geladen wird. Wasserzeichen und Merklisten bleiben unberührt.
 
+ServerIDs sind je Kanal verschieden - erst den Startpunkt ermitteln, dann von
+dort aus rückwärts suchen.
+
 Beispiele:
-    # Sprachnachrichten und Sticker unterhalb von ServerID 6900 durchspielen
-    venv/bin/python3 skyrelay-testlauf.py --vor 6900 --typ audio,sticker
-
-    # alles, was unterhalb von 6900 liegt, die ersten 5 Treffer
-    venv/bin/python3 skyrelay-testlauf.py --vor 6900 --typ alle --anzahl 5
-
-    # Startpunkt suchen: die neueste ServerID ermitteln (meist gefahrlos)
+    # 1. Startpunkt finden: neueste ServerID ausgeben (einziger Abruf, der an
+    #    der neuesten Nachricht sicher ist)
     venv/bin/python3 skyrelay-testlauf.py --neueste
+
+    # 2. Von dort aus rückwärts nach Sprachnachrichten und Stickern suchen
+    venv/bin/python3 skyrelay-testlauf.py --vor <ServerID> --typ audio,sticker
+
+    # alles Mögliche, die ersten 5 Treffer
+    venv/bin/python3 skyrelay-testlauf.py --vor <ServerID> --typ alle --anzahl 5
 """
 import argparse
 import asyncio

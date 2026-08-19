@@ -275,11 +275,13 @@ es unter `[feed] bluesky_handle` ein und gibst die App-Passwörter getrennt an
   eine leere Nachricht zurück, an der der zugrundeliegende Go-Programmteil abstürzt.
   Betrifft **nur** die Nachhol-Betriebsarten, nicht den Dauerbetrieb — dieser lauscht
   auf Ereignisse und ist davon nicht betroffen.
-  **Stand 19.08.2026 liegt so eine Nachricht direkt hinter dem neuesten Beitrag.**
-  Damit ist `SKYRELAY_REPLAY` praktisch unbrauchbar: schon der Abruf von zwei
-  Nachrichten stürzt ab, nur `1` läuft durch. Zum Prüfen an echtem Material
-  stattdessen `skyrelay-testlauf.py` nehmen — das blättert mit einem
-  ausdrücklichen Startpunkt rückwärts an der kaputten Stelle vorbei:
+  Wie sehr dich das trifft, hängt vom Kanal ab: Liegt so eine Nachricht weit
+  hinten, genügt ein kleinerer Wert. Liegt sie **direkt hinter dem neuesten
+  Beitrag**, ist `SKYRELAY_REPLAY` unbrauchbar — dann stürzt schon der Abruf von
+  zwei Nachrichten ab und nur `1` läuft durch. (Im hier gespiegelten Kanal war
+  das am 19.08.2026 der Fall.) Zum Prüfen an echtem Material dient dann
+  `skyrelay-testlauf.py`; es blättert mit einem ausdrücklichen Startpunkt
+  rückwärts an der kaputten Stelle vorbei:
 
   ```
   venv/bin/python3 skyrelay-testlauf.py --neueste
