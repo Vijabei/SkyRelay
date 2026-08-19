@@ -83,6 +83,9 @@ from skyrelay_common import (
     hole_app_passwort,
     compress_image_for_bluesky,
     upload_video_to_bluesky,
+    merke_video_daten,
+    merke_nachreich_ziel,
+    reiche_videos_nach,
 )
 
 # httpx (der HTTP-Client der atproto-Bibliothek) protokolliert sonst jede Anfrage.
@@ -143,6 +146,11 @@ PAUSE_BETWEEN_POSTS_SECONDS = cfg_int("schedule", "pause_between_posts_seconds",
 
 MAX_VIDEO_BYTES = cfg_int("limits", "max_video_bytes", 100_000_000)
 VIDEO_JOB_TIMEOUT_SECONDS = cfg_int("limits", "video_job_timeout_seconds", 600)
+VIDEO_RETRY_MAX_ATTEMPTS = cfg_int("limits", "video_retry_max_attempts", 8)
+VIDEO_RETRY_TEXT = cfg("post", "video_retry_text",
+                      "🎥 Nachgereicht: das Video zum Beitrag oben.")
+# Takt, in dem im Lausch-Betrieb offene Videos erneut versucht werden.
+VIDEO_RETRY_INTERVAL_SECONDS = cfg_int("limits", "video_retry_interval_seconds", 600)
 
 LOG_TO_FILE = cfg_bool("logging", "to_file", True)
 LOG_MAX_BYTES = cfg_int("logging", "max_bytes", 2_000_000)
@@ -152,6 +160,8 @@ SESSION_DB = os.path.join(BASE_DIR, cfg("files", "session", "skyrelay_session.sq
 STATE_FILE = os.path.join(BASE_DIR, cfg("files", "state", "skyrelay_state.txt"))
 POSTS_MAP_FILE = os.path.join(BASE_DIR, cfg("files", "posts_map", "skyrelay_posts.json"))
 LOG_FILE = os.path.join(BASE_DIR, cfg("files", "log", "skyrelay.log"))
+VIDEO_RETRY_DIR = os.path.join(BASE_DIR,
+                               cfg("files", "video_retry_dir", "skyrelay_nachreichen"))
 
 
 def env(name, default=None):
@@ -643,8 +653,10 @@ def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None, media
     if not text_chunks:
         text_chunks = [VIDEO_PLACEHOLDER if video_bytes else IMAGE_PLACEHOLDER]
 
-    # Video-Upload zuerst versuchen; bei Fehlschlag Vorschaubild als Bild-Fallback.
+    # Video-Upload zuerst versuchen; bei Fehlschlag Vorschaubild als Bild-Fallback
+    # und das Video zum Nachreichen vormerken.
     video_embed = None
+    offenes_video = False
     if video_bytes:
         try:
             video_embed = upload_video_to_bluesky(bsky_client, video_bytes,
@@ -653,6 +665,9 @@ def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None, media
                                                   VIDEO_JOB_TIMEOUT_SECONDS)
         except Exception as video_err:
             log(f"   ⚠️ Video-Upload fehlgeschlagen: {video_err}")
+            # Der Beitrag geht sofort mit dem Vorschaubild raus - beim Live-Ticker
+            # zählt die Zeit. Das Video bleibt liegen und wird nachgereicht.
+            offenes_video = merke_video_daten(VIDEO_RETRY_DIR, media_name, video_bytes)
             if video_thumb and not image_blobs:
                 try:
                     image_blobs = [compress_image_for_bluesky(video_thumb)]
@@ -705,6 +720,11 @@ def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None, media
             root_ref = models.ComAtprotoRepoStrongRef.Main(cid=root_post.cid, uri=root_post.uri)
             parent_ref = root_ref
             created_uris.append(root_post.uri)
+            if offenes_video:
+                merke_nachreich_ziel(VIDEO_RETRY_DIR, media_name, bsky_client.me.did,
+                                     root_ref.uri, root_ref.cid,
+                                     root_ref.uri, root_ref.cid,
+                                     f"{media_name}.mp4", alt_text)
         else:
             reply_ref = models.AppBskyFeedPost.ReplyRef(parent=parent_ref, root=root_ref)
             reply_record = models.AppBskyFeedPost.Record(
@@ -1085,6 +1105,7 @@ async def main():
         log(f"⚠️ Live-Update-Abo fehlgeschlagen ({sub_err}) - weiter ohne, "
             f"gefolgte Kanäle pushen in der Regel trotzdem.")
     next_renew = time.monotonic() + SUBSCRIBE_RENEW_SECONDS
+    next_nachreichen = time.monotonic() + VIDEO_RETRY_INTERVAL_SECONDS
 
     # Events sind per Definition neu - eine Baseline-Abfrage ist nicht nötig.
     # WhatsApp liefert beim Verbinden auch aufgelaufene Posts nach; die
@@ -1108,6 +1129,21 @@ async def main():
         try:
             event = await asyncio.wait_for(incoming_events.get(), timeout=15)
         except asyncio.TimeoutError:
+            # Gerade nichts los - guter Moment, um offene Videos nachzureichen.
+            # In einem Thread, damit eingehende Kanal-Posts weiter in die Queue
+            # laufen, und nur im Leerlauf, damit nie ein Live-Post wartet.
+            if (not DRY_RUN and time.monotonic() >= next_nachreichen
+                    and os.path.isdir(VIDEO_RETRY_DIR)
+                    and any(n.endswith(".json") for n in os.listdir(VIDEO_RETRY_DIR))):
+                next_nachreichen = time.monotonic() + VIDEO_RETRY_INTERVAL_SECONDS
+                try:
+                    ensure_bsky()
+                    await asyncio.to_thread(
+                        reiche_videos_nach, bsky_client, VIDEO_RETRY_DIR,
+                        VIDEO_RETRY_TEXT, VIDEO_RETRY_MAX_ATTEMPTS,
+                        MAX_VIDEO_BYTES, VIDEO_JOB_TIMEOUT_SECONDS)
+                except Exception as nach_err:
+                    log(f"⚠️ Nachreichen offener Videos fehlgeschlagen: {nach_err}")
             continue
 
         # Schutzmantel um die GESAMTE Event-Verarbeitung: Ein einzelnes kaputtes

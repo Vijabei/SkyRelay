@@ -63,6 +63,12 @@ Quelle und Ablaufsteuerung. Sprich uns über ein Issue an.
 * **Bearbeitungen** im Kanal werden erkannt: Der alte Bluesky-Beitrag wird gelöscht
   und durch die korrigierte Fassung ersetzt.
 * Überträgt Text, Bilder, Videos und erzeugt Link-Vorschaukarten.
+* **Videos werden nachgereicht:** Scheitert der Upload zur Video-API von
+  Bluesky, geht der Beitrag sofort mit dem Vorschaubild raus — beim Ticker
+  zählt die Zeit. Das Video bleibt liegen und wird in späteren Läufen erneut
+  versucht; klappt es, hängt der Bot es als Antwort an den Beitrag. So wird
+  aus einer vorübergehenden Störung bei Bluesky kein dauerhaft bebilderter
+  Beitrag. Einstellungen dazu: `video_retry_*` in `skyrelay.conf`.
 
 ## Projektstatus
 
@@ -268,6 +274,11 @@ es unter `[feed] bluesky_handle` ein und gibst die App-Passwörter getrennt an
   offen). Erst nach dessen Lösung aktualisieren.
 * **Umfragen** werden übersprungen: Bluesky kennt dieses Format nicht.
 * **Videos** bis rund 100 MB; größere werden nicht übertragen (Bluesky-Grenze).
+* **Nachgereichte Videos** landen als Antwort unter dem Beitrag, nicht im
+  Beitrag selbst — Bluesky kennt kein nachträgliches Ändern von Beiträgen.
+  Wird der Beitrag zwischenzeitlich gelöscht (etwa durch eine Bearbeitung im
+  WhatsApp-Kanal), scheitert das Nachreichen und der Vorgang wird nach
+  `video_retry_max_attempts` Versuchen verworfen.
 * Mehrere Bilder in einem Beitrag: Bluesky nimmt höchstens vier.
 
 ## Risiken & Rechtliches

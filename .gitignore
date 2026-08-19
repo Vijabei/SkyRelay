@@ -20,6 +20,9 @@ nohup.out
 # Arbeitsverzeichnis der Medien-Downloads
 tmp/
 
+# Videos, deren Upload scheiterte und die nachgereicht werden
+skyrelay_nachreichen/
+
 # === Lokale Konfiguration (enthält Kanal-Link und Kontodaten) ===
 # Die Vorlage skyrelay.conf.example bleibt im Repository, die eigene nicht.
 skyrelay.conf

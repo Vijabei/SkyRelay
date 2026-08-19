@@ -41,6 +41,9 @@ from skyrelay_common import (
     hole_app_passwort,
     compress_image_for_bluesky,
     upload_video_to_bluesky,
+    merke_video_daten,
+    merke_nachreich_ziel,
+    reiche_videos_nach,
 )
 
 
@@ -82,6 +85,9 @@ STANDING_HASHTAG = cfg("post", "standing_hashtag", "").strip().lstrip("#")
 
 MAX_VIDEO_BYTES = cfg_int("limits", "max_video_bytes", 100_000_000)
 VIDEO_JOB_TIMEOUT_SECONDS = cfg_int("limits", "video_job_timeout_seconds", 600)
+VIDEO_RETRY_MAX_ATTEMPTS = cfg_int("limits", "video_retry_max_attempts", 8)
+VIDEO_RETRY_TEXT = cfg("post", "video_retry_text",
+                      "🎥 Nachgereicht: das Video zum Beitrag oben.")
 
 LOG_TO_FILE = cfg_bool("logging", "to_file", True)
 LOG_MAX_BYTES = cfg_int("logging", "max_bytes", 2_000_000)
@@ -90,6 +96,8 @@ LOG_BACKUP_COUNT = cfg_int("logging", "backup_count", 5)
 STATE_FILE = os.path.join(BASE_DIR, cfg("feed", "state", "skyrelay_feed_posted.txt"))
 LOG_FILE = os.path.join(BASE_DIR, cfg("feed", "log", "skyrelay-feed.log"))
 TMP_DIR = os.path.join(BASE_DIR, "tmp")
+VIDEO_RETRY_DIR = os.path.join(BASE_DIR,
+                               cfg("files", "video_retry_dir", "skyrelay_nachreichen"))
 
 
 if LOG_TO_FILE:
@@ -224,6 +232,47 @@ def build_alt_text(caption, suffix=""):
 
 client = None
 new_posts_count = 0
+nachreichen_erledigt = DRY_RUN  # im Trockenlauf geht nichts nach außen
+
+
+def melde_an():
+    """Meldet bei Bluesky an und holt beim ersten Mal alle Videos nach, deren
+    Upload in früheren Läufen scheiterte. Die Anmeldung erfolgt bewusst spät und
+    nur einmal je Lauf: Bluesky begrenzt die Anmeldungen pro Konto und Tag."""
+    global client, nachreichen_erledigt
+
+    # Wichtig: `client` erst NACH erfolgreicher Anmeldung setzen. Sonst bliebe
+    # nach einem gescheiterten Login ein unangemeldetes Objekt zurück, die
+    # Bedingung wäre nie wieder wahr, und alle folgenden Beiträge liefen ohne
+    # Anmeldung ins Leere ("AuthMissing").
+    if client is None:
+        log("Verbinde mit Bluesky...")
+        verbindung = Client()
+        try:
+            melde_bei_bluesky_an(verbindung, BLUESKY_HANDLE, BLUESKY_APP_PASSWORD,
+                                 PASSWORT_VARIABLE)
+        except Exception:
+            # Ohne Anmeldung lässt sich nichts veröffentlichen, und weitere
+            # Versuche würden nur das Anmeldelimit aufbrauchen (Bluesky erlaubt
+            # 10 Anmeldungen pro Tag und Konto).
+            log("Ohne Anmeldung kann nichts veröffentlicht werden - Lauf wird beendet.")
+            log("Die noch nicht übernommenen Beiträge bleiben offen und werden")
+            log("beim nächsten Lauf erneut versucht.")
+            sys.exit(1)
+        client = verbindung
+
+    if not nachreichen_erledigt:
+        nachreichen_erledigt = True
+        reiche_videos_nach(client, VIDEO_RETRY_DIR, VIDEO_RETRY_TEXT,
+                           VIDEO_RETRY_MAX_ATTEMPTS, MAX_VIDEO_BYTES,
+                           VIDEO_JOB_TIMEOUT_SECONDS)
+    return client
+
+
+# Warten Videos aus früheren Läufen, lohnt die Anmeldung auch ohne neuen Beitrag.
+if not DRY_RUN and os.path.isdir(VIDEO_RETRY_DIR) and any(
+        name.endswith(".json") for name in os.listdir(VIDEO_RETRY_DIR)):
+    melde_an()
 
 for post in latest_posts:
     if post.shortcode in posted_shortcodes:
@@ -377,30 +426,12 @@ for post in latest_posts:
 
         # 8. Bluesky-Verbindung herstellen (erst wenn wirklich gebraucht).
         # Die Server-Adresse für den Video-Upload ermittelt das gemeinsame Modul.
-        #
-        # Wichtig: `client` erst NACH erfolgreicher Anmeldung setzen. Sonst bliebe
-        # nach einem gescheiterten Login ein unangemeldetes Objekt zurück, die
-        # Bedingung unten wäre nie wieder wahr, und alle folgenden Beiträge
-        # liefen ohne Anmeldung ins Leere ("AuthMissing").
-        # Klappt die Anmeldung nicht, endet der Lauf: Ohne sie lässt sich nichts
-        # veröffentlichen, und weitere Versuche würden nur das Anmeldelimit
-        # aufbrauchen (Bluesky erlaubt 10 Anmeldungen pro Tag und Konto).
-        if client is None:
-            log("Verbinde mit Bluesky...")
-            verbindung = Client()
-            try:
-                melde_bei_bluesky_an(verbindung, BLUESKY_HANDLE, BLUESKY_APP_PASSWORD,
-                                     PASSWORT_VARIABLE)
-            except Exception:
-                log("Ohne Anmeldung kann nichts veröffentlicht werden - Lauf wird beendet.")
-                log("Die noch nicht übernommenen Beiträge bleiben offen und werden")
-                log("beim nächsten Lauf erneut versucht.")
-                sys.exit(1)
-            client = verbindung
+        melde_an()
 
         # 9. Video-Uploads zur Bluesky-Video-API (einzeln oder mehrfach bei Multi-Video-Sidecar)
         # Priorität: Video. Backup bei Fehlschlag: das jeweilige Cover-Bild.
         video_embeds = []
+        nachreich_slots = {}  # Index in video_embeds -> offener Video-Vorgang
 
         videos_to_process = []
         if (is_multi_video_post or is_mixed_post) and video_pairs:
@@ -418,6 +449,15 @@ for post in latest_posts:
             except Exception as video_err:
                 log(f"⚠️ Fehler beim Video-Upload {idx}/{len(videos_to_process)}: {video_err}")
                 traceback.print_exc()
+
+                # Beitrag geht gleich mit dem Cover-Bild raus, das Video bleibt
+                # für einen späteren Lauf liegen (siehe reiche_videos_nach).
+                kennung = f"{post.shortcode}_{idx}"
+                if merke_video_daten(VIDEO_RETRY_DIR, kennung, v_path):
+                    nachreich_slots[len(video_embeds)] = (
+                        kennung, os.path.basename(v_path),
+                        build_alt_text(caption, " (Video)"))
+
                 if v_thumb:
                     try:
                         log(f"   Nutze Cover-Bild als Fallback für Video {idx}.")
@@ -511,6 +551,17 @@ for post in latest_posts:
                     )
                 )
                 parent_ref = models.ComAtprotoRepoStrongRef.Main(cid=current_reply.cid, uri=current_reply.uri)
+
+            # parent_ref zeigt jetzt auf den eben erzeugten Beitrag. Steckt in
+            # diesem Slot ein offenes Video, ist das sein Antwortziel.
+            if i < len(media_slots) and media_slots[i][0] == "video":
+                offen = nachreich_slots.get(i - len(image_chunks))
+                if offen:
+                    kennung, dateiname, video_alt = offen
+                    merke_nachreich_ziel(VIDEO_RETRY_DIR, kennung, client.me.did,
+                                         root_ref.uri, root_ref.cid,
+                                         parent_ref.uri, parent_ref.cid,
+                                         dateiname, video_alt)
 
         log(f"Post {post.shortcode} erfolgreich auf Bluesky veröffentlicht!")
 

@@ -11,6 +11,7 @@ Wird von beiden Programmen importiert und ist nicht zum direkten Aufruf gedacht.
 import atexit
 import configparser
 import io
+import json
 import os
 import re
 import sys
@@ -231,7 +232,8 @@ _pds_aud = None  # einmal ermittelt, danach wiederverwendet
 
 
 def upload_video_to_bluesky(client, video, filename,
-                            max_bytes=100_000_000, timeout_seconds=600):
+                            max_bytes=100_000_000, timeout_seconds=600,
+                            versuche=3):
     """Lädt ein Video zu Bluesky hoch und liefert das fertige Embed zurück.
     `video` sind Bilddaten (bytes) oder ein Dateipfad. Bluesky nimmt Videos
     nicht als einfachen Anhang: erst hochladen, dann verarbeitet der Server sie,
@@ -274,7 +276,6 @@ def upload_video_to_bluesky(client, video, filename,
 
     log(f"   Sende Videodaten an: {upload_url} ({len(video)} Bytes)")
 
-    versuche = 3
     antwort = None
     job_id = None
 
@@ -340,3 +341,168 @@ def upload_video_to_bluesky(client, video, filename,
     return models.AppBskyEmbedVideo.Main(
         video=models.get_or_create(blob_daten, model=BlobRef)
     )
+
+
+# ------------------------------------------------- Nachreichen von Videos
+#
+# Scheitert ein Video-Upload - etwa weil die Video-API von Bluesky gerade
+# stört -, geht der Beitrag trotzdem sofort mit dem Vorschaubild raus: beim
+# Live-Ticker zählt die Zeit. Die Videodaten bleiben dann hier liegen, und ein
+# späterer Lauf hängt das Video als Antwort an den Beitrag. So wird aus einer
+# vorübergehenden Störung kein dauerhaft bebilderter Beitrag.
+#
+# Je Vorgang liegen zwei Dateien im Nachreich-Ordner:
+#   <kennung>.mp4   die Videodaten
+#   <kennung>.json  wohin geantwortet wird - kommt erst dazu, wenn der
+#                   Beitrag steht und seine URI bekannt ist
+# Eine .mp4 ohne .json stammt aus einem abgebrochenen Lauf: ohne Ziel lässt
+# sich nichts nachreichen, sie wird beim nächsten Durchgang verworfen.
+
+NACHREICH_VIDEO = ".mp4"
+NACHREICH_INFO = ".json"
+
+
+def _nachreich_pfade(ordner, kennung):
+    basis = os.path.join(ordner, kennung)
+    return basis + NACHREICH_VIDEO, basis + NACHREICH_INFO
+
+
+def _nachreich_aufraeumen(*pfade):
+    for pfad in pfade:
+        try:
+            os.remove(pfad)
+        except FileNotFoundError:
+            pass
+        except OSError as fehler:
+            log(f"   ⚠️ {os.path.basename(pfad)} nicht entfernbar: {fehler}")
+
+
+def merke_video_daten(ordner, kennung, video):
+    """Legt die Videodaten für einen späteren Versuch ab. `video` sind Bytes oder
+    ein Dateipfad. Wird direkt beim Fehlschlag gerufen - der Beitrag steht dann
+    noch nicht, deshalb folgt das Ziel erst mit merke_nachreich_ziel()."""
+    try:
+        os.makedirs(ordner, exist_ok=True)
+        video_pfad, _ = _nachreich_pfade(ordner, kennung)
+        if not isinstance(video, (bytes, bytearray)):
+            with open(video, "rb") as quelle:
+                video = quelle.read()
+        with open(video_pfad, "wb") as ziel:
+            ziel.write(video)
+        return True
+    except OSError as fehler:
+        log(f"   ⚠️ Video nicht zum Nachreichen ablegbar: {fehler}")
+        return False
+
+
+def merke_nachreich_ziel(ordner, kennung, did, root_uri, root_cid,
+                         parent_uri, parent_cid, dateiname, alt_text=""):
+    """Hält fest, an welchen Beitrag das Video später gehängt wird. Erst damit
+    wird der Vorgang gültig."""
+    video_pfad, info_pfad = _nachreich_pfade(ordner, kennung)
+    if not os.path.exists(video_pfad):
+        return False
+    try:
+        with open(info_pfad, "w", encoding="utf-8") as ziel:
+            json.dump({
+                "did": did,
+                "root_uri": root_uri,
+                "root_cid": root_cid,
+                "parent_uri": parent_uri,
+                "parent_cid": parent_cid,
+                "dateiname": dateiname,
+                "alt_text": alt_text,
+                "versuche": 0,
+                "erstellt": datetime.now().isoformat(timespec="seconds"),
+            }, ziel, ensure_ascii=False, indent=2)
+        log(f"   📌 Video zum Nachreichen vorgemerkt ({kennung}).")
+        return True
+    except OSError as fehler:
+        log(f"   ⚠️ Nachreich-Vermerk fehlgeschlagen: {fehler}")
+        _nachreich_aufraeumen(video_pfad)
+        return False
+
+
+def _sende_nachreich_antwort(client, info, embed, antwort_text):
+    """Hängt das nachgereichte Video als Antwort an den ursprünglichen Beitrag."""
+    alt = info.get("alt_text")
+    if alt:
+        embed.alt = alt[:1000]
+    record = models.AppBskyFeedPost.Record(
+        text=antwort_text,
+        embed=embed,
+        reply=models.AppBskyFeedPost.ReplyRef(
+            parent=models.ComAtprotoRepoStrongRef.Main(uri=info["parent_uri"],
+                                                      cid=info["parent_cid"]),
+            root=models.ComAtprotoRepoStrongRef.Main(uri=info["root_uri"],
+                                                     cid=info["root_cid"]),
+        ),
+        created_at=client.get_current_time_iso(),
+    )
+    client.com.atproto.repo.create_record(
+        models.ComAtprotoRepoCreateRecord.Data(
+            repo=client.me.did,
+            collection=models.ids.AppBskyFeedPost,
+            record=record,
+        )
+    )
+
+
+def reiche_videos_nach(client, ordner, antwort_text, max_versuche=8,
+                       max_bytes=100_000_000, timeout_seconds=600):
+    """Holt zuvor gescheiterte Video-Uploads nach und hängt jedes geglückte Video
+    als Antwort an seinen Beitrag. Gehört an den Anfang jedes Laufs, direkt nach
+    der Anmeldung. Liefert die Zahl der erledigten Vorgänge."""
+    if not os.path.isdir(ordner):
+        return 0
+
+    erledigt = 0
+    for name in sorted(os.listdir(ordner)):
+        if not name.endswith(NACHREICH_VIDEO):
+            continue
+
+        kennung = name[:-len(NACHREICH_VIDEO)]
+        video_pfad, info_pfad = _nachreich_pfade(ordner, kennung)
+
+        if not os.path.exists(info_pfad):
+            log(f"   Verwerfe Video-Rest ohne Ziel: {kennung}")
+            _nachreich_aufraeumen(video_pfad)
+            continue
+
+        try:
+            with open(info_pfad, encoding="utf-8") as quelle:
+                info = json.load(quelle)
+        except (OSError, ValueError) as fehler:
+            log(f"   ⚠️ Nachreich-Vermerk {kennung} unlesbar, wird verworfen: {fehler}")
+            _nachreich_aufraeumen(video_pfad, info_pfad)
+            continue
+
+        # Beide Bots dürfen sich einen Ordner teilen - fremde Vorgänge liegen lassen.
+        if info.get("did") and info["did"] != client.me.did:
+            continue
+
+        versuch = int(info.get("versuche", 0)) + 1
+        log(f"🎥 Reiche Video nach ({kennung}, Versuch {versuch}/{max_versuche})...")
+        try:
+            embed = upload_video_to_bluesky(client, video_pfad,
+                                            info.get("dateiname") or name,
+                                            max_bytes, timeout_seconds,
+                                            versuche=1)
+            _sende_nachreich_antwort(client, info, embed, antwort_text)
+            log(f"   ✓ Video nachgereicht ({kennung}).")
+            _nachreich_aufraeumen(video_pfad, info_pfad)
+            erledigt += 1
+        except Exception as fehler:
+            log(f"   ⚠️ Nachreichen fehlgeschlagen ({kennung}): {fehler}")
+            if versuch >= max_versuche:
+                log(f"   Nach {versuch} Versuchen aufgegeben - {kennung} wird verworfen.")
+                _nachreich_aufraeumen(video_pfad, info_pfad)
+                continue
+            info["versuche"] = versuch
+            try:
+                with open(info_pfad, "w", encoding="utf-8") as ziel:
+                    json.dump(info, ziel, ensure_ascii=False, indent=2)
+            except OSError as schreib_fehler:
+                log(f"   ⚠️ Versuchszähler nicht gespeichert: {schreib_fehler}")
+
+    return erledigt
