@@ -279,6 +279,13 @@ es unter `[feed] bluesky_handle` ein und gibst die App-Passwörter getrennt an
   ([instaloader#2726](https://github.com/instaloader/instaloader/issues/2726),
   offen). Erst nach dessen Lösung aktualisieren.
 * **Umfragen** werden übersprungen: Bluesky kennt dieses Format nicht.
+* **Sprachnachrichten brauchen einen Umweg beim Download.** Kanalmedien liegen
+  unverschlüsselt hinter `directPath` — Bilder und Videos bringen deshalb gar
+  keinen `mediaKey` mit. Sprachnachrichten schleppen einen mit, woraufhin
+  whatsmeow zu entschlüsseln versucht und mit `invalid media hmac` scheitert.
+  SkyRelay lädt bei genau diesem Fehler ein zweites Mal ohne den Schlüssel.
+  Nachgemessen am 19.08.2026: regulär lud **keine** von 5 Sprachnachrichten,
+  ohne Schlüssel **alle fünf** byte-genau.
 * **Animierte Sticker** verlieren ihre Bewegung — übertragen wird das erste
   Einzelbild, weil Bluesky keine Animationen abspielt.
 * **Sprachnachrichten** erscheinen als Video und haben damit keine sinnvolle

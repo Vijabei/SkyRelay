@@ -762,6 +762,40 @@ def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None,
 
 
 # 4. Kanal-Nachricht verarbeiten
+MEDIENFELDER = ("audioMessage", "videoMessage", "imageMessage",
+                "stickerMessage", "documentMessage")
+
+
+async def lade_kanal_medien(client, msg):
+    """Lädt die Mediendatei einer Kanal-Nachricht herunter.
+
+    Kanalmedien liegen unverschlüsselt hinter `directPath` - Bilder und Videos
+    bringen deshalb gar keinen `mediaKey` mit und laden anstandslos.
+    Sprachnachrichten schleppen aber einen `mediaKey` aus dem gewöhnlichen
+    Chat-Ablauf mit. whatsmeow biegt daraufhin in den Entschlüsselungspfad ab
+    und scheitert dort mit "invalid media hmac", obwohl die Datei abrufbar wäre.
+    Nachgemessen am 19.08.2026: 0 von 5 Sprachnachrichten luden regulär, alle
+    luden ohne den Schlüssel - byte-genau in der angekündigten Länge.
+
+    Deshalb zuerst der reguläre Weg und nur bei einem hmac-Fehler ein zweiter
+    Versuch ohne `mediaKey`. Liefert WhatsApp Kanal-Audio eines Tages doch
+    verschlüsselt aus, greift weiterhin der reguläre Weg."""
+    try:
+        return await client.download_any(msg)
+    except Exception as fehler:
+        if "hmac" not in str(fehler).lower():
+            raise
+        log("   ℹ️ Download scheitert an der Prüfsumme - zweiter Versuch "
+            "ohne mediaKey (Kanalmedien liegen unverschlüsselt).")
+        ohne_schluessel = type(msg)()
+        ohne_schluessel.CopyFrom(msg)
+        for feld in MEDIENFELDER:
+            if ohne_schluessel.HasField(feld):
+                getattr(ohne_schluessel, feld).ClearField("mediaKey")
+                break
+        return await client.download_any(ohne_schluessel)
+
+
 async def process_newsletter_message(client, raw_msg, server_id):
     """Verarbeitet eine neue Kanal-Nachricht: Text extrahieren, ggf. Bild laden, reposten."""
     msg = unwrap_message(raw_msg)
@@ -784,7 +818,7 @@ async def process_newsletter_message(client, raw_msg, server_id):
     platzhalter = None
     if msg.HasField("imageMessage"):
         try:
-            raw = await client.download_any(msg)
+            raw = await lade_kanal_medien(client, msg)
             image_blobs.append(compress_image_for_bluesky(raw))
         except Exception as dl_err:
             # Kanal-Medien laufen teils über andere Endpunkte als normale Chats -
@@ -794,7 +828,7 @@ async def process_newsletter_message(client, raw_msg, server_id):
         video_thumb = msg.videoMessage.JPEGThumbnail or None
         try:
             log("   Lade Video aus dem Kanal herunter...")
-            video_bytes = await client.download_any(msg)
+            video_bytes = await lade_kanal_medien(client, msg)
             log(f"   ✓ Video geladen ({len(video_bytes)} Bytes).")
         except Exception as dl_err:
             log(f"   ⚠️ Video-Download fehlgeschlagen ({dl_err}) - poste Text"
@@ -813,7 +847,7 @@ async def process_newsletter_message(client, raw_msg, server_id):
         sekunden = msg.audioMessage.seconds or 0
         try:
             log("   Lade Sprachnachricht aus dem Kanal herunter...")
-            audio = await client.download_any(msg)
+            audio = await lade_kanal_medien(client, msg)
             log(f"   ✓ Sprachnachricht geladen ({len(audio)} Bytes, {sekunden}s).")
             log("   Erzeuge Video mit Wellenform...")
             video_bytes = audio_zu_video(audio, AUDIO_SIZE, AUDIO_WAVE_COLOR,
@@ -831,7 +865,7 @@ async def process_newsletter_message(client, raw_msg, server_id):
         platzhalter = STICKER_PLACEHOLDER
         try:
             log("   Lade Sticker aus dem Kanal herunter...")
-            roh = await client.download_any(msg)
+            roh = await lade_kanal_medien(client, msg)
             image_blobs.append(sticker_zu_bild(roh, STICKER_BACKGROUND))
             log(f"   ✓ Sticker umgewandelt ({len(roh)} Bytes Ausgangsmaterial).")
         except Exception as sticker_err:
