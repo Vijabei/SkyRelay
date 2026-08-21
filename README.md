@@ -58,6 +58,12 @@ Quelle und Ablaufsteuerung. Sprich uns über ein Issue an.
   abschalten; der Ticker läuft dann an jedem Tag, an dem er gestartet wird.
 * **Spiel-Hashtag** wird automatisch erzeugt (`#KSCDSC` heim/auswärts korrekt herum),
   inklusive DFB-Pokal-Runden, und an jeden Beitrag gehängt.
+* **Mehrere Mannschaften eines Vereins** lassen sich abdecken, sofern sie bei
+  OpenLigaDB dieselbe Team-Nummer tragen — dann genügt es, ihre Liga in
+  `league_prefixes` zu ergänzen. Spielen an einem Tag beide, kann eine
+  Kanal-Nachricht keiner Partie zugeordnet werden: die Beiträge bekommen dann
+  statt der Spiel-Hashtags den `overlap_hashtag`, während die Profil-Statuszeile
+  beide Partien nennt.
 * **Profil-Statuszeile:** Die erste Zeile der Bluesky-Biografie schaltet zwischen
   „Bot ist an – 1. Spieltag …" und „Bot ist aus – nächstes Spiel …" um.
 * **Bearbeitungen** im Kanal werden erkannt: Der alte Bluesky-Beitrag wird gelöscht

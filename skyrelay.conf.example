@@ -40,6 +40,10 @@ openligadb_team_id = 83
 # Hintergrund: OpenLigaDB liefert vereinzelt Fantasie-Ligen mit falschen Terminen
 # (real gesehen: "ESP8266"). Ohne diese Sperre würde der Bot an spielfreien Tagen
 # anspringen. bl = alle Bundesligen, dfb = DFB-Pokal.
+# Hier lassen sich auch mehrere Mannschaften eines Vereins abdecken: traegt die
+# zweite Mannschaft bei OpenLigaDB dieselbe Team-Nummer, genuegt es, ihre Liga
+# zu ergaenzen (z.B. "rlw" fuer eine Regionalliga West der Frauen). Spielen dann
+# beide am selben Tag, greift [post] overlap_hashtag.
 league_prefixes = bl, dfb
 # Zeitzone für Anstoßzeiten und das Tagesende.
 timezone = Europe/Berlin
@@ -80,6 +84,12 @@ prefix = ⚽ [Inoffizieller Bot]
 source_label = WhatsApp-Kanal des Vereins
 # Hashtag, der unter jedem Beitrag steht (ohne #). Leer lassen für keinen.
 standing_hashtag = arminia
+# Spielen an einem Tag mehrere Mannschaften des Vereins (z.B. Herren und
+# Frauen), laesst sich einer Kanal-Nachricht nicht ansehen, zu welcher Partie
+# sie gehoert. Statt falsch zu beschriften, tritt dieser Hashtag an die Stelle
+# der Spiel-Hashtags; die Profilzeile nennt weiterhin beide Partien.
+# Leer lassen, um an solchen Tagen gar keinen Spiel-Hashtag zu setzen.
+overlap_hashtag = immerdabei
 # Platzhaltertexte, wenn ein Beitrag nur aus Medien ohne Text besteht.
 image_placeholder = 📸 Neues Bild im Kanal
 video_placeholder = 🎥 Neues Video im Kanal

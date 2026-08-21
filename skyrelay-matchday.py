@@ -126,6 +126,11 @@ if _cfg.has_section("team_codes"):
 POST_PREFIX = cfg("post", "prefix", "⚽ [Inoffizieller Bot]")
 POST_SOURCE_LABEL = cfg("post", "source_label", "Original-Kanal")
 STANDING_HASHTAG = cfg("post", "standing_hashtag", "").strip().lstrip("#")
+# Spielen an einem Tag mehrere Mannschaften des Vereins, laesst sich einer
+# Kanal-Nachricht nicht ansehen, zu welcher Partie sie gehoert. Statt die
+# Beitraege falsch zu beschriften, tritt dieser Hashtag an die Stelle der
+# Spiel-Hashtags. Leer lassen, um dann gar keinen zu setzen.
+OVERLAP_HASHTAG = cfg("post", "overlap_hashtag", "").strip().lstrip("#")
 IMAGE_PLACEHOLDER = cfg("post", "image_placeholder", "📸 Neues Bild im Kanal")
 VIDEO_PLACEHOLDER = cfg("post", "video_placeholder", "🎥 Neues Video im Kanal")
 VIDEO_HINT = cfg("post", "video_hint", "🎥 (Video im Original-Kanal)")
@@ -259,8 +264,18 @@ def team_code(team):
         # Zeichenklasse, weil dort das ß fehlte und stillschweigend verschwand
         # ("Großaspach" -> "Groaspach"). Großschreiben VOR dem Kürzen, denn
         # "ß".upper() ergibt "SS" und hätte das Kürzel sonst vierstellig gemacht.
-        name = team["shortName"] or team["teamName"]
-        code = "".join(z for z in name if z.isalpha()).upper()[:3]
+        #
+        # Der Kurzname ist erste Wahl, taugt aber nicht immer: "S04" für Schalke
+        # schrumpft nach dem Aussortieren der Ziffern auf ein einziges "S" und
+        # ergäbe den Hashtag #SDSC. Bleiben weniger als drei Buchstaben übrig,
+        # zählt deshalb der vollständige Vereinsname.
+        def nur_buchstaben(text):
+            return "".join(z for z in (text or "") if z.isalpha()).upper()
+
+        code = nur_buchstaben(team["shortName"])
+        if len(code) < 3:
+            code = nur_buchstaben(team["teamName"]) or code
+        code = code[:3]
         log(f'⚠️ Kein DFL-Kürzel für "{team["teamName"]}" (teamId {team["teamId"]}) hinterlegt - '
             f'nutze Fallback "{code}". Bitte in TEAM_CODES nachtragen.')
     return code
@@ -272,6 +287,15 @@ def match_info_text(match):
     if "pokal" in match.get("leagueName", "").lower():
         return f"DFB-Pokal, {group}" if group else "DFB-Pokal"
     return group or match.get("leagueName", "")
+
+
+def _zuletzt_gepflegt(match):
+    """Wann OpenLigaDB diesen Eintrag zuletzt angefasst hat - entscheidet, welche
+    von zwei Dubletten gilt. Fehlt die Angabe, zaehlt der Eintrag als aeltest."""
+    try:
+        return datetime.fromisoformat(match.get("lastUpdateDateTime") or "")
+    except (TypeError, ValueError):
+        return datetime.min
 
 
 def fetch_team_matches(weeks_back=1, weeks_forward=1):
@@ -288,8 +312,7 @@ def fetch_team_matches(weeks_back=1, weeks_forward=1):
     resp = requests.get(url, timeout=20)
     resp.raise_for_status()
 
-    result = []
-    seen = set()
+    beste = {}
     skipped_leagues = set()
     for match in resp.json():
         if OPENLIGADB_TEAM_ID not in (match["team1"]["teamId"], match["team2"]["teamId"]):
@@ -301,16 +324,22 @@ def fetch_team_matches(weeks_back=1, weeks_forward=1):
         kickoff_local = datetime.fromisoformat(
             match["matchDateTimeUTC"].replace("Z", "+00:00")
         ).astimezone(LOCAL_TZ)
-        # bl2 und bl2h liefern dasselbe Spiel doppelt - nach Anstoß+Gegner entdoppeln.
-        key = (kickoff_local, match["team1"]["teamId"], match["team2"]["teamId"])
-        if key in seen:
-            continue
-        seen.add(key)
-        result.append((kickoff_local, match))
+        # Dasselbe Spiel kommt doppelt, wenn zwei Ligen es führen (real gesehen:
+        # bl2 und bl2h). Die Anstoßzeit taugt NICHT als Unterscheidung - solange
+        # die Ansetzung offen ist, steht dort ein Platzhalter, und die beiden
+        # Einträge weichen dann um Stunden voneinander ab. Deshalb nach Datum und
+        # Paarung entdoppeln und den zuletzt gepflegten Eintrag behalten: er trägt
+        # die aktuellere Ansetzung.
+        # Ohne das hielte der Ticker eine Dublette für ein zweites Spiel am selben
+        # Tag und würde die Beiträge mit dem Ersatz-Hashtag beschriften.
+        key = (kickoff_local.date(), match["team1"]["teamId"], match["team2"]["teamId"])
+        vorhanden = beste.get(key)
+        if vorhanden is None or _zuletzt_gepflegt(match) > _zuletzt_gepflegt(vorhanden[1]):
+            beste[key] = (kickoff_local, match)
 
     if skipped_leagues:
         log(f"(OpenLigaDB: Spiele aus unbekannten Ligen ignoriert: {', '.join(sorted(skipped_leagues))})")
-    return sorted(result, key=lambda item: item[0])
+    return sorted(beste.values(), key=lambda item: item[0])
 
 
 def describe_match(kickoff_local, match):
@@ -328,26 +357,30 @@ def describe_match(kickoff_local, match):
     return kickoff_local, desc, heim + gast, match_info_text(match)
 
 
-def get_todays_match():
-    """Liefert (kickoff_local, beschreibung, hashtag, kurzinfo) wenn die eigene Mannschaft heute
-    spielt, sonst None. Der Hashtag folgt dem Schema Heimteam+Auswärtsteam, also
-    z.B. DSCWOB (heim) bzw. WOBDSC (auswärts)."""
+def get_todays_matches():
+    """Liefert alle heutigen Spiele als Liste von (kickoff_local, beschreibung,
+    hashtag, kurzinfo), nach Anstoß sortiert - leer, wenn heute nichts ansteht.
+
+    Bewusst eine Liste: Spielen etwa Herren- und Frauenmannschaft am selben Tag,
+    laufen beide über denselben WhatsApp-Kanal. Der Hashtag folgt dem Schema
+    Heimteam+Auswärtsteam, also z.B. DSCWOB (heim) bzw. WOBDSC (auswärts)."""
     today_local = datetime.now(LOCAL_TZ).date()
-    for kickoff_local, match in fetch_team_matches(1, 1):
-        if kickoff_local.date() == today_local:
-            return describe_match(kickoff_local, match)
-    return None
+    return [describe_match(kickoff_local, match)
+            for kickoff_local, match in fetch_team_matches(1, 1)
+            if kickoff_local.date() == today_local]
 
 
-def get_next_match():
-    """Liefert das nächste noch ausstehende Spiel (für die "Bot ist aus"-Profilzeile),
-    sonst None. Schaut bewusst weit voraus, damit auch Winter-/Sommerpausen überbrückt
-    werden."""
+def get_next_matches():
+    """Liefert alle Spiele des nächsten Spieltags (für die "Bot ist aus"-Profilzeile),
+    sonst eine leere Liste. Schaut bewusst weit voraus, damit auch Winter- und
+    Sommerpausen überbrückt werden. Stehen an dem Tag mehrere Spiele an, kommen
+    alle zurück - die Profilzeile nennt dann jedes."""
     now = datetime.now(LOCAL_TZ)
-    for kickoff_local, match in fetch_team_matches(0, 12):
-        if kickoff_local > now:
-            return describe_match(kickoff_local, match)
-    return None
+    kommende = [(k, m) for k, m in fetch_team_matches(0, 12) if k > now]
+    if not kommende:
+        return []
+    erster_tag = kommende[0][0].date()
+    return [describe_match(k, m) for k, m in kommende if k.date() == erster_tag]
 
 
 # 2. Wasserzeichen-Verwaltung (MessageServerID ist pro Kanal monoton steigend)
@@ -527,6 +560,7 @@ def build_external_embed(url):
 bsky_client = None
 _anmeldeversuche = 0  # begrenzt Wiederholungen, siehe ensure_bsky()
 match_hashtag = None  # wird in main() aus den OpenLigaDB-Daten gesetzt (z.B. "DSCWOB")
+match_hashtags_tag = []  # alle Spiel-Hashtags des Tages - die Profilzeile nennt sie
 match_info = None     # Kurzinfo zum heutigen Spiel, z.B. "1. Spieltag" (für die Profilzeile)
 match_kickoff = None  # Anstoßzeit des heutigen Spiels (für die Profilzeile)
 
@@ -572,18 +606,22 @@ def set_profile_status(on):
     # Zeile zusammenbauen
     try:
         if on:
+            # Bei mehreren Spielen nennt die Profilzeile alle Partien, auch wenn
+            # die Beitraege selbst nur den Ersatz-Hashtag tragen.
+            sichtbar = match_hashtags_tag or ([match_hashtag] if match_hashtag else [])
             line = PROFILE_LINE_ON.format(
                 info=match_info or FALLBACK_MATCH_INFO,
-                hashtag=f"#{match_hashtag}" if match_hashtag else "",
+                hashtag=" ".join(f"#{h}" for h in sichtbar),
                 date=match_kickoff.strftime("%d.%m.") if match_kickoff else "",
                 time=match_kickoff.strftime("%H:%M") if match_kickoff else "",
             )
         else:
-            nxt = get_next_match()
-            if nxt:
-                kickoff, _desc, hashtag, info = nxt
+            naechste = get_next_matches()
+            if naechste:
+                kickoff, _desc, _hashtag, info = naechste[0]
                 line = PROFILE_LINE_OFF.format(
-                    info=info, hashtag=f"#{hashtag}",
+                    info=" + ".join(dict.fromkeys(i for *_, i in naechste)) or info,
+                    hashtag=" ".join(f"#{h}" for *_, h, _ in naechste),
                     date=kickoff.strftime("%d.%m."), time=kickoff.strftime("%H:%M"),
                 )
             else:
@@ -1013,7 +1051,7 @@ async def with_retries(description, coro_factory, max_attempts=6, wait_seconds=1
 
 
 async def main():
-    global match_hashtag, match_info, match_kickoff, channel_user
+    global match_hashtag, match_hashtags_tag, match_info, match_kickoff, channel_user
 
     fehlend = [name for name, wert in (
         ("[source] channel_invite_link", CHANNEL_INVITE_LINK),
@@ -1042,26 +1080,38 @@ async def main():
     # Ohne konfigurierten Verein (Sportart nicht bei OpenLigaDB) entfällt die
     # Prüfung ganz - dann läuft der Ticker an jedem Tag, an dem er gestartet wird.
     ohne_spielplan = not OPENLIGADB_TEAM_FILTER or not OPENLIGADB_TEAM_ID
-    match = None
+    heutige = []
     if ohne_spielplan:
         log("Kein Spielplan konfiguriert ([team] openligadb_filter leer) - "
             "Spieltags-Prüfung entfällt.")
     else:
         try:
-            match = get_todays_match()
+            heutige = get_todays_matches()
         except Exception as e:
             log(f"Fehler beim OpenLigaDB-Abruf: {e}")
             if not FORCE_RUN:
                 sys.exit(1)
 
-    if match:
-        kickoff, desc, auto_hashtag, info = match
-        if not match_hashtag:
-            match_hashtag = auto_hashtag
-        match_info = info
-        match_kickoff = kickoff
-        log(f"⚽ Heute ist Spieltag: {desc}, {info}, Anstoß {kickoff.strftime('%H:%M')} Uhr. "
-            f"Spiel-Hashtag: #{match_hashtag}")
+    if heutige:
+        match_hashtags_tag = [h for *_, h, _ in heutige]
+        match_kickoff = heutige[0][0]
+        match_info = " + ".join(dict.fromkeys(i for *_, i in heutige))
+        for kickoff, desc, hashtag, info in heutige:
+            log(f"⚽ Heute ist Spieltag: {desc}, {info}, "
+                f"Anstoß {kickoff.strftime('%H:%M')} Uhr. Spiel-Hashtag: #{hashtag}")
+
+        if len(heutige) > 1:
+            # Mehrere Mannschaften an einem Tag, ein gemeinsamer Kanal: einer
+            # Nachricht sieht man nicht an, zu welchem Spiel sie gehört. Lieber
+            # keinen Spiel-Hashtag als den falschen.
+            log(f"ℹ️ {len(heutige)} Spiele an einem Tag - die Beiträge bekommen "
+                f"statt der Spiel-Hashtags "
+                + (f"#{OVERLAP_HASHTAG}." if OVERLAP_HASHTAG else "gar keinen.")
+                + " Die Profilzeile nennt beide Partien.")
+            if not match_hashtag:
+                match_hashtag = OVERLAP_HASHTAG or None
+        elif not match_hashtag:
+            match_hashtag = match_hashtags_tag[0]
     elif FORCE_RUN or ohne_spielplan:
         note = "" if match_hashtag else " (ohne Spiel-Hashtag)"
         grund = ("ohne Spielplan-Prüfung" if ohne_spielplan
