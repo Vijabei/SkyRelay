@@ -84,6 +84,16 @@ timezone = Europe/Berlin
 
 
 [post]
+# Ob die Kopfzeile ueberhaupt erscheint:
+#   always  immer (Vorgabe - so hat SkyRelay es immer gemacht)
+#   never   nie
+#   auto    nur, solange die Profilbeschreibung den Hinweis nicht selbst traegt
+# Bei "auto" wird die Beschreibung des Bot-Kontos einmal je Lauf geprueft. Die
+# eigene Statuszeile ([profile] marker) wird dabei uebergangen - sonst faende
+# sich "Bot" immer, naemlich im selbst geschriebenen "Bot ist an".
+bot_notice = always
+# Wonach in der Beschreibung gesucht wird.
+bot_notice_marker = Bot
 # Kopfzeile jedes Hauptbeitrags. Kennzeichnet den Bot als inoffiziell -
 # bitte drin lassen, das erspart Missverständnisse.
 # Leer lassen, um ganz auf die Kopfzeile zu verzichten.

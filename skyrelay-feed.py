@@ -37,6 +37,7 @@ from skyrelay_common import (
     load_config,
     start_file_logging,
     log_in_to_bluesky,
+    bot_notice,
     get_app_password,
     compress_image_for_bluesky,
     upload_video_to_bluesky,
@@ -107,6 +108,12 @@ FEED_SOURCE_LABEL = cfg("feed", "source_label", "Beitrag auf Instagram")
 # Shared with the ticker: the word "Quelle" is the same either way, only
 # what it points at differs (#7).
 SOURCE_TEMPLATE = cfg("post", "source_template", DEFAULT_SOURCE_TEMPLATE)
+# Whether the bot notice appears at all (#9). The status marker matters
+# here too: if ticker and feed share an account, the ticker's status line
+# sits in the same description and would answer the question for us.
+BOT_NOTICE = cfg("post", "bot_notice", "always")
+BOT_NOTICE_MARKER = cfg("post", "bot_notice_marker", "Bot")
+PROFILE_STATUS_MARKER = cfg("profile", "marker", "Bot ist")
 STANDING_HASHTAG = cfg("post", "standing_hashtag", "").strip().lstrip("#")
 
 # Where header, source and the standing hashtag go (#6). The feed knows no
@@ -279,7 +286,9 @@ def build_post_text(body, index, total, source_url):
     real run would send, instead of a rebuilt approximation."""
     text = body if total == 1 else f"{body} ({index + 1}/{total})"
     writers = {
-        "prefix": text_block(POST_PREFIX),
+        "prefix": text_block(bot_notice(BOT_NOTICE, BOT_NOTICE_MARKER,
+                                        PROFILE_STATUS_MARKER, POST_PREFIX,
+                                        client)),
         "source": source_block(SOURCE_TEMPLATE, FEED_SOURCE_LABEL, source_url),
         "match_hashtag": None,
         "standing_hashtag": tag_block(STANDING_HASHTAG),

@@ -83,6 +83,7 @@ from skyrelay_common import (
     load_config,
     start_file_logging,
     log_in_to_bluesky,
+    bot_notice,
     get_app_password,
     compress_image_for_bluesky,
     upload_video_to_bluesky,
@@ -162,6 +163,9 @@ POST_PREFIX = cfg("post", "prefix", "⚽ [Inoffizieller Bot]")
 POST_SOURCE_LABEL = cfg("post", "source_label", "Original-Kanal")
 # Which part of the source line carries the link - see source_block (#7).
 SOURCE_TEMPLATE = cfg("post", "source_template", DEFAULT_SOURCE_TEMPLATE)
+# Whether the bot notice appears at all - see bot_notice() (#9).
+BOT_NOTICE = cfg("post", "bot_notice", "always")
+BOT_NOTICE_MARKER = cfg("post", "bot_notice_marker", "Bot")
 STANDING_HASHTAG = cfg("post", "standing_hashtag", "").strip().lstrip("#")
 # When several of the club's teams play on the same day, a channel message
 # does not reveal which match it belongs to. Rather than labelling the posts
@@ -586,7 +590,9 @@ def build_post_text(chunk, index, total, match_tag):
     real run would send, instead of a rebuilt approximation."""
     body = chunk if total == 1 else f"{chunk} ({index + 1}/{total})"
     writers = {
-        "prefix": text_block(POST_PREFIX),
+        "prefix": text_block(bot_notice(BOT_NOTICE, BOT_NOTICE_MARKER,
+                                        PROFILE_STATUS_MARKER, POST_PREFIX,
+                                        bsky_client)),
         "source": source_block(SOURCE_TEMPLATE, POST_SOURCE_LABEL,
                                CHANNEL_INVITE_LINK),
         "match_hashtag": tag_block(match_tag),

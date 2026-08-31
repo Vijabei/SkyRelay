@@ -227,6 +227,77 @@ def log_in_to_bluesky(client, handle, password, password_variable):
         raise
 
 
+# ---------------------------------------------------------------- the notice
+#
+# Carrying "[Inoffizieller Bot]" in every single post costs characters that are
+# scarce at 300. If the profile description already says it plainly, repeating
+# it is redundant - [post] bot_notice decides.
+
+_bio_answer = None       # asked once per run
+_dry_run_noted = False   # the note below belongs in the log only once
+
+
+def _bio_mentions(client, marker, status_marker):
+    """Does the account's own description carry the marker?
+
+    The ticker's own status line is skipped on purpose. It reads "Bot ist an",
+    so looking for "Bot" would find our own writing rather than anything the
+    operator wrote - and the notice would quietly vanish from every post."""
+    global _bio_answer
+    if _bio_answer is not None:
+        return _bio_answer
+    try:
+        answer = client.com.atproto.repo.get_record(
+            models.ComAtprotoRepoGetRecord.Params(
+                repo=client.me.did, collection="app.bsky.actor.profile",
+                rkey="self"))
+        description = getattr(answer.value, "description", "") or ""
+    except Exception as error:
+        log(f"⚠️ Could not read the profile description ({error}) - keeping the "
+            f"bot notice in the posts.")
+        _bio_answer = False
+        return _bio_answer
+
+    without_status = "\n".join(line for line in description.split("\n")
+                               if not (status_marker and status_marker in line))
+    _bio_answer = marker.lower() in without_status.lower()
+    if _bio_answer:
+        log(f"ℹ️ The profile description already mentions {marker!r} - leaving "
+            f"the bot notice out of the posts ([post] bot_notice = auto).")
+    else:
+        log(f"ℹ️ The profile description does not mention {marker!r} - the bot "
+            f"notice stays in the posts ([post] bot_notice = auto).")
+    return _bio_answer
+
+
+def bot_notice(mode, marker, status_marker, prefix, client=None):
+    """The header text to use - empty when the notice should be left out.
+
+    always  always, which is the default and what SkyRelay always did
+    never   never
+    auto    only while the profile description does not mention it already
+
+    Without a client - in a dry run, where nothing logs in - auto keeps the
+    notice. Leaving a disclaimer out on a guess is the worse of the two
+    mistakes, and the preview then shows the more crowded of the two posts."""
+    global _dry_run_noted
+    mode = (mode or "always").strip().lower()
+    if mode == "never":
+        return ""
+    if mode == "auto":
+        if client is None:
+            if not _dry_run_noted:
+                _dry_run_noted = True
+                log("ℹ️ [post] bot_notice = auto cannot be checked without a "
+                    "login - the preview keeps the notice.")
+            return prefix
+        return "" if _bio_mentions(client, marker, status_marker) else prefix
+    if mode != "always":
+        log(f"⚠️ [post] bot_notice = {mode!r} is none of always, never, auto - "
+            f"treating it as always.")
+    return prefix
+
+
 # --------------------------------------------------------------------- media
 def compress_image_for_bluesky(source, max_dim=2000, max_bytes=1_500_000,
                                start_quality=85):
