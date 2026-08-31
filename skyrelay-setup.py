@@ -18,6 +18,8 @@ import re
 import sys
 import unicodedata
 
+import skyrelay_i18n
+from skyrelay_i18n import _, _f, N_
 import skyrelay_tui as tui
 import skyrelay_config as config
 import skyrelay_layout as layout
@@ -45,11 +47,11 @@ TARGET = os.environ.get("SKYRELAY_CONFIG") or os.path.join(BASE_DIR, "skyrelay.c
 # "search for another league".
 # (leagueShortcut, season start year, label)
 SUGGESTED_LEAGUES = [
-    ("bl1", "2026", "Fußball · 1. Bundesliga"),
-    ("bl2", "2026", "Fußball · 2. Bundesliga"),
-    ("bl3", "2026", "Fußball · 3. Liga"),
-    ("dfb", "2026", "Fußball · DFB-Pokal"),
-    ("fbl1", "2025", "Frauenfußball · 1. Bundesliga"),
+    ("bl1", "2026", _("Fußball · 1. Bundesliga")),
+    ("bl2", "2026", _("Fußball · 2. Bundesliga")),
+    ("bl3", "2026", _("Fußball · 3. Liga")),
+    ("dfb", "2026", _("Fußball · DFB-Pokal")),
+    ("fbl1", "2025", _("Frauenfußball · 1. Bundesliga")),
     ("del", "2026", "Eishockey · DEL"),
     ("del2", "2026", "Eishockey · DEL2"),
 ]
@@ -158,7 +160,7 @@ def ask(text, default="", required=False, validator=None):
             raise KeyboardInterrupt
         value = entry or default
         if required and not value:
-            print("    Bitte etwas eingeben.")
+            print(_("    Bitte etwas eingeben."))
             continue
         if value and validator:
             error = validator(value)
@@ -193,7 +195,8 @@ def choose(entries, text, default_index=None):
         entry = ask(text, default, required=True)
         if entry.isdigit() and 1 <= int(entry) <= len(entries):
             return entries[int(entry) - 1][0]
-        print(f"    Bitte eine Zahl zwischen 1 und {len(entries)} eingeben.")
+        print(_f("    Bitte eine Zahl zwischen 1 und {n} eingeben.",
+                 n=len(entries)))
 
 
 # ----------------------------------------------------------- configuration
@@ -304,17 +307,17 @@ def fetch_current_leagues():
 
 def check_channel_link(value):
     if "whatsapp.com/channel/" not in value:
-        return "Das sieht nicht nach einem Kanal-Link aus (erwartet: https://whatsapp.com/channel/…)."
+        return _("Das sieht nicht nach einem Kanal-Link aus (erwartet: https://whatsapp.com/channel/…).")
     if "HIER-DEN" in value:
-        return "Das ist noch der Platzhalter."
+        return _("Das ist noch der Platzhalter.")
     return None
 
 
 def check_handle(value):
     if value.startswith("@"):
-        return "Bitte ohne führendes @ angeben."
+        return _("Bitte ohne führendes @ angeben.")
     if "." not in value:
-        return "Erwartet wird ein vollständiges Handle, z.B. mein-bot.bsky.social"
+        return _("Erwartet wird ein vollständiges Handle, z.B. mein-bot.bsky.social")
     return None
 
 
@@ -322,27 +325,30 @@ def test_bluesky(handle, password_variable="BLUESKY_APP_PASSWORD"):
     """Checks the login without publishing anything."""
     password = os.environ.get(password_variable)
     if not password:
-        note(f"{password_variable} ist nicht gesetzt - Anmeldung wird nicht geprüft.")
-        note(f'Später setzen mit:  export {password_variable}="xxxx-xxxx-xxxx-xxxx"')
+        note(_f("{variable} ist nicht gesetzt - Anmeldung wird nicht geprüft.",
+                variable=password_variable))
+        note(_f('Später setzen mit:  export {variable}="xxxx-xxxx-xxxx-xxxx"',
+                variable=password_variable))
         return
-    if not confirm(f"Anmeldung bei Bluesky als {handle} jetzt prüfen?", True):
+    if not confirm(_f("Anmeldung bei Bluesky als {handle} jetzt prüfen?",
+                      handle=handle), True):
         return
     try:
         from atproto import Client
         Client().login(handle, password)
-        print(f"  ✓ Anmeldung erfolgreich: {handle}")
+        print(_f("  ✓ Anmeldung erfolgreich: {handle}", handle=handle))
     except ImportError:
-        note("Paket 'atproto' fehlt - Prüfung übersprungen (./install.sh ausführen).")
+        note(_("Paket 'atproto' fehlt - Prüfung übersprungen (./install.sh ausführen)."))
     except Exception as error:
-        print(f"  ✗ Anmeldung fehlgeschlagen: {error}")
-        note("Handle und App-Passwort prüfen. Die Einrichtung läuft trotzdem weiter.")
+        print(_f("  ✗ Anmeldung fehlgeschlagen: {error}", error=error))
+        note(_("Handle und App-Passwort prüfen. Die Einrichtung läuft trotzdem weiter."))
 
 
 # ------------------------------------------------------------------- flow
 def main():
     print("\n\033[1mSkyRelay - Einrichtung\033[0m")
-    print("Mit [Enter] wird jeweils der Wert in eckigen Klammern übernommen.")
-    print("Abbruch jederzeit mit Strg+C - dann wird nichts geschrieben.")
+    print(_("Mit [Enter] wird jeweils der Wert in eckigen Klammern übernommen."))
+    print(_("Abbruch jederzeit mit Strg+C - dann wird nichts geschrieben."))
 
     if not os.path.exists(TEMPLATE):
         print(f"\nError: the template is missing: {TEMPLATE}", file=sys.stderr)
@@ -356,70 +362,71 @@ def main():
     if os.path.exists(TARGET):
         with open(TARGET, encoding="utf-8") as handle:
             old_lines = handle.readlines()
-        print(f"\nVorhandene Konfiguration gefunden: {os.path.basename(TARGET)}")
-        note("Die bisherigen Werte stehen als Vorgabe bereit.")
+        print(_f("\nVorhandene Konfiguration gefunden: {file}",
+                 file=os.path.basename(TARGET)))
+        note(_("Die bisherigen Werte stehen als Vorgabe bereit."))
 
     def current_value(section, key):
         return read_value(old_lines, section, key) if old_lines else ""
 
     # ------------------------------------------------- which programs?
-    heading("Welche Programme möchtest du einrichten?")
-    note("SkyRelay besteht aus zwei getrennten Bots, die auch getrennte")
-    note("Bluesky-Konten benutzen können:")
-    print("     · Spieltags-Ticker: WhatsApp-Kanal → Bluesky, nur an Spieltagen")
-    print("     · Instagram-Feed:   Instagram → Bluesky, im Dauerbetrieb")
+    heading(_("Welche Programme möchtest du einrichten?"))
+    note(_("SkyRelay besteht aus zwei getrennten Bots, die auch getrennte"))
+    note(_("Bluesky-Konten benutzen können:"))
+    print(_("     · Spieltags-Ticker: WhatsApp-Kanal → Bluesky, nur an Spieltagen"))
+    print(_("     · Instagram-Feed:   Instagram → Bluesky, im Dauerbetrieb"))
     picked_programs = choose(
-        [("both", "Beide"),
-         ("matchday", "Nur den Spieltags-Ticker (WhatsApp-Kanal)"),
-         ("feed", "Nur die Instagram-Spiegelung")],
-        "Auswahl", 0,
+        [("both", _("Beide")),
+         ("matchday", _("Nur den Spieltags-Ticker (WhatsApp-Kanal)")),
+         ("feed", _("Nur die Instagram-Spiegelung"))],
+        _("Auswahl"), 0,
     )
     does_matchday = picked_programs in ("both", "matchday")
     does_feed = picked_programs in ("both", "feed")
-    parts = "1 von 2: " if picked_programs == "both" else ""
+    parts = _("1 von 2: ") if picked_programs == "both" else ""
     ticker_handle = feed_handle = ""
 
     if does_matchday:
         program_banner(parts, "SPIELTAGS-TICKER",
-                       "WhatsApp-Kanal  ──►  Bluesky", "läuft nur an Spieltagen")
+                       _("WhatsApp-Kanal  ──►  Bluesky"), _("läuft nur an Spieltagen"))
 
     # ------------------------------------------------------ what it is for
     purpose = "sport_plan"
     if does_matchday:
-        heading("Wofür wird der Ticker eingesetzt?")
-        note("Davon hängt ab, ob Spieltage automatisch erkannt werden können")
-        note("und wie die vorgeschlagenen Texte formuliert sind.")
+        heading(_("Wofür wird der Ticker eingesetzt?"))
+        note(_("Davon hängt ab, ob Spieltage automatisch erkannt werden können"))
+        note(_("und wie die vorgeschlagenen Texte formuliert sind."))
         purpose = choose(
-            [("sport_plan", "Sport mit Spielplan bei OpenLigaDB (Fußball, Eishockey …)"),
-             ("sport_no_schedule", "Sport ohne Spielplan-Daten (z.B. Basketball, Handball-Liga)"),
-             ("custom", "anderer Zweck (Verein, Veranstaltung, Projekt …)")],
-            "Auswahl", 0,
+            [("sport_plan", _("Sport mit Spielplan bei OpenLigaDB (Fußball, Eishockey …)")),
+             ("sport_no_schedule", _("Sport ohne Spielplan-Daten (z.B. Basketball, Handball-Liga)")),
+             ("custom", _("anderer Zweck (Verein, Veranstaltung, Projekt …)"))],
+            _("Auswahl"), 0,
         )
     generic = purpose == "custom"
     # Match the wording of the defaults to the purpose
     W = {
-        "event": "Ereignis" if generic else "Spiel",
+        "event": "Ereignis" if generic else _("Spiel"),
         "prefix": "📡 [Inoffizieller Bot]" if generic else "⚽ [Inoffizieller Bot]",
-        "source": "WhatsApp-Kanal" if generic else "WhatsApp-Kanal des Vereins",
-        "line_on": ("🟢 Bot ist an {hashtag}" if generic
-               else "🟢 Bot ist an - {info} {hashtag} ⚫⚪🔵"),
-        "line_off": ("🔴 Bot ist aus" if generic
-                else "🔴 Bot ist aus - nächstes Spiel {hashtag} ⚫⚪🔵"),
-        "line_off_empty": "🔴 Bot ist aus" if generic else "🔴 Bot ist aus ⚫⚪🔵",
+        "source": _("WhatsApp-Kanal") if generic else _("WhatsApp-Kanal des Vereins"),
+        "line_on": (_("🟢 Bot ist an {hashtag}") if generic
+               else _("🟢 Bot ist an - {info} {hashtag} ⚫⚪🔵")),
+        "line_off": (_("🔴 Bot ist aus") if generic
+                else _("🔴 Bot ist aus - nächstes Spiel {hashtag} ⚫⚪🔵")),
+        "line_off_empty": _("🔴 Bot ist aus") if generic else _("🔴 Bot ist aus ⚫⚪🔵"),
         "fallback": "aktiv" if generic else "Testspiel",
     }
 
     # ---------------------------------------------------------- matchday
     if does_matchday:
-        heading("Bluesky-Konto FÜR DEN TICKER")
-        note("Auf dieses Konto werden die Beiträge aus dem WhatsApp-Kanal")
-        note("veröffentlicht - ohne führendes @.")
+        heading(_("Bluesky-Konto FÜR DEN TICKER"))
+        note(_("Auf dieses Konto werden die Beiträge aus dem WhatsApp-Kanal"))
+        note(_("veröffentlicht - ohne führendes @."))
         ticker_handle = ask("Handle", current_value("bluesky", "handle") or "mein-ticker.bsky.social",
                             required=True, validator=check_handle)
         set_value(lines, "bluesky", "handle", ticker_handle)
 
-        heading("WhatsApp-Kanal (Quelle des Tickers)")
-        note("Im Handy: Kanal öffnen → Kanalnamen antippen → Teilen → Link kopieren.")
+        heading(_("WhatsApp-Kanal (Quelle des Tickers)"))
+        note(_("Im Handy: Kanal öffnen → Kanalnamen antippen → Teilen → Link kopieren."))
         link = ask("Einladungslink", current_value("source", "channel_invite_link"),
                    required=True, validator=check_channel_link)
         set_value(lines, "source", "channel_invite_link", link)
@@ -427,23 +434,24 @@ def main():
         league = season = None
         choice = "ohne"
         if purpose == "sport_plan":
-            heading("Liga und Verein")
-            note("Daraus erkennt der Ticker, an welchen Tagen er überhaupt laufen muss,")
-            note("und bildet den Spiel-Hashtag. Grundlage ist OpenLigaDB.")
+            heading(_("Liga und Verein"))
+            note(_("Daraus erkennt der Ticker, an welchen Tagen er überhaupt laufen muss,"))
+            note(_("und bildet den Spiel-Hashtag. Grundlage ist OpenLigaDB."))
             choice = choose(
                 [(k, b) for k, _, b in SUGGESTED_LEAGUES]
-                + [("suchen", "andere Liga aus OpenLigaDB wählen …"),
-                   ("ohne", "doch kein Spielplan – Ticker läuft an jedem Starttag")],
-                "Liga", 1,
+                + [("suchen", _("andere Liga aus OpenLigaDB wählen …")),
+                   ("ohne", _("doch kein Spielplan – Ticker läuft an jedem Starttag"))],
+                _("Liga"), 1,
             )
 
         if choice == "ohne":
             heading("Ohne Spielplan")
-            note("Es findet keine automatische Prüfung statt, ob heute etwas ansteht:")
-            note("Der Ticker läuft an jedem Tag, an dem er gestartet wird.")
-            note(f"Ein wechselnder {W['event']}-Hashtag lässt sich beim Start über")
-            note("SKYRELAY_HASHTAG mitgeben. Den cron-Eintrag also nur für die Tage")
-            note("einrichten, an denen etwas läuft - oder von Hand starten.")
+            note(_("Es findet keine automatische Prüfung statt, ob heute etwas ansteht:"))
+            note(_("Der Ticker läuft an jedem Tag, an dem er gestartet wird."))
+            note(_f("Ein wechselnder {event}-Hashtag lässt sich beim Start über",
+                    event=W["event"]))
+            note(_("SKYRELAY_HASHTAG mitgeben. Den cron-Eintrag also nur für die Tage"))
+            note(_("einrichten, an denen etwas läuft - oder von Hand starten."))
             set_value(lines, "team", "openligadb_filter", "")
             set_value(lines, "team", "openligadb_team_id", "0")
         elif choice == "suchen":
@@ -453,21 +461,21 @@ def main():
                 print(f"  ✗ Abruf fehlgeschlagen: {error}")
                 leagues = []
             if leagues:
-                note(f"{len(leagues)} Ligen mit laufender Saison:")
+                note(_f("{n} Ligen mit laufender Saison:", n=len(leagues)))
                 picked = choose(
                     [(l, f'{(l.get("sport") or {}).get("sportName", "?")} · '
                          f'{l["leagueName"]} ({l["leagueShortcut"]}/{l["leagueSeason"]})')
                      for l in leagues],
-                    "Liga",
+                    _("Liga"),
                 )
                 league, season = picked["leagueShortcut"], str(picked["leagueSeason"])
             else:
-                league = ask("Ligakürzel", "bl2", required=True)
-                season = ask("Saison (Startjahr)", "2026", required=True)
+                league = ask(_("Ligakürzel"), "bl2", required=True)
+                season = ask(_("Saison (Startjahr)"), "2026", required=True)
         else:
             league = choice
             season = next(s for k, s, _ in SUGGESTED_LEAGUES if k == choice)
-            season = ask("Saison (Startjahr)", season, required=True)
+            season = ask(_("Saison (Startjahr)"), season, required=True)
 
         teams = []
         if league:
@@ -483,17 +491,17 @@ def main():
             default = next((i for i, t in enumerate(by_name) if str(t["teamId"]) == old_id), None)
             chosen = choose(
                 [(t, f'{t.get("shortName") or t["teamName"]}  ({t["teamName"]})') for t in by_name],
-                "Dein Verein", default,
+                _("Dein Verein"), default,
             )
             set_value(lines, "team", "openligadb_team_id", chosen["teamId"])
             search_term = (chosen.get("shortName") or chosen["teamName"]).split()[-1].lower()
-            search_term = ask("Suchbegriff für OpenLigaDB", current_value("team", "openligadb_filter") or search_term,
+            search_term = ask(_("Suchbegriff für OpenLigaDB"), current_value("team", "openligadb_filter") or search_term,
                               required=True)
             set_value(lines, "team", "openligadb_filter", search_term)
 
             # ------------------------------------------- table of codes
-            heading("Kürzel für die Hashtags")
-            note("Aus Heim- und Auswärtskürzel entsteht der Spiel-Hashtag, z.B. #KSCDSC.")
+            heading(_("Kürzel für die Hashtags"))
+            note(_("Aus Heim- und Auswärtskürzel entsteht der Spiel-Hashtag, z.B. #KSCDSC."))
             codes, taken = {}, {}
             for team in teams:
                 codes[team["teamId"]], taken[team["teamId"]] = suggest_code(team)
@@ -508,39 +516,41 @@ def main():
 
             derived_count = sum(1 for t in teams if not taken[t["teamId"]])
             if derived_count:
-                note(f"{len(teams) - derived_count} Kürzel sind hinterlegt, "
-                     f"{derived_count} aus dem Namen abgeleitet (mit ? markiert).")
-                note("Abgeleitete entsprechen oft nicht dem üblichen Kürzel - bitte prüfen.")
+                note(_f("{known} Kürzel sind hinterlegt, {derived} aus dem "
+                        "Namen abgeleitet (mit ? markiert).",
+                        known=len(teams) - derived_count, derived=derived_count))
+                note(_("Abgeleitete entsprechen oft nicht dem üblichen Kürzel - bitte prüfen."))
             else:
-                note("Für alle Mannschaften dieser Liga sind Kürzel hinterlegt.")
+                note(_("Für alle Mannschaften dieser Liga sind Kürzel hinterlegt."))
 
             own = codes.get(chosen["teamId"], "XXX")
-            print(f"\n  Kürzel deines Vereins ({chosen['teamName']}): {own}")
-            note("Es steht in jedem Spiel-Hashtag - bitte genau prüfen.")
-            codes[chosen["teamId"]] = ask("Kürzel", own, required=True).upper()
+            print(_f("\n  Kürzel deines Vereins ({club}): {code}",
+                     club=chosen["teamName"], code=own))
+            note(_("Es steht in jedem Spiel-Hashtag - bitte genau prüfen."))
+            codes[chosen["teamId"]] = ask(_("Kürzel"), own, required=True).upper()
 
-            print("\n  Übrige Mannschaften (? = abgeleitet, ungeprüft):")
+            print(_("\n  Übrige Mannschaften (? = abgeleitet, ungeprüft):"))
             for team in sorted(teams, key=lambda t: t.get("shortName") or ""):
                 if team["teamId"] != chosen["teamId"]:
                     mark = " " if taken[team["teamId"]] else "?"
                     print(f"   {mark} {codes[team['teamId']]:5} {team['teamName']}")
-            if confirm("\n  Diese Kürzel einzeln anpassen?", bool(derived_count)):
+            if confirm(_("\n  Diese Kürzel einzeln anpassen?"), bool(derived_count)):
                 for team in sorted(teams, key=lambda t: t.get("shortName") or ""):
                     if team["teamId"] == chosen["teamId"]:
                         continue
                     codes[team["teamId"]] = ask(
                         team["teamName"], codes[team["teamId"]], required=True).upper()
             else:
-                note("Später jederzeit im Abschnitt [team_codes] änderbar.")
+                note(_("Später jederzeit im Abschnitt [team_codes] änderbar."))
             set_team_codes(lines, codes)
 
-        heading("Beiträge des Tickers")
+        heading(_("Beiträge des Tickers"))
         note("Es gibt zwei Sorten Hashtags:")
-        note(f"  · Dauer-Hashtag - steht unter JEDEM Beitrag (z.B. der Vereinsname)")
-        note(f"  · {W['event']}-Hashtag - wechselt je Termin"
-             + (" und wird aus dem Spielplan gebildet" if choice != "ohne"
-                   else ", kommt aus SKYRELAY_HASHTAG"))
-        mark = ask("Dauer-Hashtag (ohne #, leer = keiner)",
+        note(_("  · Dauer-Hashtag - steht unter JEDEM Beitrag (z.B. der Vereinsname)"))
+        note(_f("  · {event}-Hashtag - wechselt je Termin", event=W["event"])
+             + (_(" und wird aus dem Spielplan gebildet") if choice != "ohne"
+                   else _(", kommt aus SKYRELAY_HASHTAG")))
+        mark = ask(_("Dauer-Hashtag (ohne #, leer = keiner)"),
                    current_value("post", "standing_hashtag"))
         set_value(lines, "post", "standing_hashtag", mark)
         set_value(lines, "post", "prefix", current_value("post", "prefix") or W["prefix"])
@@ -549,67 +559,69 @@ def main():
         set_value(lines, "post", "source_label", label)
 
         # ------------------------------------------------ profile and time
-        heading("Profil-Statuszeile des Ticker-Kontos")
-        note(f"Die erste Zeile der Biografie von @{ticker_handle} kann anzeigen,")
-        note("ob der Bot gerade läuft - beim Beenden wird sie zurückgestellt.")
+        heading(_("Profil-Statuszeile des Ticker-Kontos"))
+        note(_f("Die erste Zeile der Biografie von @{handle} kann anzeigen,",
+                handle=ticker_handle))
+        note(_("ob der Bot gerade läuft - beim Beenden wird sie zurückgestellt."))
         was_on = current_value("profile", "enabled")
         if confirm("Statuszeile verwenden?", was_on.lower() != "false" if was_on else True):
             set_value(lines, "profile", "enabled", "true")
             note("Platzhalter: {hashtag}" + (", {info} (z.B. '1. Spieltag'), {date}, {time}"
                                              if choice != "ohne" else ""))
-            line_on = ask("Text während des Betriebs",
+            line_on = ask(_("Text während des Betriebs"),
                           current_value("profile", "line_on") or W["line_on"], required=True)
-            line_off = ask("Text nach dem Beenden",
+            line_off = ask(_("Text nach dem Beenden"),
                            current_value("profile", "line_off") or W["line_off"], required=True)
             set_value(lines, "profile", "line_on", line_on)
             set_value(lines, "profile", "line_off", line_off)
             set_value(lines, "profile", "line_off_no_match",
                       current_value("profile", "line_off_no_match") or W["line_off_empty"])
-            note("Erkannt wird eine vorhandene Statuszeile am Text 'Bot ist'.")
-            note("Wer andere Formulierungen nutzt, passt [profile] marker an.")
+            note(_("Erkannt wird eine vorhandene Statuszeile am Text 'Bot ist'."))
+            note(_("Wer andere Formulierungen nutzt, passt [profile] marker an."))
         else:
             set_value(lines, "profile", "enabled", "false")
         set_value(lines, "profile", "fallback_match_info",
                   current_value("profile", "fallback_match_info") or W["fallback"])
 
-        heading("Zeitfenster")
-        note("Bis zu dieser Uhrzeit lauscht der Ticker, danach beendet er sich selbst.")
+        heading(_("Zeitfenster"))
+        note(_("Bis zu dieser Uhrzeit lauscht der Ticker, danach beendet er sich selbst."))
         set_value(lines, "schedule", "day_end",
                   ask("Betriebsende (HH:MM)", current_value("schedule", "day_end") or "23:59",
                        required=True))
 
     # ------------------------------------------------------------- feed
     if does_feed:
-        program_banner("2 von 2: " if picked_programs == "both" else "", "INSTAGRAM-SPIEGELUNG",
-                       "Instagram  ──►  Bluesky", "läuft im Dauerbetrieb")
+        program_banner(_("2 von 2: ") if picked_programs == "both" else "", "INSTAGRAM-SPIEGELUNG",
+                       "Instagram  ──►  Bluesky", _("läuft im Dauerbetrieb"))
 
-        heading("Instagram-Profil (Quelle des Feeds)")
-        profile_key = ask("Profil, das gespiegelt wird (ohne @)",
+        heading(_("Instagram-Profil (Quelle des Feeds)"))
+        profile_key = ask(_("Profil, das gespiegelt wird (ohne @)"),
                           current_value("feed", "instagram_profile"), required=True)
         set_value(lines, "feed", "instagram_profile", profile_key)
 
-        note("Zweitkonto für den Abruf - NICHT das gespiegelte Profil.")
-        note("Sitzung anlegen mit: venv/bin/instaloader -l <name>")
+        note(_("Zweitkonto für den Abruf - NICHT das gespiegelte Profil."))
+        note(_("Sitzung anlegen mit: venv/bin/instaloader -l <name>"))
         secondary_account = ask("Instagram-Zweitkonto", current_value("feed", "instagram_session_user"),
                                 required=True)
         set_value(lines, "feed", "instagram_session_user", secondary_account)
 
-        heading("Bluesky-Konto FÜR DEN FEED")
+        heading(_("Bluesky-Konto FÜR DEN FEED"))
         own_account = current_value("feed", "bluesky_handle")
         if does_matchday:
-            note(f"Der Ticker veröffentlicht auf @{ticker_handle}.")
-            own = confirm("Soll die Instagram-Spiegelung ein ANDERES Konto verwenden?",
+            note(_f("Der Ticker veröffentlicht auf @{handle}.",
+                    handle=ticker_handle))
+            own = confirm(_("Soll die Instagram-Spiegelung ein ANDERES Konto verwenden?"),
                           bool(own_account))
         else:
             own = True
         if own:
-            note("Auf dieses Konto werden die Instagram-Beiträge veröffentlicht.")
+            note(_("Auf dieses Konto werden die Instagram-Beiträge veröffentlicht."))
             feed_handle = ask("Handle", own_account or current_value("bluesky", "handle")
                               or "mein-feed.bsky.social", required=True, validator=check_handle)
             if does_matchday:
                 set_value(lines, "feed", "bluesky_handle", feed_handle)
-                note("Dessen App-Passwort gehört in SKYRELAY_FEED_APP_PASSWORD,")
-                note("nicht in BLUESKY_APP_PASSWORD (das gilt für den Ticker).")
+                note(_("Dessen App-Passwort gehört in SKYRELAY_FEED_APP_PASSWORD,"))
+                note(_("nicht in BLUESKY_APP_PASSWORD (das gilt für den Ticker)."))
             else:
                 # Without the ticker the general account is the feed's as well.
                 set_value(lines, "bluesky", "handle", feed_handle)
@@ -620,24 +632,26 @@ def main():
 
     # ---------------------------------------------------------- summary
     heading("Zusammenfassung")
-    note("Bitte prüfen, ob Quellen und Konten richtig zugeordnet sind:")
+    note(_("Bitte prüfen, ob Quellen und Konten richtig zugeordnet sind:"))
     if does_matchday:
-        print(f"  Spieltags-Ticker:  WhatsApp-Kanal  ──►  @{ticker_handle}")
+        print(_f("  Spieltags-Ticker:  WhatsApp-Kanal  ──►  @{handle}",
+                 handle=ticker_handle))
     if does_feed:
-        print(f"  Instagram-Feed:    @{profile_key}  ──►  @{feed_handle}")
+        print(_f("  Instagram-Feed:    @{profile}  ──►  @{handle}",
+                 profile=profile_key, handle=feed_handle))
     if does_matchday and does_feed and ticker_handle == feed_handle:
-        note("Beide veröffentlichen auf demselben Konto - das ist zulässig,")
-        note("führt aber dazu, dass Ticker und Feed sich vermischen.")
-    if not confirm("\n  Stimmt das so?", True):
-        print("\nAbgebrochen - es wurde nichts geändert. Starte den Assistenten erneut.")
+        note(_("Beide veröffentlichen auf demselben Konto - das ist zulässig,"))
+        note(_("führt aber dazu, dass Ticker und Feed sich vermischen."))
+    if not confirm(_("\n  Stimmt das so?"), True):
+        print(_("\nAbgebrochen - es wurde nichts geändert. Starte den Assistenten erneut."))
         return
 
     # ---------------------------------------------------------- writing
-    heading("Speichern")
+    heading(_("Speichern"))
     print(f"  Ziel: {TARGET}")
     if os.path.exists(TARGET):
-        if not confirm("Vorhandene Konfiguration überschreiben? (Sicherung wird angelegt)", True):
-            print("\nAbgebrochen - es wurde nichts geändert.")
+        if not confirm(_("Vorhandene Konfiguration überschreiben? (Sicherung wird angelegt)"), True):
+            print(_("\nAbgebrochen - es wurde nichts geändert."))
             return
         backup = TARGET + ".bak"
         try:
@@ -660,23 +674,23 @@ def main():
         elif feed_handle != ticker_handle:
             test_bluesky(feed_handle, "SKYRELAY_FEED_APP_PASSWORD")
 
-    print("\n\033[1mFertig.\033[0m Nächste Schritte:\n")
+    print(_("\n\033[1mFertig.\033[0m Nächste Schritte:\n"))
     if does_matchday:
         print(f"  SPIELTAGS-TICKER (postet auf @{ticker_handle})")
-        print("    Erste WhatsApp-Kopplung, interaktiv im Terminal:")
+        print(_("    Erste WhatsApp-Kopplung, interaktiv im Terminal:"))
         print("      SKYRELAY_FORCE=1 SKYRELAY_DRY_RUN=1 venv/bin/python skyrelay-matchday.py")
     if does_feed:
         print(f"\n  INSTAGRAM-FEED (postet auf @{feed_handle})")
         print("    Instagram-Sitzung einmalig anlegen:")
         print(f"      venv/bin/instaloader -l {secondary_account}")
-    print("\n  Danach den Dauerbetrieb per cron einrichten - siehe README.md.\n")
+    print(_("\n  Danach den Dauerbetrieb per cron einrichten - siehe README.md.\n"))
 
 
 # ============================= the menu surface ===============================
 # It feels like raspi-config: one main menu from which single areas can be
 # changed on purpose - instead of fifteen questions in a row.
 
-def _show(lines, section, key, fallback="– nicht gesetzt –", short=40):
+def _show(lines, section, key, fallback=_("– nicht gesetzt –"), short=40):
     value = read_value(lines, section, key)
     if not value or value.startswith("dein") or "HIER-DEN" in value:
         return fallback
@@ -687,36 +701,37 @@ def m_ticker(lines):
     """Everything about the matchday ticker."""
     while True:
         channel = read_value(lines, "source", "channel_invite_link")
-        channel_text = "– nicht gesetzt –" if not channel or "HIER-DEN" in channel else "gesetzt"
+        channel_text = _("– nicht gesetzt –") if not channel or "HIER-DEN" in channel else "gesetzt"
         league = read_value(lines, "team", "openligadb_filter") or "ohne Spielplan"
         choice = tui.menu(
-            "Spieltags-Ticker", "WhatsApp-Kanal → Bluesky, läuft nur an Spieltagen.",
-            [("konto", f"Bluesky-Konto ......  {_show(lines, 'bluesky', 'handle')}"),
-             ("kanal", f"WhatsApp-Kanal ....  {channel_text}"),
-             ("liga", f"Liga und Verein ...  {league}")])
+            _("Spieltags-Ticker"), _("WhatsApp-Kanal → Bluesky, läuft nur an Spieltagen."),
+            [("konto", _f("Bluesky-Konto ......  {value}",
+                           value=_show(lines, "bluesky", "handle"))),
+             ("kanal", _f("WhatsApp-Kanal ....  {value}", value=channel_text)),
+             ("liga", _f("Liga und Verein ...  {value}", value=league))])
         if choice is None:
             return
         if choice == "konto":
-            value = tui.ask("Bluesky-Konto für den TICKER",
-                             "Konto, auf dem die Kanalbeiträge veröffentlicht werden.\n"
-                             "Ohne führendes @, z.B. mein-ticker.bsky.social",
+            value = tui.ask(_("Bluesky-Konto für den TICKER"),
+                             _("Konto, auf dem die Kanalbeiträge veröffentlicht werden.\n"
+                             "Ohne führendes @, z.B. mein-ticker.bsky.social"),
                              read_value(lines, "bluesky", "handle"))
             if value:
                 error = check_handle(value)
                 if error:
-                    tui.message("Ungültig", error)
+                    tui.message(_("Ungültig"), error)
                 else:
                     set_value(lines, "bluesky", "handle", value)
         elif choice == "kanal":
-            value = tui.ask("WhatsApp-Kanal",
-                             "Einladungslink des Kanals.\n\n"
+            value = tui.ask(_("WhatsApp-Kanal"),
+                             _("Einladungslink des Kanals.\n\n"
                              "Im Handy: Kanal öffnen → Kanalnamen antippen →\n"
-                             "Teilen → Link kopieren.",
+                             "Teilen → Link kopieren."),
                              read_value(lines, "source", "channel_invite_link"))
             if value:
                 error = check_channel_link(value)
                 if error:
-                    tui.message("Ungültig", error)
+                    tui.message(_("Ungültig"), error)
                 else:
                     set_value(lines, "source", "channel_invite_link", value)
         elif choice == "liga":
@@ -726,9 +741,9 @@ def m_ticker(lines):
 def m_league(lines):
     """Pick a league and a club - or switch the fixture list off entirely."""
     entries = [(k, b) for k, _, b in SUGGESTED_LEAGUES]
-    entries += [("suchen", "andere Liga aus OpenLigaDB …"),
-                ("ohne", "kein Spielplan (läuft an jedem Starttag)")]
-    choice = tui.menu("Liga", "Grundlage für Spieltags-Erkennung und Hashtag.", entries)
+    entries += [("suchen", _("andere Liga aus OpenLigaDB …")),
+                ("ohne", _("kein Spielplan (läuft an jedem Starttag)"))]
+    choice = tui.menu(_("Liga"), _("Grundlage für Spieltags-Erkennung und Hashtag."), entries)
     if choice is None:
         return
 
@@ -736,22 +751,23 @@ def m_league(lines):
         set_value(lines, "team", "openligadb_filter", "")
         set_value(lines, "team", "openligadb_team_id", "0")
         tui.message("Ohne Spielplan",
-                    "Die Spieltags-Erkennung ist abgeschaltet.\n\n"
+                    _("Die Spieltags-Erkennung ist abgeschaltet.\n\n"
                     "Der Ticker läuft an jedem Tag, an dem er gestartet wird.\n"
                     "Einen wechselnden Hashtag gibst du beim Start über\n"
                     "SKYRELAY_HASHTAG mit. Den cron-Eintrag also nur für die\n"
-                    "Tage einrichten, an denen etwas läuft.")
+                    "Tage einrichten, an denen etwas läuft."))
         return
 
     if choice == "suchen":
-        tui.progress("Ligen werden von OpenLigaDB geladen …")
+        tui.progress(_("Ligen werden von OpenLigaDB geladen …"))
         try:
             leagues = fetch_current_leagues()
         except Exception as error:
             tui.message("Abruf fehlgeschlagen", str(error))
             return
         chosen = tui.choose(
-            "Liga wählen", f"{len(leagues)} Ligen mit laufender Saison:",
+            _("Liga wählen"),
+            _f("{n} Ligen mit laufender Saison:", n=len(leagues)),
             [(f'{l["leagueShortcut"]}|{l["leagueSeason"]}',
               f'{(l.get("sport") or {}).get("sportName", "?")} · {l["leagueName"]}')
              for l in leagues])
@@ -761,24 +777,27 @@ def m_league(lines):
     else:
         league = choice
         season = next(s for k, s, _ in SUGGESTED_LEAGUES if k == choice)
-        entry = tui.ask("Saison", "Startjahr der Saison:", season)
+        entry = tui.ask(_("Saison"), _("Startjahr der Saison:"), season)
         if entry is None:
             return
         season = entry
 
-    tui.progress(f"Mannschaften aus {league}/{season} werden geladen …")
+    tui.progress(_f("Mannschaften aus {league}/{season} werden geladen …",
+                    league=league, season=season))
     try:
         teams = fetch_teams(league, season)
     except Exception as error:
         tui.message("Abruf fehlgeschlagen", str(error))
         return
     if not teams:
-        tui.message("Nichts gefunden", f"Zu {league}/{season} liefert OpenLigaDB keine Mannschaften.")
+        tui.message(_("Nichts gefunden"),
+                    _f("Zu {league}/{season} liefert OpenLigaDB keine "
+                       "Mannschaften.", league=league, season=season))
         return
 
     by_name = sorted(teams, key=lambda t: t.get("shortName") or "")
     chosen = tui.choose(
-        "Verein wählen", "Für welchen Verein läuft der Ticker?",
+        _("Verein wählen"), _("Für welchen Verein läuft der Ticker?"),
         [(t["teamId"], f'{t.get("shortName") or t["teamName"]}  ({t["teamName"]})')
          for t in by_name],
         read_value(lines, "team", "openligadb_team_id"))
@@ -789,7 +808,7 @@ def m_league(lines):
     set_value(lines, "team", "openligadb_team_id", club["teamId"])
     search_term = (club.get("shortName") or club["teamName"]).split()[-1].lower()
     entry = tui.ask("Suchbegriff",
-                        "Begriff, mit dem OpenLigaDB nach dem Verein sucht:", search_term)
+                        _("Begriff, mit dem OpenLigaDB nach dem Verein sucht:"), search_term)
     set_value(lines, "team", "openligadb_filter", entry or search_term)
 
     # Add the league shortcut for the matchday filter and keep what is there:
@@ -812,12 +831,12 @@ def m_league(lines):
             codes[team["teamId"]] = suggest_code(team)[0]
             new += 1
     set_team_codes(lines, codes)
-    tui.message("Verein gesetzt",
-                f'{club["teamName"]}\n\n'
-                f"Kürzeltabelle: {new} Mannschaft(en) ergänzt, "
-                f"{len(existing)} bereits vorhanden.\n\n"
-                f"Unter „Kürzel für Hashtags“ kannst du sie prüfen –\n"
-                f"abgeleitete Vorschläge sind mit ? markiert.")
+    tui.message(_("Verein gesetzt"),
+                _f("{club}\n\nKürzeltabelle: {added} Mannschaft(en) ergänzt, "
+                   "{known} bereits vorhanden.\n\n"
+                   "Unter „Kürzel für Hashtags“ kannst du sie prüfen –\n"
+                   "abgeleitete Vorschläge sind mit ? markiert.",
+                   club=club["teamName"], added=new, known=len(existing)))
 
 
 def m_codes(lines):
@@ -826,20 +845,22 @@ def m_codes(lines):
         codes = {int(z.split("=")[0].strip()): z.split("=", 1)[1].strip()
                  for z in lines if re.match(r"^\d+\s*=", z)}
         if not codes:
-            tui.message("Noch keine Kürzel",
-                        "Wähle zuerst unter „Spieltags-Ticker“ eine Liga und einen Verein.")
+            tui.message(_("Noch keine Kürzel"),
+                        _("Wähle zuerst unter „Spieltags-Ticker“ eine Liga und einen Verein."))
             return
         own = read_value(lines, "team", "openligadb_team_id")
         entries = []
         for team_id, code in sorted(codes.items(), key=lambda x: x[1]):
-            mark = " ←  eigener Verein" if str(team_id) == own else ""
+            mark = _(" ←  eigener Verein") if str(team_id) == own else ""
             entries.append((team_id, f"{code:6} (Nr. {team_id}){mark}"))
-        choice = tui.choose("Kürzel für Hashtags",
-                                 "Aus Heim + Auswärts entsteht der Hashtag, z.B. #KSCDSC.\n"
-                                 "Eintrag wählen zum Ändern.", entries)
+        choice = tui.choose(_("Kürzel für Hashtags"),
+                                 _("Aus Heim + Auswärts entsteht der Hashtag, z.B. #KSCDSC.\n"
+                                 "Eintrag wählen zum Ändern."), entries)
         if choice is None:
             return
-        new = tui.ask("Kürzel ändern", f"Kürzel für Team-Nummer {choice}:", codes[int(choice)])
+        new = tui.ask(_("Kürzel ändern"),
+                      _f("Kürzel für Team-Nummer {number}:", number=choice),
+                      codes[int(choice)])
         if new:
             codes[int(choice)] = new.strip().upper()
             set_team_codes(lines, codes)
@@ -849,41 +870,43 @@ def m_feed(lines):
     """Everything about mirroring Instagram."""
     while True:
         account = read_value(lines, "feed", "bluesky_handle") or \
-            (read_value(lines, "bluesky", "handle") + "  (wie Ticker)")
+            (read_value(lines, "bluesky", "handle") + _("  (wie Ticker)"))
         choice = tui.menu(
-            "Instagram-Feed", "Instagram → Bluesky, läuft im Dauerbetrieb.",
-            [("profil", f"Instagram-Profil ..  {_show(lines, 'feed', 'instagram_profile')}"),
+            _("Instagram-Feed"), _("Instagram → Bluesky, läuft im Dauerbetrieb."),
+            [("profil", _f("Instagram-Profil ..  {value}",
+                            value=_show(lines, "feed", "instagram_profile"))),
              ("konto2", f"Zweitkonto (Abruf)   {_show(lines, 'feed', 'instagram_session_user')}"),
-             ("bsky", f"Bluesky-Konto .....  {account[:40]}")])
+             ("bsky", _f("Bluesky-Konto .....  {value}", value=account[:40]))])
         if choice is None:
             return
         if choice == "profil":
-            value = tui.ask("Instagram-Profil",
-                             "Profil, das gespiegelt wird (ohne @):",
+            value = tui.ask(_("Instagram-Profil"),
+                             _("Profil, das gespiegelt wird (ohne @):"),
                              read_value(lines, "feed", "instagram_profile"))
             if value:
                 set_value(lines, "feed", "instagram_profile", value.lstrip("@"))
         elif choice == "konto2":
             value = tui.ask("Instagram-Zweitkonto",
-                             "Konto, mit dem abgerufen wird – NICHT das gespiegelte Profil.\n\n"
-                             "Sitzung anlegen mit:  venv/bin/instaloader -l <name>",
+                             _("Konto, mit dem abgerufen wird – NICHT das gespiegelte Profil.\n\n"
+                             "Sitzung anlegen mit:  venv/bin/instaloader -l <name>"),
                              read_value(lines, "feed", "instagram_session_user"))
             if value:
                 set_value(lines, "feed", "instagram_session_user", value.lstrip("@"))
         elif choice == "bsky":
             own = read_value(lines, "feed", "bluesky_handle")
-            if tui.confirm("Bluesky-Konto für den Feed",
-                           "Soll die Instagram-Spiegelung ein ANDERES Konto\n"
-                           f"verwenden als der Ticker ({read_value(lines, 'bluesky', 'handle')})?",
+            if tui.confirm(_("Bluesky-Konto für den Feed"),
+                           _f("Soll die Instagram-Spiegelung ein ANDERES Konto\n"
+                              "verwenden als der Ticker ({handle})?",
+                              handle=read_value(lines, "bluesky", "handle")),
                            bool(own)):
-                value = tui.ask("Konto für den Feed", "Handle ohne @:",
+                value = tui.ask(_("Konto für den Feed"), "Handle ohne @:",
                                  own or read_value(lines, "bluesky", "handle"))
                 if value:
                     set_value(lines, "feed", "bluesky_handle", value)
                     tui.message("Getrennte Konten",
-                                "Beide Bots brauchen dann eigene App-Passwörter:\n\n"
+                                _("Beide Bots brauchen dann eigene App-Passwörter:\n\n"
                                 "  Ticker: BLUESKY_TICKER_APP_PASSWORD\n"
-                                "  Feed:   BLUESKY_FEED_APP_PASSWORD")
+                                "  Feed:   BLUESKY_FEED_APP_PASSWORD"))
             else:
                 set_value(lines, "feed", "bluesky_handle", "")
 
@@ -893,82 +916,91 @@ def m_posts(lines):
     while True:
         profile_on = read_value(lines, "profile", "enabled")
         choice = tui.menu(
-            "Beiträge und Profil", "Wie die Beiträge aussehen und was in der Bio steht.",
-            [("tag", f"Dauer-Hashtag .....  {_show(lines, 'post', 'standing_hashtag', '– keiner –')}"),
-             ("kopf", f"Kopfzeile .........  {_show(lines, 'post', 'prefix', short=30)}"),
-             ("hinweis", f"Kopfzeile zeigen ..  "
-                         f"{NOTICE_LABELS.get(read_value(lines, 'post', 'bot_notice'), 'immer')}"),
-             ("vorlage", f"Quellen-Vorlage ...  {_show(lines, 'post', 'source_template', short=30)}"),
-             ("quelle", f"Quelle (Ticker) ...  {_show(lines, 'post', 'source_label', short=30)}"),
-             ("quelle_feed", f"Quelle (Feed) .....  {_show(lines, 'feed', 'source_label', short=30)}"),
-             ("profil", f"Statuszeile .......  {'ein' if profile_on != 'false' else 'aus'}")])
+            _("Beiträge und Profil"), _("Wie die Beiträge aussehen und was in der Bio steht."),
+            [("tag", _f("Dauer-Hashtag .....  {value}",
+                         value=_show(lines, "post", "standing_hashtag",
+                                     _("– keiner –")))),
+             ("kopf", _f("Kopfzeile .........  {value}",
+                         value=_show(lines, "post", "prefix", short=30))),
+             ("hinweis", _f("Kopfzeile zeigen ..  {value}",
+                            value=_(NOTICE_LABELS.get(
+                                read_value(lines, "post", "bot_notice"),
+                                "immer")))),
+             ("vorlage", _f("Quellen-Vorlage ...  {value}",
+                            value=_show(lines, "post", "source_template", short=30))),
+             ("quelle", _f("Quelle (Ticker) ...  {value}",
+                           value=_show(lines, "post", "source_label", short=30))),
+             ("quelle_feed", _f("Quelle (Feed) .....  {value}",
+                                value=_show(lines, "feed", "source_label", short=30))),
+             ("profil", _f("Statuszeile .......  {value}",
+                           value=_("ein") if profile_on != "false" else _("aus")))])
         if choice is None:
             return
         if choice == "tag":
-            value = tui.ask("Dauer-Hashtag",
-                             "Steht unter JEDEM Beitrag, ohne # (leer = keiner):",
+            value = tui.ask(_("Dauer-Hashtag"),
+                             _("Steht unter JEDEM Beitrag, ohne # (leer = keiner):"),
                              read_value(lines, "post", "standing_hashtag"))
             if value is not None:
                 set_value(lines, "post", "standing_hashtag", value.lstrip("#"))
         elif choice == "kopf":
             value = tui.ask("Kopfzeile",
-                             "Erste Zeile jedes Hauptbeitrags\n"
-                             "(leer = keine Kopfzeile):",
+                             _("Erste Zeile jedes Hauptbeitrags\n"
+                             "(leer = keine Kopfzeile):"),
                              read_value(lines, "post", "prefix"))
             if value is not None:
                 set_value(lines, "post", "prefix", value)
         elif choice == "hinweis":
             gewaehlt = tui.menu(
                 "Kopfzeile zeigen",
-                "Steht in der Bluesky-Biografie schon deutlich, dass hier ein\n"
+                _("Steht in der Bluesky-Biografie schon deutlich, dass hier ein\n"
                 "Bot schreibt, ist der Hinweis in jedem Beitrag verschenkter\n"
-                "Platz - bei 300 Zeichen zählt das.",
-                [(k, NOTICE_LABELS[k]) for k in ("always", "auto", "never")],
+                "Platz - bei 300 Zeichen zählt das."),
+                [(k, _(NOTICE_LABELS[k])) for k in ("always", "auto", "never")],
                 read_value(lines, "post", "bot_notice") or "always")
             if gewaehlt is not None:
                 set_value(lines, "post", "bot_notice", gewaehlt)
                 if gewaehlt == "auto":
                     value = tui.ask(
-                        "Wonach in der Biografie suchen?",
-                        "Die eigene Statuszeile wird dabei übergangen -\n"
+                        _("Wonach in der Biografie suchen?"),
+                        _("Die eigene Statuszeile wird dabei übergangen -\n"
                         "sonst fände sich \"Bot\" immer im eigenen\n"
-                        "\"Bot ist an\".",
+                        "\"Bot ist an\"."),
                         read_value(lines, "post", "bot_notice_marker") or "Bot")
                     if value:
                         set_value(lines, "post", "bot_notice_marker", value)
         elif choice == "vorlage":
             value = tui.ask(
-                "Quellen-Vorlage",
-                "Der Teil in [eckigen Klammern] wird zum Link,\n"
+                _("Quellen-Vorlage"),
+                _("Der Teil in [eckigen Klammern] wird zum Link,\n"
                 "{label} steht für die Beschriftung.\n\n"
                 "  🔗 [Quelle]: {label}   das Wort ist der Link\n"
                 "  🔗 [Quelle]            nur das Wort, spart Zeichen\n"
-                "  🔗 Quelle: [{label}]   die Beschriftung ist der Link",
+                "  🔗 Quelle: [{label}]   die Beschriftung ist der Link"),
                 read_value(lines, "post", "source_template")
                 or layout.DEFAULT_SOURCE_TEMPLATE)
             if value is not None:
                 set_value(lines, "post", "source_template", value)
         elif choice == "quelle":
-            value = tui.ask("Quell-Beschriftung (Ticker)",
-                             "Text des Links zum WhatsApp-Kanal\n"
-                             "(leer = keine Quellenangabe im Beitrag):",
+            value = tui.ask(_("Quell-Beschriftung (Ticker)"),
+                             _("Text des Links zum WhatsApp-Kanal\n"
+                             "(leer = keine Quellenangabe im Beitrag):"),
                              read_value(lines, "post", "source_label"))
             if value is not None:
                 set_value(lines, "post", "source_label", value)
         elif choice == "quelle_feed":
-            value = tui.ask("Quell-Beschriftung (Feed)",
-                             "Text des Links zum Instagram-Beitrag\n"
-                             "(leer = keine Quellenangabe im Beitrag):",
+            value = tui.ask(_("Quell-Beschriftung (Feed)"),
+                             _("Text des Links zum Instagram-Beitrag\n"
+                             "(leer = keine Quellenangabe im Beitrag):"),
                              read_value(lines, "feed", "source_label"))
             if value is not None:
                 set_value(lines, "feed", "source_label", value)
         elif choice == "profil":
-            if tui.confirm("Profil-Statuszeile",
-                           "Soll die erste Zeile der Bluesky-Biografie anzeigen,\n"
-                           "ob der Bot gerade läuft?", profile_on != "false"):
+            if tui.confirm(_("Profil-Statuszeile"),
+                           _("Soll die erste Zeile der Bluesky-Biografie anzeigen,\n"
+                           "ob der Bot gerade läuft?"), profile_on != "false"):
                 set_value(lines, "profile", "enabled", "true")
-                for key, label in (("line_on", "Text während des Betriebs"),
-                                   ("line_off", "Text nach dem Beenden")):
+                for key, label in (("line_on", _("Text während des Betriebs")),
+                                   ("line_off", _("Text nach dem Beenden"))):
                     value = tui.ask(label,
                                      "Platzhalter: {info}, {hashtag}, {date}, {time}",
                                      read_value(lines, "profile", key))
@@ -980,18 +1012,18 @@ def m_posts(lines):
 
 def m_times(lines):
     """Time window and time zone."""
-    choice = tui.menu("Zeitfenster", "Wann der Ticker arbeitet.",
+    choice = tui.menu(_("Zeitfenster"), _("Wann der Ticker arbeitet."),
                      [("ende", f"Betriebsende ......  {_show(lines, 'schedule', 'day_end')}"),
                       ("zone", f"Zeitzone ..........  {_show(lines, 'team', 'timezone')}")])
     if choice == "ende":
         value = tui.ask("Betriebsende",
-                         "Bis zu dieser Uhrzeit lauscht der Ticker (HH:MM),\n"
-                         "danach beendet er sich selbst:",
+                         _("Bis zu dieser Uhrzeit lauscht der Ticker (HH:MM),\n"
+                         "danach beendet er sich selbst:"),
                          read_value(lines, "schedule", "day_end"))
         if value:
             set_value(lines, "schedule", "day_end", value)
     elif choice == "zone":
-        value = tui.ask("Zeitzone", "z.B. Europe/Berlin:",
+        value = tui.ask(_("Zeitzone"), "z.B. Europe/Berlin:",
                          read_value(lines, "team", "timezone"))
         if value:
             set_value(lines, "team", "timezone", value)
@@ -1008,16 +1040,17 @@ def m_check_login(lines):
             continue
         password = os.environ.get(variable) or os.environ.get("BLUESKY_APP_PASSWORD")
         if not password:
-            reports.append(f"@{handle}\n   übersprungen – {variable} ist nicht gesetzt")
+            reports.append(_f("@{handle}\n   übersprungen – {variable} ist "
+                              "nicht gesetzt", handle=handle, variable=variable))
             continue
         try:
             from atproto import Client
             Client().login(handle, password)
-            reports.append(f"@{handle}\n   Anmeldung erfolgreich")
+            reports.append(_f("@{handle}\n   Anmeldung erfolgreich", handle=handle))
         except Exception as error:
             reports.append(f"@{handle}\n   FEHLER: {str(error)[:60]}")
-    tui.message("Anmeldung geprüft",
-                "\n\n".join(reports) or "Es ist noch kein Konto eingetragen.")
+    tui.message(_("Anmeldung geprüft"),
+                "\n\n".join(reports) or _("Es ist noch kein Konto eingetragen."))
 
 
 def m_add_missing(lines):
@@ -1029,23 +1062,24 @@ def m_add_missing(lines):
     added = config.add_missing_keys(draft, BASE_DIR)
     if not added:
         tui.message("Nichts nachzuziehen",
-                    "Alle Schlüssel der Vorlage stehen bereits in der "
-                    "Konfiguration.")
+                    _("Alle Schlüssel der Vorlage stehen bereits in der "
+                    "Konfiguration."))
         return
 
     items = "\n".join(f"  [{a}] {s} = {w}" for a, s, w in added[:18])
     if len(added) > 18:
-        items += f"\n  … und {len(added) - 18} weitere"
-    if not tui.confirm("Konfiguration nachziehen",
-                       f"{len(added)} Schlüssel fehlen. Sie werden mit den "
-                       f"Erklärungen aus der Vorlage ergänzt; vorhandene Werte "
-                       f"bleiben unverändert.\n\n{items}\n\nErgänzen?", True):
+        items += _f("\n  … und {n} weitere", n=len(added) - 18)
+    if not tui.confirm(_("Konfiguration nachziehen"),
+                       _f("{n} Schlüssel fehlen. Sie werden mit den "
+                          "Erklärungen aus der Vorlage ergänzt; vorhandene Werte "
+                          "bleiben unverändert.\n\n{items}\n\nErgänzen?",
+                          n=len(added), items=items), True):
         return
     lines[:] = draft
     tui.message("Nachgezogen",
-                f"{len(added)} Schlüssel ergänzt.\n\n"
-                f"Noch nicht gespeichert - das erledigt der Menüpunkt "
-                f"\"Speichern und beenden\".")
+                _f("{n} Schlüssel ergänzt.\n\nNoch nicht gespeichert - das "
+                   "erledigt der Menüpunkt \"Speichern und beenden\".",
+                   n=len(added)))
 
 
 def m_check_config(lines):
@@ -1055,7 +1089,7 @@ def m_check_config(lines):
     problems = [t for severity, t in findings if severity == "problem"]
     notes = [t for severity, t in findings if severity == "note"]
     if not findings:
-        tui.message("Konfiguration geprüft", "Keine Auffälligkeiten.")
+        tui.message(_("Konfiguration geprüft"), _("Keine Auffälligkeiten."))
         return
     parts = []
     if problems:
@@ -1063,20 +1097,24 @@ def m_check_config(lines):
     if notes:
         parts.append("Hinweise (Vorgaben greifen):\n"
                      + "\n".join(f"  ℹ {t}" for t in notes))
-    tui.message("Konfiguration geprüft", "\n\n".join(parts))
+    tui.message(_("Konfiguration geprüft"), "\n\n".join(parts))
 
 
 # German labels for the layout matrix - interface, so German until #14.
+# N_ statt _: Der Text steht hier, uebersetzt wird beim Benutzen. Mit _() an
+# dieser Stelle staende die Sprache schon beim Import fest - also bevor die
+# Konfiguration ueberhaupt gelesen wurde.
 BLOCK_LABELS = {
-    "prefix": "Kopfzeile",
-    "source": "Quelle",
-    "match_hashtag": "Spiel-Hashtag",
-    "standing_hashtag": "Dauer-Hashtag",
+    "prefix": N_("Kopfzeile"),
+    "source": N_("Quelle"),
+    "match_hashtag": N_("Spiel-Hashtag"),
+    "standing_hashtag": N_("Dauer-Hashtag"),
 }
-POST_LABELS = {"first": "erster", "last": "letzter", "all": "jeder", "none": "gar nicht"}
-NOTICE_LABELS = {"always": "immer", "never": "nie",
-                 "auto": "nur wenn die Bio ihn nicht nennt"}
-SPOT_LABELS = {"top": "oben", "bottom": "unten"}
+POST_LABELS = {"first": N_("erster"), "last": N_("letzter"), "all": N_("jeder"),
+               "none": N_("gar nicht")}
+NOTICE_LABELS = {"always": N_("immer"), "never": N_("nie"),
+                 "auto": N_("nur wenn die Bio ihn nicht nennt")}
+SPOT_LABELS = {"top": N_("oben"), "bottom": N_("unten")}
 
 
 class _PreviewBuilder:
@@ -1118,7 +1156,7 @@ def _layout_preview(lines, posts=2):
         "source": layout.source_block(
             read_value(lines, "post", "source_template")
             or layout.DEFAULT_SOURCE_TEMPLATE,
-            read_value(lines, "post", "source_label") or "Original-Kanal",
+            read_value(lines, "post", "source_label") or _("Original-Kanal"),
             "https://whatsapp.com/channel/…"),
         "match_hashtag": layout.tag_block("DSCWOB"),
         "standing_hashtag": layout.tag_block(
@@ -1131,8 +1169,8 @@ def _layout_preview(lines, posts=2):
         tb = layout.build_post(_PreviewBuilder(), index, posts,
                                lambda builder, body=body: builder.text(body),
                                writers, current)
-        parts.append(f"── Beitrag {index + 1} von {posts} " + "─" * 30 + "\n"
-                     + tb.build_text())
+        parts.append(_f("── Beitrag {n} von {total} ", n=index + 1, total=posts)
+                     + "─" * 30 + "\n" + tb.build_text())
     return "\n\n".join(parts)
 
 
@@ -1144,51 +1182,79 @@ def m_layout(lines):
         for block in layout.LAYOUT_BLOCKS:
             selector, spot, order = current[block]
             entries.append((block,
-                            f"{BLOCK_LABELS[block]:<14} "
-                            f"{POST_LABELS[selector]:<9} "
-                            f"{SPOT_LABELS[spot]:<6} {order}"))
+                            f"{_(BLOCK_LABELS[block]):<14} "
+                            f"{_(POST_LABELS[selector]):<9} "
+                            f"{_(SPOT_LABELS[spot]):<6} {order}"))
         entries.append(("vorschau", "Vorschau ansehen …"))
 
         choice = tui.menu(
-            "Aufbau der Beiträge",
-            "Baustein       Beiträge  Stelle  Reihenfolge\n"
+            _("Aufbau der Beiträge"),
+            _("Baustein       Beiträge  Stelle  Reihenfolge\n"
             "(Reihenfolge zählt nur, wenn zwei Bausteine an derselben Stelle "
-            "landen.)",
+            "landen.)"),
             entries)
         if choice is None:
             return
         if choice == "vorschau":
-            tui.message("So sähen die Beiträge aus", _layout_preview(lines), 22)
+            tui.message(_("So sähen die Beiträge aus"), _layout_preview(lines), 22)
             continue
 
         selector, spot, order = current[choice]
         gewaehlt = tui.menu(
-            f"{BLOCK_LABELS[choice]}: an welchen Beiträgen?",
-            "Ein Thread entsteht, sobald ein Beitrag zu lang wird.",
-            [(k, POST_LABELS[k]) for k in layout.POST_SELECTORS], selector)
+            _f("{block}: an welchen Beiträgen?",
+               block=_(BLOCK_LABELS[choice])),
+            _("Ein Thread entsteht, sobald ein Beitrag zu lang wird."),
+            [(k, _(POST_LABELS[k])) for k in layout.POST_SELECTORS], selector)
         if gewaehlt is None:
             continue
         selector = gewaehlt
 
         if selector != "none":
-            gewaehlt = tui.menu(f"{BLOCK_LABELS[choice]}: an welcher Stelle?",
-                                "Über oder unter dem eigentlichen Text.",
-                                [(k, SPOT_LABELS[k]) for k in layout.SPOTS], spot)
+            gewaehlt = tui.menu(_f("{block}: an welcher Stelle?",
+                                   block=_(BLOCK_LABELS[choice])),
+                                _("Über oder unter dem eigentlichen Text."),
+                                [(k, _(SPOT_LABELS[k])) for k in layout.SPOTS],
+                                spot)
             if gewaehlt is None:
                 continue
             spot = gewaehlt
 
-            eingabe = tui.ask(f"{BLOCK_LABELS[choice]}: Reihenfolge",
-                              "Kleinere Zahl steht weiter vorne:", str(order))
+            eingabe = tui.ask(_f("{block}: Reihenfolge",
+                                 block=_(BLOCK_LABELS[choice])),
+                              _("Kleinere Zahl steht weiter vorne:"), str(order))
             if eingabe is None:
                 continue
             try:
                 order = int(eingabe)
             except ValueError:
-                tui.message("Keine Zahl", f"{eingabe!r} ist keine Zahl - "
-                                          f"die Reihenfolge bleibt bei {order}.")
+                tui.message(_("Keine Zahl"),
+                            _f("{entry!r} ist keine Zahl - die Reihenfolge "
+                               "bleibt bei {order}.", entry=eingabe, order=order))
 
         set_value(lines, "layout", choice, f"{selector} ; {spot} ; {order}")
+
+
+def m_language(lines):
+    """Sprache der Bedienoberfläche."""
+    choices = skyrelay_i18n.available()
+    if len(choices) < 2:
+        tui.message(
+            _("Nur eine Sprache verfügbar"),
+            _("Übersetzt ist bisher nur die Ausgangssprache.\n\n"
+              "Kataloge werden gebaut, nicht mitgeliefert:\n"
+              "    tools/i18n.sh compile\n\n"
+              "Wer eine Sprache beisteuern möchte: siehe CONTRIBUTING.md."))
+        return
+    chosen = tui.menu(
+        _("Sprache / Language"),
+        _("Gilt für diesen Assistenten. Protokoll und Konsolenausgabe\n"
+          "bleiben englisch."),
+        [(code, LANGUAGE_NAMES.get(code, code)) for code in choices],
+        skyrelay_i18n.language())
+    if chosen is None:
+        return
+    set_value(lines, "general", "language", chosen)
+    skyrelay_i18n.use(chosen)
 
 
 def menu_mode():
@@ -1204,29 +1270,31 @@ def menu_mode():
 
     while True:
         pending = []
-        if _show(lines, "bluesky", "handle") == "– nicht gesetzt –":
-            pending.append("Bluesky-Konto")
+        if _show(lines, "bluesky", "handle") == _("– nicht gesetzt –"):
+            pending.append(_("Bluesky-Konto"))
         channel = read_value(lines, "source", "channel_invite_link")
         if not channel or "HIER-DEN" in channel:
-            pending.append("WhatsApp-Kanal")
+            pending.append(_("WhatsApp-Kanal"))
         note_text = ("Noch offen: " + ", ".join(pending)) if pending else \
-            "Alle Pflichtangaben sind gesetzt."
+            _("Alle Pflichtangaben sind gesetzt.")
         asterisk = " *" if lines != saved else ""
 
         choice = tui.menu(
             "SkyRelay einrichten",
-            f"{note_text}\n\nDatei: {os.path.basename(TARGET)}{asterisk}",
-            [("1", "Spieltags-Ticker    WhatsApp-Kanal → Bluesky"),
-             ("2", "Instagram-Feed      Instagram → Bluesky"),
-             ("3", "Kürzel für Hashtags"),
-             ("4", "Beiträge und Profil"),
-             ("5", "Aufbau der Beiträge (Kopfzeile, Quelle, Hashtags)"),
-             ("6", "Zeitfenster"),
-             ("7", "Anmeldung bei Bluesky prüfen"),
-             ("8", "Konfiguration prüfen"),
-             ("9", "Konfiguration nachziehen"),
-             ("0", "Speichern und beenden")],
-            abbruch_text="Beenden")
+            _f("{note}\n\nDatei: {file}{asterisk}", note=note_text,
+               file=os.path.basename(TARGET), asterisk=asterisk),
+            [("1", _("Spieltags-Ticker    WhatsApp-Kanal → Bluesky")),
+             ("2", _("Instagram-Feed      Instagram → Bluesky")),
+             ("3", _("Kürzel für Hashtags")),
+             ("4", _("Beiträge und Profil")),
+             ("5", _("Aufbau der Beiträge (Kopfzeile, Quelle, Hashtags)")),
+             ("6", _("Zeitfenster")),
+             ("7", _("Anmeldung bei Bluesky prüfen")),
+             ("8", _("Konfiguration prüfen")),
+             ("9", _("Konfiguration nachziehen")),
+             ("s", _("Sprache / Language")),
+             ("0", _("Speichern und beenden"))],
+            cancel_label=_("Beenden"))
 
         if choice == "1":
             m_ticker(lines)
@@ -1246,15 +1314,17 @@ def menu_mode():
             m_check_config(lines)
         elif choice == "9":
             m_add_missing(lines)
+        elif choice == "s":
+            m_language(lines)
         elif choice == "0":
             if save(lines, saved):
                 return
         else:  # quit or escape
             if lines == saved:
                 return
-            if tui.confirm("Ungespeicherte Änderungen",
-                           "Es gibt Änderungen, die noch nicht gespeichert sind.\n\n"
-                           "Jetzt speichern?", True):
+            if tui.confirm(_("Ungespeicherte Änderungen"),
+                           _("Es gibt Änderungen, die noch nicht gespeichert sind.\n\n"
+                           "Jetzt speichern?"), True):
                 if save(lines, saved):
                     return
             else:
@@ -1266,11 +1336,15 @@ def save(lines, saved):
     ticker = read_value(lines, "bluesky", "handle")
     feed = read_value(lines, "feed", "bluesky_handle") or ticker
     profile_key = read_value(lines, "feed", "instagram_profile")
-    summary = [f"Ticker:  WhatsApp-Kanal  →  @{ticker}" if ticker else "Ticker:  – kein Konto –"]
+    summary = [_f("Ticker:  WhatsApp-Kanal  →  @{handle}", handle=ticker)
+               if ticker else _("Ticker:  – kein Konto –")]
     if profile_key:
-        summary.append(f"Feed:    @{profile_key}  →  @{feed}")
-    if not tui.confirm("Speichern",
-                       "\n".join(summary) + f"\n\nNach {os.path.basename(TARGET)} schreiben?"):
+        summary.append(_f("Feed:    @{profile}  →  @{handle}",
+                          profile=profile_key, handle=feed))
+    if not tui.confirm(_("Speichern"),
+                       "\n".join(summary)
+                       + _f("\n\nNach {file} schreiben?",
+                            file=os.path.basename(TARGET))):
         return False
 
     if os.path.exists(TARGET):
@@ -1325,7 +1399,28 @@ def add_missing_without_menu():
     return 0
 
 
+# Sprachnamen in der jeweiligen Sprache - so findet sich auch jemand zurecht,
+# der die gerade eingestellte nicht versteht.
+LANGUAGE_NAMES = {"de": "Deutsch", "en": "English"}
+
+
+def settle_language():
+    """Picks the interface language before the first dialog appears.
+
+    Read straight from the file rather than through the assistant's own line
+    list: at this point that list does not exist yet, and every entry point -
+    menu, line mode, --add-missing - has to end up in the same language."""
+    configured = ""
+    try:
+        with open(TARGET, encoding="utf-8") as handle:
+            configured = read_value(handle.readlines(), "general", "language")
+    except OSError:
+        pass
+    return skyrelay_i18n.use(configured)
+
+
 if __name__ == "__main__":
+    settle_language()
     if "--add-missing" in sys.argv:
         sys.exit(add_missing_without_menu())
     try:
@@ -1337,5 +1432,5 @@ if __name__ == "__main__":
         else:
             main()
     except KeyboardInterrupt:
-        print("\n\nAbgebrochen - es wurde nichts geschrieben.\n")
+        print(_("\n\nAbgebrochen - es wurde nichts geschrieben.\n"))
         sys.exit(1)

@@ -12,6 +12,14 @@
 #  angeben - so lassen sich mehrere Vereine parallel betreiben.
 # ============================================================================
 
+[general]
+# Sprache der Bedienoberfläche: de oder en.
+# Leer lassen = wie das System eingestellt ist (SKYRELAY_LANG, sonst LANG).
+# Betrifft NUR den Einrichtungsassistenten. Protokoll und Konsolenausgabe sind
+# immer englisch - so ist dieselbe Meldung überall dieselbe, egal wer sie liest.
+language =
+
+
 [bluesky]
 # Handle des Bot-Kontos, auf dem gepostet wird.
 handle = dein-bot.bsky.social

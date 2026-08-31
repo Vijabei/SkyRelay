@@ -174,6 +174,24 @@ Menü an, welche Pflichtangaben noch fehlen.
 Fehlt `whiptail` auf dem System, fällt der Assistent automatisch auf eine
 zeilenweise Abfrage zurück; erzwingen lässt sie sich mit `SKYRELAY_SETUP_TEXT=1`.
 
+### Sprache der Bedienoberfläche
+
+```ini
+[general]
+language = de     # de oder en; leer = wie das System eingestellt ist
+```
+
+Betrifft **nur den Einrichtungsassistenten**. Protokoll und Konsolenausgabe der
+Bots sind immer englisch — so ist dieselbe Meldung überall dieselbe, egal wer
+sie liest oder wohin sie kopiert wird.
+
+Im Assistenten steht die Sprachwahl unter Punkt `s`. Angeboten wird, wofür ein
+Katalog gebaut wurde; die Kataloge entstehen bei `./install.sh` und `./update.sh`
+von selbst. Fehlen sie, spricht die Oberfläche Deutsch — die Sprache, in der sie
+geschrieben ist.
+
+Eine weitere Sprache beisteuern: siehe [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ### Was gilt eigentlich gerade?
 
 Eine Konfiguration wird über die Jahre undurchsichtig: Fehlt ein Schlüssel, gilt

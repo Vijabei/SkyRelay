@@ -32,6 +32,12 @@ segno>=1.6.1
 # "git pull" ohne "pip install" bleibt gefahrlos.
 regex>=2024.11.6
 
+# --- Uebersetzungen (nur zum Bauen der Kataloge noetig) ---
+# Gelesen werden .mo-Dateien mit gettext aus der Standardbibliothek - dafuer
+# braucht es nichts. Babel wird nur gebraucht, um .po-Dateien zu erzeugen und
+# zu uebersetzen (tools/i18n.sh). Reines Python, laeuft auch auf dem Pi.
+Babel>=2.16.0
+
 # --- skyrelay-feed.py (Quelle: Instagram) ---
 # ACHTUNG: instaloader ist bewusst auf 4.15.2 festgelegt.
 # 4.15.3 stellte die Profilabfrage auf den Endpunkt "web_profile_info" um
