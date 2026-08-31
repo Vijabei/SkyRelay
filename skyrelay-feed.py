@@ -43,7 +43,11 @@ from skyrelay_common import (
     stash_video,
     stash_retry_target,
     post_stashed_videos,
-    build_source_line,
+    build_post,
+    load_layout,
+    text_block,
+    source_block,
+    tag_block,
     show_preview,
 )
 from skyrelay_config import check_config, show_config
@@ -100,6 +104,10 @@ POST_PREFIX = cfg("post", "prefix", "⚽ [Inoffizieller Bot]")
 # ticker's WhatsApp channel and does not fit an Instagram post.
 FEED_SOURCE_LABEL = cfg("feed", "source_label", "Beitrag auf Instagram")
 STANDING_HASHTAG = cfg("post", "standing_hashtag", "").strip().lstrip("#")
+
+# Where header, source and the standing hashtag go (#6). The feed knows no
+# match hashtag, so that block simply never has anything to show.
+LAYOUT = load_layout(cfg, log)
 
 MAX_VIDEO_BYTES = cfg_int("limits", "max_video_bytes", 100_000_000)
 VIDEO_JOB_TIMEOUT_SECONDS = cfg_int("limits", "video_job_timeout_seconds", 600)
@@ -259,23 +267,21 @@ def build_alt_text(caption, suffix=""):
 
 
 def build_post_text(body, index, total, source_url):
-    """Builds the text of a single post in the thread - the header in the first
-    one, the standing hashtag in the last, a counter in between.
+    """Builds the text of a single post in the thread. Where header, source and
+    the standing hashtag land is decided by [layout]; the body and its counter
+    always sit in the middle.
 
     Deliberately one single place: it lets the dry run show exactly what the
     real run would send, instead of a rebuilt approximation."""
-    tb = client_utils.TextBuilder()
-    if index == 0:
-        build_source_line(tb, POST_PREFIX, FEED_SOURCE_LABEL, source_url)
-        tb.text(body)
-        if total > 1:
-            tb.text(f" (1/{total})")
-    else:
-        tb.text(f"{body} ({index + 1}/{total})")
-    if index == total - 1 and STANDING_HASHTAG:
-        tb.text("\n\n")
-        tb.tag(f"#{STANDING_HASHTAG}", STANDING_HASHTAG)
-    return tb
+    text = body if total == 1 else f"{body} ({index + 1}/{total})"
+    writers = {
+        "prefix": text_block(POST_PREFIX),
+        "source": source_block(FEED_SOURCE_LABEL, source_url),
+        "match_hashtag": None,
+        "standing_hashtag": tag_block(STANDING_HASHTAG),
+    }
+    return build_post(client_utils.TextBuilder(), index, total,
+                      lambda tb: tb.text(text), writers, LAYOUT)
 
 
 client = None

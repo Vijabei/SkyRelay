@@ -20,6 +20,7 @@ import unicodedata
 
 import skyrelay_tui as tui
 import skyrelay_config as config
+import skyrelay_layout as layout
 
 try:
     import requests
@@ -1031,6 +1032,127 @@ def m_check_config(lines):
     tui.message("Konfiguration geprüft", "\n\n".join(parts))
 
 
+# German labels for the layout matrix - interface, so German until #14.
+BLOCK_LABELS = {
+    "prefix": "Kopfzeile",
+    "source": "Quelle",
+    "match_hashtag": "Spiel-Hashtag",
+    "standing_hashtag": "Dauer-Hashtag",
+}
+POST_LABELS = {"first": "erster", "last": "letzter", "all": "jeder", "none": "gar nicht"}
+SPOT_LABELS = {"top": "oben", "bottom": "unten"}
+
+
+class _PreviewBuilder:
+    """Stands in for atproto's TextBuilder so the assistant can render the same
+    layout the bots would produce - without importing atproto."""
+
+    def __init__(self):
+        self.parts = []
+
+    def text(self, piece):
+        self.parts.append(piece)
+        return self
+
+    def link(self, piece, url):
+        self.parts.append(piece)
+        return self
+
+    def tag(self, piece, value):
+        self.parts.append(piece)
+        return self
+
+    def build_text(self):
+        return "".join(self.parts)
+
+
+def _layout_of(lines):
+    """The layout as it currently stands in the assistant."""
+    return layout.load_layout(
+        lambda section, key, default=None: read_value(lines, section, key) or default,
+        warn=lambda message: None)
+
+
+def _layout_preview(lines, posts=2):
+    """Renders an example thread with the layout as it stands."""
+    current = _layout_of(lines)
+    writers = {
+        "prefix": layout.text_block(
+            read_value(lines, "post", "prefix") or "⚽ [Inoffizieller Bot]"),
+        "source": layout.source_block(
+            read_value(lines, "post", "source_label") or "Original-Kanal",
+            "https://whatsapp.com/channel/…"),
+        "match_hashtag": layout.tag_block("DSCWOB"),
+        "standing_hashtag": layout.tag_block(
+            read_value(lines, "post", "standing_hashtag") or "arminia"),
+    }
+    parts = []
+    for index in range(posts):
+        body = ("Beispieltext." if posts == 1
+                else f"Beispieltext, Teil {index + 1}. ({index + 1}/{posts})")
+        tb = layout.build_post(_PreviewBuilder(), index, posts,
+                               lambda builder, body=body: builder.text(body),
+                               writers, current)
+        parts.append(f"── Beitrag {index + 1} von {posts} " + "─" * 30 + "\n"
+                     + tb.build_text())
+    return "\n\n".join(parts)
+
+
+def m_layout(lines):
+    """Wo Kopfzeile, Quelle und Hashtags im Beitrag stehen (#6)."""
+    while True:
+        current = _layout_of(lines)
+        entries = []
+        for block in layout.LAYOUT_BLOCKS:
+            selector, spot, order = current[block]
+            entries.append((block,
+                            f"{BLOCK_LABELS[block]:<14} "
+                            f"{POST_LABELS[selector]:<9} "
+                            f"{SPOT_LABELS[spot]:<6} {order}"))
+        entries.append(("vorschau", "Vorschau ansehen …"))
+
+        choice = tui.menu(
+            "Aufbau der Beiträge",
+            "Baustein       Beiträge  Stelle  Reihenfolge\n"
+            "(Reihenfolge zählt nur, wenn zwei Bausteine an derselben Stelle "
+            "landen.)",
+            entries)
+        if choice is None:
+            return
+        if choice == "vorschau":
+            tui.message("So sähen die Beiträge aus", _layout_preview(lines), 22)
+            continue
+
+        selector, spot, order = current[choice]
+        gewaehlt = tui.menu(
+            f"{BLOCK_LABELS[choice]}: an welchen Beiträgen?",
+            "Ein Thread entsteht, sobald ein Beitrag zu lang wird.",
+            [(k, POST_LABELS[k]) for k in layout.POST_SELECTORS], selector)
+        if gewaehlt is None:
+            continue
+        selector = gewaehlt
+
+        if selector != "none":
+            gewaehlt = tui.menu(f"{BLOCK_LABELS[choice]}: an welcher Stelle?",
+                                "Über oder unter dem eigentlichen Text.",
+                                [(k, SPOT_LABELS[k]) for k in layout.SPOTS], spot)
+            if gewaehlt is None:
+                continue
+            spot = gewaehlt
+
+            eingabe = tui.ask(f"{BLOCK_LABELS[choice]}: Reihenfolge",
+                              "Kleinere Zahl steht weiter vorne:", str(order))
+            if eingabe is None:
+                continue
+            try:
+                order = int(eingabe)
+            except ValueError:
+                tui.message("Keine Zahl", f"{eingabe!r} ist keine Zahl - "
+                                          f"die Reihenfolge bleibt bei {order}.")
+
+        set_value(lines, "layout", choice, f"{selector} ; {spot} ; {order}")
+
+
 def menu_mode():
     """The main menu - the way into the surface."""
     if not os.path.exists(TEMPLATE):
@@ -1060,11 +1182,12 @@ def menu_mode():
              ("2", "Instagram-Feed      Instagram → Bluesky"),
              ("3", "Kürzel für Hashtags"),
              ("4", "Beiträge und Profil"),
-             ("5", "Zeitfenster"),
-             ("6", "Anmeldung bei Bluesky prüfen"),
-             ("7", "Konfiguration prüfen"),
-             ("8", "Konfiguration nachziehen"),
-             ("9", "Speichern und beenden")],
+             ("5", "Aufbau der Beiträge (Kopfzeile, Quelle, Hashtags)"),
+             ("6", "Zeitfenster"),
+             ("7", "Anmeldung bei Bluesky prüfen"),
+             ("8", "Konfiguration prüfen"),
+             ("9", "Konfiguration nachziehen"),
+             ("0", "Speichern und beenden")],
             abbruch_text="Beenden")
 
         if choice == "1":
@@ -1076,14 +1199,16 @@ def menu_mode():
         elif choice == "4":
             m_posts(lines)
         elif choice == "5":
-            m_times(lines)
+            m_layout(lines)
         elif choice == "6":
-            m_check_login(lines)
+            m_times(lines)
         elif choice == "7":
-            m_check_config(lines)
+            m_check_login(lines)
         elif choice == "8":
-            m_add_missing(lines)
+            m_check_config(lines)
         elif choice == "9":
+            m_add_missing(lines)
+        elif choice == "0":
             if save(lines, saved):
                 return
         else:  # quit or escape

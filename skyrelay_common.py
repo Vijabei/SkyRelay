@@ -150,29 +150,21 @@ def load_config(base_dir):
 
 
 # ----------------------------------------------------------- building a post
-def build_source_line(tb, prefix, label, url):
-    """Writes the header line and the source of a main post into the
-    TextBuilder - one place for both programs.
-
-    Either part can be switched off on its own by leaving its value EMPTY, the
-    way [post] standing_hashtag has always worked here. Note the difference to
-    commenting the line out: for configparser a missing key does not mean "off",
-    it means "the program's default applies". What is in effect right now is
-    what --show-config reports.
-
-    The feed used to have these lines hard-wired. That is why [post] prefix had
-    no effect there and the bare URL showed up as the link text (#2)."""
-    wrote_something = bool(prefix)
-    if prefix:
-        tb.text(prefix)
-    if label and url:
-        if prefix:
-            tb.text("\n")
-        tb.text("🔗 Quelle: ")
-        tb.link(label, url)
-        wrote_something = True
-    if wrote_something:
-        tb.text("\n\n")
+# The layout engine lives in its own module - it needs no third party
+# imports, which lets the setup assistant preview a layout before atproto
+# and Pillow are installed.
+from skyrelay_layout import (  # noqa: F401  (re-exported for the two bots)
+    LAYOUT_BLOCKS,
+    BLOCK_KINDS,
+    DEFAULT_LAYOUT,
+    POST_SELECTORS,
+    SPOTS,
+    load_layout,
+    build_post,
+    text_block,
+    source_block,
+    tag_block,
+)
 
 
 def show_preview(builders):
