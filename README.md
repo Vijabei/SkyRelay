@@ -103,15 +103,44 @@ im Code steht nichts Vereinsspezifisches mehr.
 
 ## Installation
 
+Aus dem Nichts, in einer Zeile:
+
 ```bash
-git clone https://github.com/Vijabei/SkyRelay.git
-cd SkyRelay
-./install.sh
+git clone https://github.com/Vijabei/SkyRelay.git && cd SkyRelay && ./install.sh
 ```
 
-Das Skript prüft System, Architektur und Python-Version, legt ein virtuelles
-Umfeld unter `venv/` an und installiert die Abhängigkeiten. Es ändert **nichts** am
-System: Fehlende Systempakete werden nur gemeldet, nicht automatisch nachinstalliert.
+`install.sh` prüft System, Architektur und Python-Version, holt den neuesten
+Stand, legt ein virtuelles Umfeld unter `venv/` an, installiert die
+Abhängigkeiten — und startet danach die Einrichtung. Es ändert **nichts** am
+System: Fehlende Systempakete werden nur gemeldet, nicht automatisch
+nachinstalliert (kein `sudo`, keine Überraschungen auf fremden Rechnern).
+
+### Die drei Skripte
+
+| Skript | Wofür |
+|---|---|
+| `./install.sh` | einmalig: System prüfen, venv anlegen, Abhängigkeiten holen |
+| `./config.sh` | einrichten und später ändern — startet den Assistenten |
+| `./update.sh` | neuen Stand holen, Abhängigkeiten nachziehen, Konfiguration ergänzen |
+
+`config.sh` kennt zwei Abkürzungen:
+
+```bash
+./config.sh --check          # Konfiguration prüfen, nichts ändern
+./config.sh --add-missing    # fehlende Schlüssel mit Erklärung nachtragen
+```
+
+### Aktualisieren
+
+```bash
+./update.sh
+```
+
+Holt den neuen Stand (und bricht ab, statt lokale Änderungen zu überfahren),
+zieht `requirements.txt` nach und fragt die Schlüssel ab, die seither
+dazugekommen sind. **Laufende Dienste werden nicht angefasst** — der nächste
+cron-Lauf nimmt den neuen Stand von selbst. Ein Ticker, der gerade an einem
+Spieltag lauscht, läuft mit dem alten weiter, bis er sich abends beendet.
 
 ## Konfiguration
 
@@ -336,7 +365,7 @@ Sie lassen sich mitsamt ihren Erklärungen ergänzen — vorhandene Werte, Reihe
 und Kommentare bleiben unangetastet, es wird ausschließlich hinzugefügt:
 
 ```bash
-venv/bin/python skyrelay-setup.py --add-missing
+./config.sh --add-missing
 ```
 
 Der Aufruf zeigt zuerst, was ergänzt würde, und fragt nach. Vorher entsteht eine

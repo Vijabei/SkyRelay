@@ -1,35 +1,27 @@
 #!/usr/bin/env bash
 #
-# SkyRelay - Installationshilfe
+# SkyRelay - Installation
 #
-# Legt ein Python-venv an und installiert die Abhängigkeiten.
-# Ändert NICHTS am System: Fehlende Systempakete werden nur gemeldet,
-# nicht automatisch installiert (kein sudo, keine Überraschungen).
+# Prüft, was das System mitbringt, holt den neuesten Stand, legt ein venv an
+# und installiert die Abhängigkeiten. Zum Schluss startet die Einrichtung.
+#
+# Ändert NICHTS am System: Fehlende Systempakete werden nur gemeldet, nicht
+# automatisch installiert (kein sudo, keine Überraschungen auf fremden
+# Rechnern).
 #
 # Aufruf:   ./install.sh
 #
 set -euo pipefail
+# shellcheck source=common.sh
+source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VENV_DIR="$SCRIPT_DIR/venv"
 PYTHON_MIN="3.10"
 
-ok()   { printf '  \033[32m✓\033[0m %s\n' "$1"; }
-warn() { printf '  \033[33m!\033[0m %s\n' "$1"; }
-fail() { printf '  \033[31m✗\033[0m %s\n' "$1"; }
-step() { printf '\n\033[1m%s\033[0m\n' "$1"; }
-
-abort() {
-    fail "$1"
-    [ $# -gt 1 ] && printf '    %s\n' "$2"
-    exit 1
-}
-
-printf '\n\033[1mSkyRelay - Installation\033[0m\n'
+title "SkyRelay - Installation"
 printf 'Verzeichnis: %s\n' "$SCRIPT_DIR"
 
 # ---------------------------------------------------------------- 1. System
-step "1/5  System prüfen"
+step "1/6  System prüfen"
 
 case "$(uname -s)" in
     Linux) ok "Betriebssystem: Linux" ;;
@@ -51,7 +43,7 @@ case "$ARCH" in
 esac
 
 # ---------------------------------------------------------------- 2. Python
-step "2/5  Python prüfen"
+step "2/6  Python prüfen"
 
 PYTHON_BIN=""
 for candidate in python3.13 python3.12 python3.11 python3.10 python3; do
@@ -86,6 +78,16 @@ else
     printf '    Nachinstallieren mit:  sudo apt install whiptail\n'
 fi
 
+# libmagic steckt hinter python-magic, das neonize mitbringt. Fehlt die
+# Bibliothek, scheitert schon "import neonize" - und zwar erst nach Minuten
+# beim Import-Test am Ende. Deshalb hier, wo es noch nichts gekostet hat.
+if ldconfig -p 2>/dev/null | grep -q 'libmagic\.so'; then
+    ok "libmagic vorhanden (von neonize benötigt)"
+else
+    warn "libmagic fehlt - neonize lässt sich ohne die Bibliothek nicht laden."
+    printf '    Nachinstallieren mit:  sudo apt install libmagic1\n'
+fi
+
 # ffmpeg wandelt Sprachnachrichten in Videos mit Wellenform - ohne das Werkzeug
 # werden Sprachnachrichten aus dem Kanal übersprungen, alles andere läuft weiter.
 if command -v ffmpeg >/dev/null 2>&1; then
@@ -103,20 +105,28 @@ else
     ok "Zeitzonendaten vorhanden"
 fi
 
-# ---------------------------------------------------------------- 3. venv
-step "3/5  Virtuelle Umgebung"
+# ----------------------------------------------------------------- 3. Stand
+step "3/6  Neuesten Stand holen"
 
-VENV_PY="$VENV_DIR/bin/python"
+# Eine Neuinstallation soll nie auf einem alten Arbeitsstand aufsetzen. Wer
+# lokal etwas geändert hat, behält es - dann wird nur nicht geholt.
+if ! in_git_repo; then
+    warn "keine git-Arbeitskopie - es wird nichts geholt"
+elif local_changes; then
+    warn "lokale Änderungen vorhanden - es wird nichts geholt"
+    git -C "$SCRIPT_DIR" status --short | sed 's/^/    /'
+elif git -C "$SCRIPT_DIR" pull --ff-only --quiet; then
+    ok "auf dem neuesten Stand"
+else
+    warn "git pull ist fehlgeschlagen - es wird mit dem vorhandenen Stand"
+    printf '    weitergemacht. Meldung ansehen mit:  git pull --ff-only\n'
+fi
 
-# Ein venv gilt nur dann als brauchbar, wenn darin auch pip läuft. Ein
-# abgebrochener Anlauf (z.B. ohne python3-venv) hinterlässt sonst eine Ruine,
-# die beim nächsten Lauf stillschweigend weiterverwendet würde.
-venv_ist_brauchbar() {
-    [ -x "$VENV_PY" ] && "$VENV_PY" -m pip --version >/dev/null 2>&1
-}
+# ---------------------------------------------------------------- 4. venv
+step "4/6  Virtuelle Umgebung"
 
 if [ -d "$VENV_DIR" ]; then
-    if venv_ist_brauchbar; then
+    if venv_usable; then
         ok "venv existiert bereits: $VENV_DIR"
     else
         warn "Vorhandenes venv ist unvollständig (kein pip) - wird neu angelegt"
@@ -130,15 +140,15 @@ else
 fi
 
 # Letzter Rettungsversuch, falls pip trotzdem fehlt
-if ! venv_ist_brauchbar; then
+if ! venv_usable; then
     "$VENV_PY" -m ensurepip --upgrade >/dev/null 2>&1 || true
 fi
 
-venv_ist_brauchbar || abort "In der virtuellen Umgebung fehlt pip." \
+venv_usable || abort "In der virtuellen Umgebung fehlt pip." \
     "Paket nachinstallieren (sudo apt install python3-venv), dann: rm -rf '$VENV_DIR' && ./install.sh"
 
-# ---------------------------------------------------------------- 4. Pakete
-step "4/5  Abhängigkeiten installieren"
+# ---------------------------------------------------------------- 5. Pakete
+step "5/6  Abhängigkeiten installieren"
 
 "$VENV_PY" -m pip install --quiet --upgrade pip
 ok "pip aktualisiert"
@@ -151,8 +161,8 @@ else
           "Vollständige Meldung anzeigen:  $VENV_PY -m pip install -r requirements.txt"
 fi
 
-# ---------------------------------------------------------------- 5. Test
-step "5/5  Installation prüfen"
+# ---------------------------------------------------------------- 6. Test
+step "6/6  Installation prüfen"
 
 if "$VENV_PY" - <<'PYCHECK'
 import sys
@@ -176,30 +186,18 @@ PYCHECK
 then
     ok "Alle Module importierbar"
 else
-    abort "Mindestens ein Modul lässt sich nicht importieren (Meldung siehe oben)."
+    abort "Mindestens ein Modul lässt sich nicht importieren (Meldung siehe oben)." \
+          "Steht dort 'libmagic', hilft:  sudo apt install libmagic1"
 fi
 
 # ---------------------------------------------------------------- Abschluss
-cat <<HINWEISE
+step "Fertig"
 
-$(printf '\033[1mFertig.\033[0m') Nächste Schritte:
+if [ -t 0 ]; then
+    printf '  Weiter mit der Einrichtung.\n'
+    exec "$SCRIPT_DIR/config.sh"
+fi
 
-  1. Konfiguration anlegen - am einfachsten mit dem Assistenten:
-       venv/bin/python skyrelay-setup.py
-     Er sucht den Verein bei OpenLigaDB, füllt die Kürzeltabelle vor und
-     schreibt die fertige skyrelay.conf.
-     (Wer lieber von Hand arbeitet: cp skyrelay.conf.example skyrelay.conf)
-
-  2. Bluesky-App-Passwort als Umgebungsvariable bereitstellen
-     (niemals in die Konfiguration oder ins Repository schreiben):
-       export BLUESKY_TICKER_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"
-       export BLUESKY_FEED_APP_PASSWORD="yyyy-yyyy-yyyy-yyyy"
-
-  3. Erste WhatsApp-Kopplung - muss interaktiv im Terminal laufen:
-       SKYRELAY_FORCE=1 SKYRELAY_DRY_RUN=1 venv/bin/python skyrelay-matchday.py
-     -> QR-Code mit dem Handy scannen (Verknüpfte Geräte -> Gerät hinzufügen)
-
-  4. Danach Dauerbetrieb per cron einrichten - siehe README.md
-     und CHEATSHEET-matchday.md
-
-HINWEISE
+printf '  Kein Terminal - die Einrichtung wurde nicht gestartet.\n'
+printf '  Sie braucht Rückfragen und läuft deshalb nur von Hand:\n\n'
+printf '    ./config.sh\n\n'

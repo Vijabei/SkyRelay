@@ -231,7 +231,7 @@ def check_config(base_dir):
         print(f"\n{len(problems)} problem(s), {len(notes)} note(s).")
         if notes:
             print("Missing keys can be added along with their explanations:\n"
-                  "    venv/bin/python skyrelay-setup.py --add-missing")
+                  "    ./config.sh --add-missing")
     return 1 if problems else 0
 
 
@@ -303,7 +303,7 @@ def show_config(base_dir):
               "applies and the setting is NOT switched off. To switch something\n"
               "off, leave the value empty (for example \"source_label =\").")
         print("Missing keys can be added along with their explanations:\n"
-              "    venv/bin/python skyrelay-setup.py --add-missing")
+              "    ./config.sh --add-missing")
     return 0
 
 
