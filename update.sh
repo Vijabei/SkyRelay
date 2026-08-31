@@ -68,6 +68,17 @@ else
         "Vollständige Meldung:  $VENV_PY -m pip install -r requirements.txt"
 fi
 
+# Uebersetzungen: .mo-Dateien werden gebaut, nicht mitgeliefert. Ohne sie
+# spricht die Oberflaeche Deutsch - die Sprache, in der sie geschrieben ist.
+if [ -x "$SCRIPT_DIR/tools/i18n.sh" ]; then
+    if "$SCRIPT_DIR/tools/i18n.sh" compile >/dev/null 2>&1; then
+        ok "Übersetzungen übersetzt"
+    else
+        warn "Übersetzungen konnten nicht gebaut werden - die Oberfläche"
+        printf '    bleibt deutsch. Nachholen mit:  ./tools/i18n.sh compile\n'
+    fi
+fi
+
 # ------------------------------------------------------- 4. Konfiguration
 step "4/4  Konfiguration nachziehen"
 

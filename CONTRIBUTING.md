@@ -59,9 +59,39 @@ liste des Assistenten gehört (`EMPFOHLENE_LIGEN`), sag Bescheid.
 
 ## Übersetzungen
 
-Die Oberfläche und die Dokumentation sind derzeit deutsch. Eine englische
-Fassung wäre eine sinnvolle Erweiterung — melde dich, bevor du anfängst, damit
-wir die Struktur vorher klären.
+Die Bedienoberfläche des Einrichtungsassistenten ist auf **Deutsch** geschrieben
+— das ist die Ausgangssprache, alles andere ist eine Übersetzung davon. Englisch
+liegt fertig vor; weitere Sprachen sind willkommen.
+
+Nicht übersetzt werden Protokoll und Konsolenausgabe der beiden Bots. Die
+bleiben immer englisch, damit dieselbe Meldung überall dieselbe ist — im
+cron-Mail, im kopierten Ausschnitt, im Issue.
+
+Eine neue Sprache anlegen:
+
+```bash
+./tools/i18n.sh add nl          # legt locales/nl/LC_MESSAGES/skyrelay.po an
+# jetzt die .po-Datei bearbeiten - mit Poedit, mit Weblate oder von Hand
+./tools/i18n.sh compile         # .po -> .mo, das braucht das Programm
+./tools/i18n.sh status          # wie weit ist jede Sprache?
+```
+
+Die fertigen `.mo`-Dateien werden **gebaut, nicht eingecheckt**. Ins Repository
+gehören nur die `.po`-Dateien und die Vorlage `locales/skyrelay.pot`.
+
+Hat sich am Quelltext etwas geändert, holt
+
+```bash
+./tools/i18n.sh extract && ./tools/i18n.sh update
+```
+
+die neuen Texte in alle Kataloge. `update` markiert dabei ähnliche Treffer als
+`fuzzy` — die will man durchsehen, bevor man sie freigibt, denn beim Übersetzen
+werden sie sonst übersprungen.
+
+Was in einem Wörterbuch steht und erst später übersetzt wird, muss mit `N_()`
+markiert sein statt mit `_()`. Sonst findet Babel den Text im Quelltext nicht,
+und die Oberfläche bleibt an dieser Stelle deutsch.
 
 ## Zum Code
 

@@ -47,3 +47,7 @@ env/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Übersetzte Kataloge werden gebaut (tools/i18n.sh compile), nicht versioniert.
+# Im Repository liegen die .po-Dateien, die ein Mensch bearbeitet.
+locales/*/LC_MESSAGES/*.mo

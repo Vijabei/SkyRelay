@@ -1,0 +1,1301 @@
+# English translations for SkyRelay.
+# Copyright (C) 2026 SkyRelay
+# This file is distributed under the same license as the SkyRelay project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: SkyRelay VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-09-01 01:32+0200\n"
+"PO-Revision-Date: 2026-09-01 01:27+0200\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: skyrelay-setup.py:50
+msgid "Fußball · 1. Bundesliga"
+msgstr "Football · 1. Bundesliga"
+
+#: skyrelay-setup.py:51
+msgid "Fußball · 2. Bundesliga"
+msgstr "Football · 2. Bundesliga"
+
+#: skyrelay-setup.py:52
+msgid "Fußball · 3. Liga"
+msgstr "Football · 3. Liga"
+
+#: skyrelay-setup.py:53
+msgid "Fußball · DFB-Pokal"
+msgstr "Football · DFB-Pokal (cup)"
+
+#: skyrelay-setup.py:54
+msgid "Frauenfußball · 1. Bundesliga"
+msgstr "Women's football · 1. Bundesliga"
+
+#: skyrelay-setup.py:163
+msgid "    Bitte etwas eingeben."
+msgstr "    Please enter something."
+
+#: skyrelay-setup.py:198
+#, python-brace-format
+msgid "    Bitte eine Zahl zwischen 1 und {n} eingeben."
+msgstr "    Please enter a number between 1 and {n}."
+
+#: skyrelay-setup.py:310
+msgid "Das sieht nicht nach einem Kanal-Link aus (erwartet: https://whatsapp.com/channel/…)."
+msgstr "That does not look like a channel link (expected: https://whatsapp.com/channel/…)."
+
+#: skyrelay-setup.py:312
+msgid "Das ist noch der Platzhalter."
+msgstr "That is still the placeholder."
+
+#: skyrelay-setup.py:318
+msgid "Bitte ohne führendes @ angeben."
+msgstr "Please leave off the leading @."
+
+#: skyrelay-setup.py:320
+msgid "Erwartet wird ein vollständiges Handle, z.B. mein-bot.bsky.social"
+msgstr "A full handle is expected, such as my-bot.bsky.social"
+
+#: skyrelay-setup.py:328
+#, python-brace-format
+msgid "{variable} ist nicht gesetzt - Anmeldung wird nicht geprüft."
+msgstr "{variable} is not set - the login will not be checked."
+
+#: skyrelay-setup.py:330
+#, python-brace-format
+msgid "Später setzen mit:  export {variable}=\"xxxx-xxxx-xxxx-xxxx\""
+msgstr "Set it later with:  export {variable}=\"xxxx-xxxx-xxxx-xxxx\""
+
+#: skyrelay-setup.py:333
+#, python-brace-format
+msgid "Anmeldung bei Bluesky als {handle} jetzt prüfen?"
+msgstr "Check the login to Bluesky as {handle} now?"
+
+#: skyrelay-setup.py:339
+#, python-brace-format
+msgid "  ✓ Anmeldung erfolgreich: {handle}"
+msgstr "  ✓ Login succeeded: {handle}"
+
+#: skyrelay-setup.py:341
+msgid "Paket 'atproto' fehlt - Prüfung übersprungen (./install.sh ausführen)."
+msgstr "The package 'atproto' is missing - check skipped (run ./install.sh)."
+
+#: skyrelay-setup.py:343
+#, python-brace-format
+msgid "  ✗ Anmeldung fehlgeschlagen: {error}"
+msgstr "  ✗ Login failed: {error}"
+
+#: skyrelay-setup.py:344
+msgid "Handle und App-Passwort prüfen. Die Einrichtung läuft trotzdem weiter."
+msgstr "Check the handle and the app password. The setup carries on either way."
+
+#: skyrelay-setup.py:350
+msgid "Mit [Enter] wird jeweils der Wert in eckigen Klammern übernommen."
+msgstr "[Enter] keeps the value shown in square brackets."
+
+#: skyrelay-setup.py:351
+msgid "Abbruch jederzeit mit Strg+C - dann wird nichts geschrieben."
+msgstr "Ctrl+C stops at any point - nothing is written then."
+
+#: skyrelay-setup.py:365
+#, python-brace-format
+msgid ""
+"\n"
+"Vorhandene Konfiguration gefunden: {file}"
+msgstr ""
+"\n"
+"Found an existing configuration: {file}"
+
+#: skyrelay-setup.py:367
+msgid "Die bisherigen Werte stehen als Vorgabe bereit."
+msgstr "The values it holds are offered as defaults."
+
+#: skyrelay-setup.py:373
+msgid "Welche Programme möchtest du einrichten?"
+msgstr "Which programs would you like to set up?"
+
+#: skyrelay-setup.py:374
+msgid "SkyRelay besteht aus zwei getrennten Bots, die auch getrennte"
+msgstr "SkyRelay is two separate bots, and they can use separate"
+
+#: skyrelay-setup.py:375
+msgid "Bluesky-Konten benutzen können:"
+msgstr "Bluesky accounts:"
+
+#: skyrelay-setup.py:376
+msgid "     · Spieltags-Ticker: WhatsApp-Kanal → Bluesky, nur an Spieltagen"
+msgstr "     · matchday ticker: WhatsApp channel → Bluesky, matchdays only"
+
+#: skyrelay-setup.py:377
+msgid "     · Instagram-Feed:   Instagram → Bluesky, im Dauerbetrieb"
+msgstr "     · Instagram feed:  Instagram → Bluesky, all year round"
+
+#: skyrelay-setup.py:379
+msgid "Beide"
+msgstr "Both"
+
+#: skyrelay-setup.py:380
+msgid "Nur den Spieltags-Ticker (WhatsApp-Kanal)"
+msgstr "The matchday ticker only (WhatsApp channel)"
+
+#: skyrelay-setup.py:381
+msgid "Nur die Instagram-Spiegelung"
+msgstr "The Instagram mirror only"
+
+#: skyrelay-setup.py:382 skyrelay-setup.py:403
+msgid "Auswahl"
+msgstr "Choice"
+
+#: skyrelay-setup.py:386
+msgid "1 von 2: "
+msgstr "1 of 2: "
+
+#: skyrelay-setup.py:391
+msgid "WhatsApp-Kanal  ──►  Bluesky"
+msgstr "WhatsApp channel  ──►  Bluesky"
+
+#: skyrelay-setup.py:391
+msgid "läuft nur an Spieltagen"
+msgstr "runs on matchdays only"
+
+#: skyrelay-setup.py:396
+msgid "Wofür wird der Ticker eingesetzt?"
+msgstr "What is the ticker used for?"
+
+#: skyrelay-setup.py:397
+msgid "Davon hängt ab, ob Spieltage automatisch erkannt werden können"
+msgstr "That decides whether matchdays can be detected automatically"
+
+#: skyrelay-setup.py:398
+msgid "und wie die vorgeschlagenen Texte formuliert sind."
+msgstr "and how the proposed texts are worded."
+
+#: skyrelay-setup.py:400
+msgid "Sport mit Spielplan bei OpenLigaDB (Fußball, Eishockey …)"
+msgstr "A sport OpenLigaDB has fixtures for (football, ice hockey …)"
+
+#: skyrelay-setup.py:401
+msgid "Sport ohne Spielplan-Daten (z.B. Basketball, Handball-Liga)"
+msgstr "A sport without fixture data (basketball, handball league …)"
+
+#: skyrelay-setup.py:402
+msgid "anderer Zweck (Verein, Veranstaltung, Projekt …)"
+msgstr "something else (a club, an event, a project …)"
+
+#: skyrelay-setup.py:408
+msgid "Spiel"
+msgstr "match"
+
+#: skyrelay-setup.py:410 skyrelay-setup.py:726 skyrelay-setup.py:1277
+msgid "WhatsApp-Kanal"
+msgstr "WhatsApp channel"
+
+#: skyrelay-setup.py:410
+msgid "WhatsApp-Kanal des Vereins"
+msgstr "the club's WhatsApp channel"
+
+#: skyrelay-setup.py:411
+#, python-brace-format
+msgid "🟢 Bot ist an {hashtag}"
+msgstr "🟢 Bot is on {hashtag}"
+
+#: skyrelay-setup.py:412
+#, python-brace-format
+msgid "🟢 Bot ist an - {info} {hashtag} ⚫⚪🔵"
+msgstr "🟢 Bot is on - {info} {hashtag} ⚫⚪🔵"
+
+#: skyrelay-setup.py:413 skyrelay-setup.py:415
+msgid "🔴 Bot ist aus"
+msgstr "🔴 Bot is off"
+
+#: skyrelay-setup.py:414
+#, python-brace-format
+msgid "🔴 Bot ist aus - nächstes Spiel {hashtag} ⚫⚪🔵"
+msgstr "🔴 Bot is off - next match {hashtag} ⚫⚪🔵"
+
+#: skyrelay-setup.py:415
+msgid "🔴 Bot ist aus ⚫⚪🔵"
+msgstr "🔴 Bot is off ⚫⚪🔵"
+
+#: skyrelay-setup.py:421
+msgid "Bluesky-Konto FÜR DEN TICKER"
+msgstr "Bluesky account FOR THE TICKER"
+
+#: skyrelay-setup.py:422
+msgid "Auf dieses Konto werden die Beiträge aus dem WhatsApp-Kanal"
+msgstr "This is the account the posts from the WhatsApp channel"
+
+#: skyrelay-setup.py:423
+msgid "veröffentlicht - ohne führendes @."
+msgstr "are published to - without a leading @."
+
+#: skyrelay-setup.py:428
+msgid "WhatsApp-Kanal (Quelle des Tickers)"
+msgstr "WhatsApp channel (the ticker's source)"
+
+#: skyrelay-setup.py:429
+msgid "Im Handy: Kanal öffnen → Kanalnamen antippen → Teilen → Link kopieren."
+msgstr "On the phone: open the channel → tap its name → Share → copy link."
+
+#: skyrelay-setup.py:437
+msgid "Liga und Verein"
+msgstr "League and club"
+
+#: skyrelay-setup.py:438
+msgid "Daraus erkennt der Ticker, an welchen Tagen er überhaupt laufen muss,"
+msgstr "From these the ticker works out which days it needs to run at all,"
+
+#: skyrelay-setup.py:439
+msgid "und bildet den Spiel-Hashtag. Grundlage ist OpenLigaDB."
+msgstr "and builds the match hashtag. OpenLigaDB supplies the data."
+
+#: skyrelay-setup.py:442
+msgid "andere Liga aus OpenLigaDB wählen …"
+msgstr "pick another league from OpenLigaDB …"
+
+#: skyrelay-setup.py:443
+msgid "doch kein Spielplan – Ticker läuft an jedem Starttag"
+msgstr "no fixtures after all – the ticker runs on any day it is started"
+
+#: skyrelay-setup.py:444 skyrelay-setup.py:469 skyrelay-setup.py:746
+msgid "Liga"
+msgstr "League"
+
+#: skyrelay-setup.py:449
+msgid "Es findet keine automatische Prüfung statt, ob heute etwas ansteht:"
+msgstr "Nothing checks automatically whether anything is on today:"
+
+#: skyrelay-setup.py:450
+msgid "Der Ticker läuft an jedem Tag, an dem er gestartet wird."
+msgstr "The ticker runs on every day it is started."
+
+#: skyrelay-setup.py:451
+#, python-brace-format
+msgid "Ein wechselnder {event}-Hashtag lässt sich beim Start über"
+msgstr "A changing {event} hashtag can be passed at startup through"
+
+#: skyrelay-setup.py:453
+msgid "SKYRELAY_HASHTAG mitgeben. Den cron-Eintrag also nur für die Tage"
+msgstr "SKYRELAY_HASHTAG. So set the cron entry only for the days"
+
+#: skyrelay-setup.py:454
+msgid "einrichten, an denen etwas läuft - oder von Hand starten."
+msgstr "something is on - or start it by hand."
+
+#: skyrelay-setup.py:464 skyrelay-setup.py:770
+#, python-brace-format
+msgid "{n} Ligen mit laufender Saison:"
+msgstr "{n} leagues with a running season:"
+
+#: skyrelay-setup.py:473
+msgid "Ligakürzel"
+msgstr "League shortcut"
+
+#: skyrelay-setup.py:474 skyrelay-setup.py:478
+msgid "Saison (Startjahr)"
+msgstr "Season (start year)"
+
+#: skyrelay-setup.py:494
+msgid "Dein Verein"
+msgstr "Your club"
+
+#: skyrelay-setup.py:498
+msgid "Suchbegriff für OpenLigaDB"
+msgstr "Search term for OpenLigaDB"
+
+#: skyrelay-setup.py:503
+msgid "Kürzel für die Hashtags"
+msgstr "Codes for the hashtags"
+
+#: skyrelay-setup.py:504
+msgid "Aus Heim- und Auswärtskürzel entsteht der Spiel-Hashtag, z.B. #KSCDSC."
+msgstr "The home and away codes make the match hashtag, such as #KSCDSC."
+
+#: skyrelay-setup.py:519
+#, python-brace-format
+msgid "{known} Kürzel sind hinterlegt, {derived} aus dem Namen abgeleitet (mit ? markiert)."
+msgstr "{known} codes are on file, {derived} derived from the name (marked ?)."
+
+#: skyrelay-setup.py:522
+msgid "Abgeleitete entsprechen oft nicht dem üblichen Kürzel - bitte prüfen."
+msgstr "Derived ones often differ from the code in common use - please check."
+
+#: skyrelay-setup.py:524
+msgid "Für alle Mannschaften dieser Liga sind Kürzel hinterlegt."
+msgstr "Every team in this league has a code on file."
+
+#: skyrelay-setup.py:527
+#, python-brace-format
+msgid ""
+"\n"
+"  Kürzel deines Vereins ({club}): {code}"
+msgstr ""
+"\n"
+"  Your club's code ({club}): {code}"
+
+#: skyrelay-setup.py:529
+msgid "Es steht in jedem Spiel-Hashtag - bitte genau prüfen."
+msgstr "It appears in every match hashtag - please check it carefully."
+
+#: skyrelay-setup.py:530
+msgid "Kürzel"
+msgstr "Code"
+
+#: skyrelay-setup.py:532
+msgid ""
+"\n"
+"  Übrige Mannschaften (? = abgeleitet, ungeprüft):"
+msgstr ""
+"\n"
+"  The other teams (? = derived, unchecked):"
+
+#: skyrelay-setup.py:537
+msgid ""
+"\n"
+"  Diese Kürzel einzeln anpassen?"
+msgstr ""
+"\n"
+"  Adjust these codes one by one?"
+
+#: skyrelay-setup.py:544
+msgid "Später jederzeit im Abschnitt [team_codes] änderbar."
+msgstr "They can be changed later in the [team_codes] section at any time."
+
+#: skyrelay-setup.py:547
+msgid "Beiträge des Tickers"
+msgstr "The ticker's posts"
+
+#: skyrelay-setup.py:549
+msgid "  · Dauer-Hashtag - steht unter JEDEM Beitrag (z.B. der Vereinsname)"
+msgstr "  · standing hashtag - under EVERY post (the club name, say)"
+
+#: skyrelay-setup.py:550
+#, python-brace-format
+msgid "  · {event}-Hashtag - wechselt je Termin"
+msgstr "  · {event} hashtag - changes with each fixture"
+
+#: skyrelay-setup.py:551
+msgid " und wird aus dem Spielplan gebildet"
+msgstr " and is built from the fixture list"
+
+#: skyrelay-setup.py:552
+msgid ", kommt aus SKYRELAY_HASHTAG"
+msgstr ", comes from SKYRELAY_HASHTAG"
+
+#: skyrelay-setup.py:553
+msgid "Dauer-Hashtag (ohne #, leer = keiner)"
+msgstr "Standing hashtag (without #, empty = none)"
+
+#: skyrelay-setup.py:562
+msgid "Profil-Statuszeile des Ticker-Kontos"
+msgstr "Profile status line of the ticker account"
+
+#: skyrelay-setup.py:563
+#, python-brace-format
+msgid "Die erste Zeile der Biografie von @{handle} kann anzeigen,"
+msgstr "The first line of @{handle}'s bio can show"
+
+#: skyrelay-setup.py:565
+msgid "ob der Bot gerade läuft - beim Beenden wird sie zurückgestellt."
+msgstr "whether the bot is running - it is put back when it stops."
+
+#: skyrelay-setup.py:571 skyrelay-setup.py:1002
+msgid "Text während des Betriebs"
+msgstr "Text while it is running"
+
+#: skyrelay-setup.py:573 skyrelay-setup.py:1003
+msgid "Text nach dem Beenden"
+msgstr "Text after it has stopped"
+
+#: skyrelay-setup.py:579
+msgid "Erkannt wird eine vorhandene Statuszeile am Text 'Bot ist'."
+msgstr "An existing status line is recognised by the text 'Bot ist'."
+
+#: skyrelay-setup.py:580
+msgid "Wer andere Formulierungen nutzt, passt [profile] marker an."
+msgstr "If you word it differently, adjust [profile] marker."
+
+#: skyrelay-setup.py:586 skyrelay-setup.py:1015 skyrelay-setup.py:1291
+msgid "Zeitfenster"
+msgstr "Time window"
+
+#: skyrelay-setup.py:587
+msgid "Bis zu dieser Uhrzeit lauscht der Ticker, danach beendet er sich selbst."
+msgstr "The ticker listens until this time, then stops by itself."
+
+#: skyrelay-setup.py:594
+msgid "2 von 2: "
+msgstr "2 of 2: "
+
+#: skyrelay-setup.py:595
+msgid "läuft im Dauerbetrieb"
+msgstr "runs all year round"
+
+#: skyrelay-setup.py:597
+msgid "Instagram-Profil (Quelle des Feeds)"
+msgstr "Instagram profile (the feed's source)"
+
+#: skyrelay-setup.py:598
+msgid "Profil, das gespiegelt wird (ohne @)"
+msgstr "The profile being mirrored (without @)"
+
+#: skyrelay-setup.py:602
+msgid "Zweitkonto für den Abruf - NICHT das gespiegelte Profil."
+msgstr "A secondary account used to fetch - NOT the profile being mirrored."
+
+#: skyrelay-setup.py:603
+msgid "Sitzung anlegen mit: venv/bin/instaloader -l <name>"
+msgstr "Create the session with: venv/bin/instaloader -l <name>"
+
+#: skyrelay-setup.py:608
+msgid "Bluesky-Konto FÜR DEN FEED"
+msgstr "Bluesky account FOR THE FEED"
+
+#: skyrelay-setup.py:611
+#, python-brace-format
+msgid "Der Ticker veröffentlicht auf @{handle}."
+msgstr "The ticker publishes to @{handle}."
+
+#: skyrelay-setup.py:613
+msgid "Soll die Instagram-Spiegelung ein ANDERES Konto verwenden?"
+msgstr "Should the Instagram mirror use a DIFFERENT account?"
+
+#: skyrelay-setup.py:618
+msgid "Auf dieses Konto werden die Instagram-Beiträge veröffentlicht."
+msgstr "This is the account the Instagram posts are published to."
+
+#: skyrelay-setup.py:623
+msgid "Dessen App-Passwort gehört in SKYRELAY_FEED_APP_PASSWORD,"
+msgstr "Its app password belongs in SKYRELAY_FEED_APP_PASSWORD,"
+
+#: skyrelay-setup.py:624
+msgid "nicht in BLUESKY_APP_PASSWORD (das gilt für den Ticker)."
+msgstr "not in BLUESKY_APP_PASSWORD (that one is the ticker's)."
+
+#: skyrelay-setup.py:635
+msgid "Bitte prüfen, ob Quellen und Konten richtig zugeordnet sind:"
+msgstr "Please check that sources and accounts line up:"
+
+#: skyrelay-setup.py:637
+#, python-brace-format
+msgid "  Spieltags-Ticker:  WhatsApp-Kanal  ──►  @{handle}"
+msgstr "  matchday ticker:  WhatsApp channel  ──►  @{handle}"
+
+#: skyrelay-setup.py:640
+#, python-brace-format
+msgid "  Instagram-Feed:    @{profile}  ──►  @{handle}"
+msgstr "  Instagram feed:   @{profile}  ──►  @{handle}"
+
+#: skyrelay-setup.py:643
+msgid "Beide veröffentlichen auf demselben Konto - das ist zulässig,"
+msgstr "Both publish to the same account - which is allowed,"
+
+#: skyrelay-setup.py:644
+msgid "führt aber dazu, dass Ticker und Feed sich vermischen."
+msgstr "but it does mix the ticker and the feed together."
+
+#: skyrelay-setup.py:645
+msgid ""
+"\n"
+"  Stimmt das so?"
+msgstr ""
+"\n"
+"  Is that right?"
+
+#: skyrelay-setup.py:646
+msgid ""
+"\n"
+"Abgebrochen - es wurde nichts geändert. Starte den Assistenten erneut."
+msgstr ""
+"\n"
+"Cancelled - nothing was changed. Start the assistant again."
+
+#: skyrelay-setup.py:650 skyrelay-setup.py:1344
+msgid "Speichern"
+msgstr "Save"
+
+#: skyrelay-setup.py:653
+msgid "Vorhandene Konfiguration überschreiben? (Sicherung wird angelegt)"
+msgstr "Overwrite the existing configuration? (a backup is written)"
+
+#: skyrelay-setup.py:654
+msgid ""
+"\n"
+"Abgebrochen - es wurde nichts geändert."
+msgstr ""
+"\n"
+"Cancelled - nothing was changed."
+
+#: skyrelay-setup.py:677
+msgid ""
+"\n"
+"[1mFertig.[0m Nächste Schritte:\n"
+msgstr ""
+"\n"
+"[1mDone.[0m Next steps:\n"
+
+#: skyrelay-setup.py:680
+msgid "    Erste WhatsApp-Kopplung, interaktiv im Terminal:"
+msgstr "    First WhatsApp pairing, interactively in a terminal:"
+
+#: skyrelay-setup.py:686
+msgid ""
+"\n"
+"  Danach den Dauerbetrieb per cron einrichten - siehe README.md.\n"
+msgstr ""
+"\n"
+"  After that set up cron for continuous operation - see README.md.\n"
+
+#: skyrelay-setup.py:693 skyrelay-setup.py:704 skyrelay-setup.py:1273
+msgid "– nicht gesetzt –"
+msgstr "– not set –"
+
+#: skyrelay-setup.py:707
+msgid "Spieltags-Ticker"
+msgstr "Matchday ticker"
+
+#: skyrelay-setup.py:707
+msgid "WhatsApp-Kanal → Bluesky, läuft nur an Spieltagen."
+msgstr "WhatsApp channel → Bluesky, runs on matchdays only."
+
+#: skyrelay-setup.py:708
+#, python-brace-format
+msgid "Bluesky-Konto ......  {value}"
+msgstr "Bluesky account ....  {value}"
+
+#: skyrelay-setup.py:710
+#, python-brace-format
+msgid "WhatsApp-Kanal ....  {value}"
+msgstr "WhatsApp channel ..  {value}"
+
+#: skyrelay-setup.py:711
+#, python-brace-format
+msgid "Liga und Verein ...  {value}"
+msgstr "League and club ...  {value}"
+
+#: skyrelay-setup.py:715
+msgid "Bluesky-Konto für den TICKER"
+msgstr "Bluesky account for the TICKER"
+
+#: skyrelay-setup.py:716
+msgid ""
+"Konto, auf dem die Kanalbeiträge veröffentlicht werden.\n"
+"Ohne führendes @, z.B. mein-ticker.bsky.social"
+msgstr ""
+"The account the channel posts are published to.\n"
+"Without a leading @, such as my-ticker.bsky.social"
+
+#: skyrelay-setup.py:722 skyrelay-setup.py:734
+msgid "Ungültig"
+msgstr "Not valid"
+
+#: skyrelay-setup.py:727
+msgid ""
+"Einladungslink des Kanals.\n"
+"\n"
+"Im Handy: Kanal öffnen → Kanalnamen antippen →\n"
+"Teilen → Link kopieren."
+msgstr ""
+"The channel's invite link.\n"
+"\n"
+"On the phone: open the channel → tap its name →\n"
+"Share → copy link."
+
+#: skyrelay-setup.py:744
+msgid "andere Liga aus OpenLigaDB …"
+msgstr "another league from OpenLigaDB …"
+
+#: skyrelay-setup.py:745
+msgid "kein Spielplan (läuft an jedem Starttag)"
+msgstr "no fixtures (runs on any day it is started)"
+
+#: skyrelay-setup.py:746
+msgid "Grundlage für Spieltags-Erkennung und Hashtag."
+msgstr "The basis for detecting matchdays and building the hashtag."
+
+#: skyrelay-setup.py:754
+msgid ""
+"Die Spieltags-Erkennung ist abgeschaltet.\n"
+"\n"
+"Der Ticker läuft an jedem Tag, an dem er gestartet wird.\n"
+"Einen wechselnden Hashtag gibst du beim Start über\n"
+"SKYRELAY_HASHTAG mit. Den cron-Eintrag also nur für die\n"
+"Tage einrichten, an denen etwas läuft."
+msgstr ""
+"Matchday detection is switched off.\n"
+"\n"
+"The ticker runs on every day it is started.\n"
+"A changing hashtag is passed at startup through\n"
+"SKYRELAY_HASHTAG. So set the cron entry only for the\n"
+"days something is on."
+
+#: skyrelay-setup.py:762
+msgid "Ligen werden von OpenLigaDB geladen …"
+msgstr "Loading leagues from OpenLigaDB …"
+
+#: skyrelay-setup.py:769
+msgid "Liga wählen"
+msgstr "Pick a league"
+
+#: skyrelay-setup.py:780
+msgid "Saison"
+msgstr "Season"
+
+#: skyrelay-setup.py:780
+msgid "Startjahr der Saison:"
+msgstr "Start year of the season:"
+
+#: skyrelay-setup.py:785
+#, python-brace-format
+msgid "Mannschaften aus {league}/{season} werden geladen …"
+msgstr "Loading the teams of {league}/{season} …"
+
+#: skyrelay-setup.py:793
+msgid "Nichts gefunden"
+msgstr "Nothing found"
+
+#: skyrelay-setup.py:794
+#, python-brace-format
+msgid "Zu {league}/{season} liefert OpenLigaDB keine Mannschaften."
+msgstr "OpenLigaDB returns no teams for {league}/{season}."
+
+#: skyrelay-setup.py:800
+msgid "Verein wählen"
+msgstr "Pick a club"
+
+#: skyrelay-setup.py:800
+msgid "Für welchen Verein läuft der Ticker?"
+msgstr "Which club does the ticker run for?"
+
+#: skyrelay-setup.py:811
+msgid "Begriff, mit dem OpenLigaDB nach dem Verein sucht:"
+msgstr "The term OpenLigaDB searches the club by:"
+
+#: skyrelay-setup.py:834
+msgid "Verein gesetzt"
+msgstr "Club set"
+
+#: skyrelay-setup.py:835
+#, python-brace-format
+msgid ""
+"{club}\n"
+"\n"
+"Kürzeltabelle: {added} Mannschaft(en) ergänzt, {known} bereits vorhanden.\n"
+"\n"
+"Unter „Kürzel für Hashtags“ kannst du sie prüfen –\n"
+"abgeleitete Vorschläge sind mit ? markiert."
+msgstr ""
+"{club}\n"
+"\n"
+"Table of codes: {added} team(s) added, {known} already there.\n"
+"\n"
+"You can check them under “Codes for hashtags” –\n"
+"derived proposals are marked with ?."
+
+#: skyrelay-setup.py:848
+msgid "Noch keine Kürzel"
+msgstr "No codes yet"
+
+#: skyrelay-setup.py:849
+msgid "Wähle zuerst unter „Spieltags-Ticker“ eine Liga und einen Verein."
+msgstr "First pick a league and a club under “Matchday ticker”."
+
+#: skyrelay-setup.py:854
+msgid " ←  eigener Verein"
+msgstr " ←  your own club"
+
+#: skyrelay-setup.py:856 skyrelay-setup.py:1288
+msgid "Kürzel für Hashtags"
+msgstr "Codes for hashtags"
+
+#: skyrelay-setup.py:857
+msgid ""
+"Aus Heim + Auswärts entsteht der Hashtag, z.B. #KSCDSC.\n"
+"Eintrag wählen zum Ändern."
+msgstr ""
+"Home + away makes the hashtag, such as #KSCDSC.\n"
+"Pick an entry to change it."
+
+#: skyrelay-setup.py:861
+msgid "Kürzel ändern"
+msgstr "Change a code"
+
+#: skyrelay-setup.py:862
+#, python-brace-format
+msgid "Kürzel für Team-Nummer {number}:"
+msgstr "Code for team number {number}:"
+
+#: skyrelay-setup.py:873
+msgid "  (wie Ticker)"
+msgstr "  (same as the ticker)"
+
+#: skyrelay-setup.py:875
+msgid "Instagram-Feed"
+msgstr "Instagram feed"
+
+#: skyrelay-setup.py:875
+msgid "Instagram → Bluesky, läuft im Dauerbetrieb."
+msgstr "Instagram → Bluesky, runs all year round."
+
+#: skyrelay-setup.py:876
+#, python-brace-format
+msgid "Instagram-Profil ..  {value}"
+msgstr "Instagram profile .  {value}"
+
+#: skyrelay-setup.py:879
+#, python-brace-format
+msgid "Bluesky-Konto .....  {value}"
+msgstr "Bluesky account ...  {value}"
+
+#: skyrelay-setup.py:883
+msgid "Instagram-Profil"
+msgstr "Instagram profile"
+
+#: skyrelay-setup.py:884
+msgid "Profil, das gespiegelt wird (ohne @):"
+msgstr "The profile being mirrored (without @):"
+
+#: skyrelay-setup.py:890
+msgid ""
+"Konto, mit dem abgerufen wird – NICHT das gespiegelte Profil.\n"
+"\n"
+"Sitzung anlegen mit:  venv/bin/instaloader -l <name>"
+msgstr ""
+"The account used to fetch – NOT the profile being mirrored.\n"
+"\n"
+"Create the session with:  venv/bin/instaloader -l <name>"
+
+#: skyrelay-setup.py:897
+msgid "Bluesky-Konto für den Feed"
+msgstr "Bluesky account for the feed"
+
+#: skyrelay-setup.py:898
+#, python-brace-format
+msgid ""
+"Soll die Instagram-Spiegelung ein ANDERES Konto\n"
+"verwenden als der Ticker ({handle})?"
+msgstr ""
+"Should the Instagram mirror use a DIFFERENT account\n"
+"than the ticker ({handle})?"
+
+#: skyrelay-setup.py:902
+msgid "Konto für den Feed"
+msgstr "Account for the feed"
+
+#: skyrelay-setup.py:907
+msgid ""
+"Beide Bots brauchen dann eigene App-Passwörter:\n"
+"\n"
+"  Ticker: BLUESKY_TICKER_APP_PASSWORD\n"
+"  Feed:   BLUESKY_FEED_APP_PASSWORD"
+msgstr ""
+"Both bots then need app passwords of their own:\n"
+"\n"
+"  ticker: BLUESKY_TICKER_APP_PASSWORD\n"
+"  feed:   BLUESKY_FEED_APP_PASSWORD"
+
+#: skyrelay-setup.py:919 skyrelay-setup.py:1289
+msgid "Beiträge und Profil"
+msgstr "Posts and profile"
+
+#: skyrelay-setup.py:919
+msgid "Wie die Beiträge aussehen und was in der Bio steht."
+msgstr "How the posts look and what the bio says."
+
+#: skyrelay-setup.py:920
+#, python-brace-format
+msgid "Dauer-Hashtag .....  {value}"
+msgstr "Standing hashtag ..  {value}"
+
+#: skyrelay-setup.py:923
+#, python-brace-format
+msgid "Kopfzeile .........  {value}"
+msgstr "Header ............  {value}"
+
+#: skyrelay-setup.py:925
+#, python-brace-format
+msgid "Kopfzeile zeigen ..  {value}"
+msgstr "Show the header ...  {value}"
+
+#: skyrelay-setup.py:929
+#, python-brace-format
+msgid "Quellen-Vorlage ...  {value}"
+msgstr "Source template ...  {value}"
+
+#: skyrelay-setup.py:931
+#, python-brace-format
+msgid "Quelle (Ticker) ...  {value}"
+msgstr "Source (ticker) ...  {value}"
+
+#: skyrelay-setup.py:933
+#, python-brace-format
+msgid "Quelle (Feed) .....  {value}"
+msgstr "Source (feed) .....  {value}"
+
+#: skyrelay-setup.py:935
+#, python-brace-format
+msgid "Statuszeile .......  {value}"
+msgstr "Status line .......  {value}"
+
+#: skyrelay-setup.py:936
+msgid "ein"
+msgstr "on"
+
+#: skyrelay-setup.py:936
+msgid "aus"
+msgstr "off"
+
+#: skyrelay-setup.py:940 skyrelay-setup.py:1111
+msgid "Dauer-Hashtag"
+msgstr "Standing hashtag"
+
+#: skyrelay-setup.py:941
+msgid "Steht unter JEDEM Beitrag, ohne # (leer = keiner):"
+msgstr "Goes under EVERY post, without # (empty = none):"
+
+#: skyrelay-setup.py:947
+msgid ""
+"Erste Zeile jedes Hauptbeitrags\n"
+"(leer = keine Kopfzeile):"
+msgstr ""
+"First line of every main post\n"
+"(empty = no header):"
+
+#: skyrelay-setup.py:955
+msgid ""
+"Steht in der Bluesky-Biografie schon deutlich, dass hier ein\n"
+"Bot schreibt, ist der Hinweis in jedem Beitrag verschenkter\n"
+"Platz - bei 300 Zeichen zählt das."
+msgstr ""
+"Where the Bluesky bio already says plainly that a bot is\n"
+"writing, the notice in every post is wasted space - and at\n"
+"300 characters that counts."
+
+#: skyrelay-setup.py:964
+msgid "Wonach in der Biografie suchen?"
+msgstr "What to look for in the bio?"
+
+#: skyrelay-setup.py:965
+msgid ""
+"Die eigene Statuszeile wird dabei übergangen -\n"
+"sonst fände sich \"Bot\" immer im eigenen\n"
+"\"Bot ist an\"."
+msgstr ""
+"The bot's own status line is skipped -\n"
+"otherwise \"Bot\" would always turn up in its\n"
+"own \"Bot ist an\"."
+
+#: skyrelay-setup.py:973
+msgid "Quellen-Vorlage"
+msgstr "Source template"
+
+#: skyrelay-setup.py:974
+#, python-brace-format
+msgid ""
+"Der Teil in [eckigen Klammern] wird zum Link,\n"
+"{label} steht für die Beschriftung.\n"
+"\n"
+"  🔗 [Quelle]: {label}   das Wort ist der Link\n"
+"  🔗 [Quelle]            nur das Wort, spart Zeichen\n"
+"  🔗 Quelle: [{label}]   die Beschriftung ist der Link"
+msgstr ""
+"The part in [square brackets] becomes the link,\n"
+"{label} stands for the label.\n"
+"\n"
+"  🔗 [Source]: {label}   the word is the link\n"
+"  🔗 [Source]            the word only, saves characters\n"
+"  🔗 Source: [{label}]   the label is the link"
+
+#: skyrelay-setup.py:984
+msgid "Quell-Beschriftung (Ticker)"
+msgstr "Source label (ticker)"
+
+#: skyrelay-setup.py:985
+msgid ""
+"Text des Links zum WhatsApp-Kanal\n"
+"(leer = keine Quellenangabe im Beitrag):"
+msgstr ""
+"Text of the link to the WhatsApp channel\n"
+"(empty = no source line in the post):"
+
+#: skyrelay-setup.py:991
+msgid "Quell-Beschriftung (Feed)"
+msgstr "Source label (feed)"
+
+#: skyrelay-setup.py:992
+msgid ""
+"Text des Links zum Instagram-Beitrag\n"
+"(leer = keine Quellenangabe im Beitrag):"
+msgstr ""
+"Text of the link to the Instagram post\n"
+"(empty = no source line in the post):"
+
+#: skyrelay-setup.py:998
+msgid "Profil-Statuszeile"
+msgstr "Profile status line"
+
+#: skyrelay-setup.py:999
+msgid ""
+"Soll die erste Zeile der Bluesky-Biografie anzeigen,\n"
+"ob der Bot gerade läuft?"
+msgstr ""
+"Should the first line of the Bluesky bio show\n"
+"whether the bot is running?"
+
+#: skyrelay-setup.py:1015
+msgid "Wann der Ticker arbeitet."
+msgstr "When the ticker works."
+
+#: skyrelay-setup.py:1020
+msgid ""
+"Bis zu dieser Uhrzeit lauscht der Ticker (HH:MM),\n"
+"danach beendet er sich selbst:"
+msgstr ""
+"The ticker listens until this time (HH:MM),\n"
+"then stops by itself:"
+
+#: skyrelay-setup.py:1026
+msgid "Zeitzone"
+msgstr "Time zone"
+
+#: skyrelay-setup.py:1043
+#, python-brace-format
+msgid ""
+"@{handle}\n"
+"   übersprungen – {variable} ist nicht gesetzt"
+msgstr ""
+"@{handle}\n"
+"   skipped – {variable} is not set"
+
+#: skyrelay-setup.py:1049
+#, python-brace-format
+msgid ""
+"@{handle}\n"
+"   Anmeldung erfolgreich"
+msgstr ""
+"@{handle}\n"
+"   login succeeded"
+
+#: skyrelay-setup.py:1052
+msgid "Anmeldung geprüft"
+msgstr "Login checked"
+
+#: skyrelay-setup.py:1053
+msgid "Es ist noch kein Konto eingetragen."
+msgstr "No account has been entered yet."
+
+#: skyrelay-setup.py:1065
+msgid "Alle Schlüssel der Vorlage stehen bereits in der Konfiguration."
+msgstr "Every key of the template is already in the configuration."
+
+#: skyrelay-setup.py:1071
+#, python-brace-format
+msgid ""
+"\n"
+"  … und {n} weitere"
+msgstr ""
+"\n"
+"  … and {n} more"
+
+#: skyrelay-setup.py:1072 skyrelay-setup.py:1294
+msgid "Konfiguration nachziehen"
+msgstr "Top up the configuration"
+
+#: skyrelay-setup.py:1073
+#, python-brace-format
+msgid ""
+"{n} Schlüssel fehlen. Sie werden mit den Erklärungen aus der Vorlage ergänzt; "
+"vorhandene Werte bleiben unverändert.\n"
+"\n"
+"{items}\n"
+"\n"
+"Ergänzen?"
+msgstr ""
+"{n} key(s) are missing. They will be added with the explanations from the template; "
+"existing values stay as they are.\n"
+"\n"
+"{items}\n"
+"\n"
+"Add them?"
+
+#: skyrelay-setup.py:1080
+#, python-brace-format
+msgid ""
+"{n} Schlüssel ergänzt.\n"
+"\n"
+"Noch nicht gespeichert - das erledigt der Menüpunkt \"Speichern und beenden\"."
+msgstr ""
+"{n} key(s) added.\n"
+"\n"
+"Not saved yet - the menu entry \"Save and quit\" does that."
+
+#: skyrelay-setup.py:1092 skyrelay-setup.py:1100
+msgid "Konfiguration geprüft"
+msgstr "Configuration checked"
+
+#: skyrelay-setup.py:1092
+msgid "Keine Auffälligkeiten."
+msgstr "Nothing out of order."
+
+#: skyrelay-setup.py:1108
+msgid "Kopfzeile"
+msgstr "Header"
+
+#: skyrelay-setup.py:1109
+msgid "Quelle"
+msgstr "Source"
+
+#: skyrelay-setup.py:1110
+msgid "Spiel-Hashtag"
+msgstr "Match hashtag"
+
+#: skyrelay-setup.py:1113
+msgid "erster"
+msgstr "first"
+
+#: skyrelay-setup.py:1113
+msgid "letzter"
+msgstr "last"
+
+# | msgid "Beide"
+#: skyrelay-setup.py:1113
+msgid "jeder"
+msgstr "every"
+
+#: skyrelay-setup.py:1114
+msgid "gar nicht"
+msgstr "none"
+
+#: skyrelay-setup.py:1115
+msgid "immer"
+msgstr "always"
+
+#: skyrelay-setup.py:1115
+msgid "nie"
+msgstr "never"
+
+#: skyrelay-setup.py:1116
+msgid "nur wenn die Bio ihn nicht nennt"
+msgstr "only while the bio does not mention it"
+
+#: skyrelay-setup.py:1117
+msgid "oben"
+msgstr "top"
+
+#: skyrelay-setup.py:1117
+msgid "unten"
+msgstr "bottom"
+
+#: skyrelay-setup.py:1159
+msgid "Original-Kanal"
+msgstr "original channel"
+
+#: skyrelay-setup.py:1172
+#, python-brace-format
+msgid "── Beitrag {n} von {total} "
+msgstr "── post {n} of {total} "
+
+#: skyrelay-setup.py:1191
+msgid "Aufbau der Beiträge"
+msgstr "How the posts are built"
+
+#: skyrelay-setup.py:1192
+msgid ""
+"Baustein       Beiträge  Stelle  Reihenfolge\n"
+"(Reihenfolge zählt nur, wenn zwei Bausteine an derselben Stelle landen.)"
+msgstr ""
+"Block          Posts     Spot    Order\n"
+"(Order only matters when two blocks land in the same spot.)"
+
+#: skyrelay-setup.py:1199
+msgid "So sähen die Beiträge aus"
+msgstr "This is how the posts would look"
+
+#: skyrelay-setup.py:1204
+#, python-brace-format
+msgid "{block}: an welchen Beiträgen?"
+msgstr "{block}: on which posts?"
+
+#: skyrelay-setup.py:1206
+msgid "Ein Thread entsteht, sobald ein Beitrag zu lang wird."
+msgstr "A thread appears as soon as a post runs too long."
+
+#: skyrelay-setup.py:1213
+#, python-brace-format
+msgid "{block}: an welcher Stelle?"
+msgstr "{block}: in which spot?"
+
+#: skyrelay-setup.py:1215
+msgid "Über oder unter dem eigentlichen Text."
+msgstr "Above or below the text itself."
+
+#: skyrelay-setup.py:1222
+#, python-brace-format
+msgid "{block}: Reihenfolge"
+msgstr "{block}: order"
+
+#: skyrelay-setup.py:1224
+msgid "Kleinere Zahl steht weiter vorne:"
+msgstr "A smaller number comes first:"
+
+#: skyrelay-setup.py:1230
+msgid "Keine Zahl"
+msgstr "Not a number"
+
+#: skyrelay-setup.py:1231
+#, python-brace-format
+msgid "{entry!r} ist keine Zahl - die Reihenfolge bleibt bei {order}."
+msgstr "{entry!r} is not a number - the order stays at {order}."
+
+#: skyrelay-setup.py:1242
+msgid "Nur eine Sprache verfügbar"
+msgstr "Only one language available"
+
+#: skyrelay-setup.py:1243
+msgid ""
+"Übersetzt ist bisher nur die Ausgangssprache.\n"
+"\n"
+"Kataloge werden gebaut, nicht mitgeliefert:\n"
+"    tools/i18n.sh compile\n"
+"\n"
+"Wer eine Sprache beisteuern möchte: siehe CONTRIBUTING.md."
+msgstr ""
+"So far only the source language exists.\n"
+"\n"
+"Catalogues are built, not shipped:\n"
+"    tools/i18n.sh compile\n"
+"\n"
+"If you would like to contribute a language: see CONTRIBUTING.md."
+
+#: skyrelay-setup.py:1249 skyrelay-setup.py:1295
+msgid "Sprache / Language"
+msgstr "Language / Sprache"
+
+#: skyrelay-setup.py:1250
+msgid ""
+"Gilt für diesen Assistenten. Protokoll und Konsolenausgabe\n"
+"bleiben englisch."
+msgstr ""
+"Applies to this assistant. The log and console output\n"
+"stay English."
+
+#: skyrelay-setup.py:1274
+msgid "Bluesky-Konto"
+msgstr "Bluesky account"
+
+#: skyrelay-setup.py:1279
+msgid "Alle Pflichtangaben sind gesetzt."
+msgstr "Everything required has been set."
+
+#: skyrelay-setup.py:1284
+#, python-brace-format
+msgid ""
+"{note}\n"
+"\n"
+"Datei: {file}{asterisk}"
+msgstr ""
+"{note}\n"
+"\n"
+"File: {file}{asterisk}"
+
+#: skyrelay-setup.py:1286
+msgid "Spieltags-Ticker    WhatsApp-Kanal → Bluesky"
+msgstr "Matchday ticker     WhatsApp channel → Bluesky"
+
+#: skyrelay-setup.py:1287
+msgid "Instagram-Feed      Instagram → Bluesky"
+msgstr "Instagram feed      Instagram → Bluesky"
+
+#: skyrelay-setup.py:1290
+msgid "Aufbau der Beiträge (Kopfzeile, Quelle, Hashtags)"
+msgstr "How the posts are built (header, source, hashtags)"
+
+#: skyrelay-setup.py:1292
+msgid "Anmeldung bei Bluesky prüfen"
+msgstr "Check the login to Bluesky"
+
+#: skyrelay-setup.py:1293
+msgid "Konfiguration prüfen"
+msgstr "Check the configuration"
+
+#: skyrelay-setup.py:1296
+msgid "Speichern und beenden"
+msgstr "Save and quit"
+
+#: skyrelay-setup.py:1297
+msgid "Beenden"
+msgstr "Quit"
+
+#: skyrelay-setup.py:1325
+msgid "Ungespeicherte Änderungen"
+msgstr "Unsaved changes"
+
+#: skyrelay-setup.py:1326
+msgid ""
+"Es gibt Änderungen, die noch nicht gespeichert sind.\n"
+"\n"
+"Jetzt speichern?"
+msgstr ""
+"There are changes that have not been saved.\n"
+"\n"
+"Save them now?"
+
+#: skyrelay-setup.py:1339
+#, python-brace-format
+msgid "Ticker:  WhatsApp-Kanal  →  @{handle}"
+msgstr "Ticker:  WhatsApp channel  →  @{handle}"
+
+#: skyrelay-setup.py:1340
+msgid "Ticker:  – kein Konto –"
+msgstr "Ticker:  – no account –"
+
+#: skyrelay-setup.py:1342
+#, python-brace-format
+msgid "Feed:    @{profile}  →  @{handle}"
+msgstr "Feed:    @{profile}  →  @{handle}"
+
+#: skyrelay-setup.py:1346
+#, python-brace-format
+msgid ""
+"\n"
+"\n"
+"Nach {file} schreiben?"
+msgstr ""
+"\n"
+"\n"
+"Write to {file}?"
+
+#: skyrelay-setup.py:1435
+msgid ""
+"\n"
+"\n"
+"Abgebrochen - es wurde nichts geschrieben.\n"
+msgstr ""
+"\n"
+"\n"
+"Cancelled - nothing was written.\n"
+
+#: skyrelay_tui.py:30
+msgid "SkyRelay - Einrichtung"
+msgstr "SkyRelay - setup"
+
+# | msgid "Auswahl"
+#: skyrelay_tui.py:31
+msgid "Auswählen"
+msgstr "Select"
+
+#: skyrelay_tui.py:32
+msgid "Zurück"
+msgstr "Back"
+
+#: skyrelay_tui.py:33
+msgid "Abbrechen"
+msgstr "Cancel"
+
