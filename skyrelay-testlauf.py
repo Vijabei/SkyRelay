@@ -1,33 +1,34 @@
 #!/usr/bin/env python3
 """
-SkyRelay - Testlauf: echte Kanal-Nachrichten durch die Pipeline schicken,
-ohne etwas zu veröffentlichen.
+SkyRelay - test run: push real channel messages through the pipeline without
+publishing anything.
 
-Wozu das nötig ist: Der eingebaute REPLAY-Modus holt die NEUESTEN N Nachrichten
-(`MessageServerID(0)`). Liegt darunter eine inhaltslose Meta-Nachricht, stürzt
-die Go-Schicht hart ab - siehe ISSUE-DRAFT-neonize-newsletter-panic.md. Stand
-19.08.2026 ist genau das der Fall: `count=1` läuft, ab `count=2` knallt es.
+Why this is needed: the built-in REPLAY mode fetches the LATEST N messages
+(`MessageServerID(0)`). If a meta message without content sits among them, the
+Go layer crashes hard - see ISSUE-DRAFT-neonize-newsletter-panic.md. As of
+19.08.2026 that is exactly the situation: `count=1` works, from `count=2` it
+blows up.
 
-Dieses Werkzeug blättert stattdessen mit einem ausdrücklichen Startpunkt in
-kleinen Blöcken RÜCKWÄRTS durch den Verlauf und kommt so an ältere Nachrichten
-heran, ohne die kaputte Stelle zu berühren.
+This tool instead pages BACKWARDS through the history in small blocks from an
+explicit starting point, which reaches older messages without touching the
+broken spot.
 
-Es wird NICHTS gepostet: SKYRELAY_DRY_RUN wird erzwungen, bevor der Ticker
-geladen wird. Wasserzeichen und Merklisten bleiben unberührt.
+NOTHING is posted: SKYRELAY_DRY_RUN is forced before the ticker is loaded. The
+watermark and the bookkeeping files stay untouched.
 
-ServerIDs sind je Kanal verschieden - erst den Startpunkt ermitteln, dann von
-dort aus rückwärts suchen.
+Server IDs differ per channel - find the starting point first, then search
+backwards from there.
 
-Beispiele:
-    # 1. Startpunkt finden: neueste ServerID ausgeben (einziger Abruf, der an
-    #    der neuesten Nachricht sicher ist)
-    venv/bin/python3 skyrelay-testlauf.py --neueste
+Examples:
+    # 1. Find the starting point: print the latest server ID (the only fetch
+    #    that is safe at the newest message)
+    venv/bin/python3 skyrelay-testlauf.py --latest
 
-    # 2. Von dort aus rückwärts nach Sprachnachrichten und Stickern suchen
-    venv/bin/python3 skyrelay-testlauf.py --vor <ServerID> --typ audio,sticker
+    # 2. From there, search backwards for voice messages and stickers
+    venv/bin/python3 skyrelay-testlauf.py --before <serverID> --type audio,sticker
 
-    # alles Mögliche, die ersten 5 Treffer
-    venv/bin/python3 skyrelay-testlauf.py --vor <ServerID> --typ alle --anzahl 5
+    # anything at all, the first 5 hits
+    venv/bin/python3 skyrelay-testlauf.py --before <serverID> --type all --count 5
 """
 import argparse
 import asyncio
@@ -35,135 +36,136 @@ import importlib.util
 import os
 import sys
 
-BASIS = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# MUSS vor dem Laden des Tickers gesetzt sein - danach liest er es nicht mehr.
+# MUST be set before the ticker is loaded - afterwards it no longer reads it.
 os.environ["SKYRELAY_DRY_RUN"] = "1"
 
-TYPEN = {
+TYPES = {
     "audio": "audioMessage",
     "sticker": "stickerMessage",
-    "bild": "imageMessage",
+    "image": "imageMessage",
     "video": "videoMessage",
     "text": "conversation",
 }
 
 
-def lade_ticker():
-    """Lädt skyrelay-matchday.py als Modul (der Bindestrich verbietet import)."""
-    pfad = os.path.join(BASIS, "skyrelay-matchday.py")
-    if not os.path.exists(pfad):
-        sys.exit(f"Nicht gefunden: {pfad}")
-    sys.path.insert(0, BASIS)
-    spec = importlib.util.spec_from_file_location("skyrelay_matchday", pfad)
-    modul = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(modul)
-    return modul
+def load_ticker():
+    """Loads skyrelay-matchday.py as a module (the hyphen forbids import)."""
+    path = os.path.join(BASE_DIR, "skyrelay-matchday.py")
+    if not os.path.exists(path):
+        sys.exit(f"Not found: {path}")
+    sys.path.insert(0, BASE_DIR)
+    spec = importlib.util.spec_from_file_location("skyrelay_matchday", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
-async def hauptlauf(args, md):
+async def run(args, md):
     from neonize.events import ConnectedEv
     from neonize.types import MessageServerID
 
-    verbunden = asyncio.Event()
+    connected = asyncio.Event()
 
     @md.client.event(ConnectedEv)
     async def _(_a, _b):
-        verbunden.set()
+        connected.set()
 
-    print("Verbinde mit WhatsApp...")
+    print("Connecting to WhatsApp...")
     await md.client.connect()
     try:
-        await asyncio.wait_for(verbunden.wait(), timeout=120)
+        await asyncio.wait_for(connected.wait(), timeout=120)
     except asyncio.TimeoutError:
-        sys.exit("Keine WhatsApp-Verbindung innerhalb von 120s.")
+        sys.exit("No WhatsApp connection within 120s.")
     await asyncio.sleep(5)
 
     jid = (await md.client.get_newsletter_info_with_invite(md.CHANNEL_INVITE_LINK)).ID
-    print(f"✓ Kanal {jid.User}@{jid.Server}\n")
+    print(f"✓ Channel {jid.User}@{jid.Server}\n")
 
-    if args.neueste:
-        # count=1 ist der einzige Abruf, der an der neuesten Nachricht sicher ist.
-        nachr = await md.client.get_newsletter_messages(jid, 1, MessageServerID(0))
-        for nm in nachr:
-            print(f"Neueste ServerID: {nm.MessageServerID}")
-        print("\nDamit als --vor starten, z.B.:  --vor", nachr[0].MessageServerID)
+    if args.latest:
+        # count=1 is the only fetch that is safe at the newest message.
+        messages = await md.client.get_newsletter_messages(jid, 1, MessageServerID(0))
+        for nm in messages:
+            print(f"Latest server ID: {nm.MessageServerID}")
+        print("\nStart from that with --before, e.g.:  --before",
+              messages[0].MessageServerID)
         return
 
-    gesuchte_felder = (list(TYPEN.values()) if args.typ == "alle"
-                       else [TYPEN[t.strip()] for t in args.typ.split(",")])
+    wanted_fields = (list(TYPES.values()) if args.type == "all"
+                     else [TYPES[t.strip()] for t in args.type.split(",")])
 
-    treffer = []
-    vor = args.vor
-    for runde in range(1, args.runden + 1):
-        if len(treffer) >= args.anzahl:
+    hits = []
+    before = args.before
+    for round_number in range(1, args.rounds + 1):
+        if len(hits) >= args.count:
             break
         try:
-            nachr = await md.client.get_newsletter_messages(jid, args.block,
-                                                            MessageServerID(vor))
-        except Exception as fehler:
-            print(f"Abruf gestoppt: {fehler}")
+            messages = await md.client.get_newsletter_messages(jid, args.block,
+                                                              MessageServerID(before))
+        except Exception as error:
+            print(f"Fetching stopped: {error}")
             break
-        if not nachr:
-            print("(keine weiteren Nachrichten)")
+        if not messages:
+            print("(no further messages)")
             break
-        nachr = sorted(nachr, key=lambda n: n.MessageServerID)
-        for nm in nachr:
+        messages = sorted(messages, key=lambda n: n.MessageServerID)
+        for nm in messages:
             msg = md.unwrap_message(nm.Message)
-            felder = [fd.name for fd, _ in msg.ListFields()]
-            if any(f in felder for f in gesuchte_felder):
-                treffer.append(nm)
-        vor = nachr[0].MessageServerID
-        print(f"  Block {runde}: bis ServerID {vor} durchsucht, "
-              f"{len(treffer)} Treffer")
+            fields = [fd.name for fd, _ in msg.ListFields()]
+            if any(f in fields for f in wanted_fields):
+                hits.append(nm)
+        before = messages[0].MessageServerID
+        print(f"  Block {round_number}: searched down to server ID {before}, "
+              f"{len(hits)} hit(s)")
 
-    if not treffer:
-        print("\nKeine passenden Nachrichten gefunden - mit kleinerem --vor "
-              "oder mehr --runden erneut versuchen.")
+    if not hits:
+        print("\nNo matching messages found - try again with a smaller --before "
+              "or more --rounds.")
         return
 
-    print(f"\n{'=' * 60}\n{len(treffer)} Nachricht(en) werden durchgespielt "
-          f"(es wird NICHTS gepostet)\n{'=' * 60}")
-    for nm in treffer[:args.anzahl]:
-        print(f"\n----- ServerID {nm.MessageServerID} -----")
+    print(f"\n{'=' * 60}\nPlaying {len(hits)} message(s) through the pipeline "
+          f"(NOTHING is posted)\n{'=' * 60}")
+    for nm in hits[:args.count]:
+        print(f"\n----- server ID {nm.MessageServerID} -----")
         try:
             await md.process_newsletter_message(md.client, nm.Message,
                                                 nm.MessageServerID)
-        except Exception as fehler:
-            print(f"  ⚠️ Verarbeitung fehlgeschlagen: {type(fehler).__name__}: {fehler}")
+        except Exception as error:
+            print(f"  ⚠️ Processing failed: {type(error).__name__}: {error}")
 
 
 def main():
     p = argparse.ArgumentParser(
-        description="Spielt echte Kanal-Nachrichten durch die Ticker-Pipeline, "
-                    "ohne zu veröffentlichen.")
-    p.add_argument("--vor", type=int, default=0,
-                   help="ServerID, unterhalb derer gesucht wird. 0 = ab der "
-                        "neuesten - ACHTUNG, das kann die Go-Schicht abstürzen "
-                        "lassen (siehe ISSUE-DRAFT). Lieber einen Wert setzen.")
-    p.add_argument("--typ", default="audio,sticker",
-                   help="Kommaliste aus " + ", ".join(TYPEN) + " oder 'alle'. "
-                        "Vorgabe: audio,sticker")
-    p.add_argument("--anzahl", type=int, default=2,
-                   help="So viele Treffer werden durchgespielt (Vorgabe 2).")
+        description="Plays real channel messages through the ticker pipeline "
+                    "without publishing.")
+    p.add_argument("--before", type=int, default=0,
+                   help="Server ID to search below. 0 = from the newest one - "
+                        "CAREFUL, that can crash the Go layer (see the issue "
+                        "draft). Better to set a value.")
+    p.add_argument("--type", default="audio,sticker",
+                   help="Comma separated list of " + ", ".join(TYPES) +
+                        " or 'all'. Default: audio,sticker")
+    p.add_argument("--count", type=int, default=2,
+                   help="How many hits are played through (default 2).")
     p.add_argument("--block", type=int, default=3,
-                   help="Nachrichten je Abruf (Vorgabe 3, klein halten).")
-    p.add_argument("--runden", type=int, default=10,
-                   help="So viele Blöcke werden höchstens durchsucht.")
-    p.add_argument("--neueste", action="store_true",
-                   help="Nur die neueste ServerID ausgeben und beenden.")
+                   help="Messages per fetch (default 3, keep it small).")
+    p.add_argument("--rounds", type=int, default=10,
+                   help="How many blocks are searched at most.")
+    p.add_argument("--latest", action="store_true",
+                   help="Only print the latest server ID, then stop.")
     args = p.parse_args()
 
-    if args.typ != "alle":
-        unbekannt = [t.strip() for t in args.typ.split(",") if t.strip() not in TYPEN]
-        if unbekannt:
-            sys.exit(f"Unbekannter Typ: {', '.join(unbekannt)} "
-                     f"(erlaubt: {', '.join(TYPEN)}, alle)")
+    if args.type != "all":
+        unknown = [t.strip() for t in args.type.split(",") if t.strip() not in TYPES]
+        if unknown:
+            sys.exit(f"Unknown type: {', '.join(unknown)} "
+                     f"(allowed: {', '.join(TYPES)}, all)")
 
-    md = lade_ticker()
+    md = load_ticker()
     if not md.DRY_RUN:
-        sys.exit("Sicherheitshalt: DRY_RUN ist nicht aktiv - Abbruch.")
-    asyncio.run(hauptlauf(args, md))
+        sys.exit("Safety stop: DRY_RUN is not active - aborting.")
+    asyncio.run(run(args, md))
 
 
 if __name__ == "__main__":
