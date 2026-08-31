@@ -77,20 +77,20 @@ from neonize.types import MessageServerID
 
 from skyrelay_common import (
     log,
-    lade_config,
+    load_config,
     start_file_logging,
-    melde_bei_bluesky_an,
-    hole_app_passwort,
+    log_in_to_bluesky,
+    get_app_password,
     compress_image_for_bluesky,
     upload_video_to_bluesky,
-    merke_video_daten,
-    merke_nachreich_ziel,
-    reiche_videos_nach,
-    audio_zu_video,
-    video_standbild,
-    sticker_zu_bild,
-    baue_quellzeile,
-    zeige_vorschau,
+    stash_video,
+    stash_retry_target,
+    post_stashed_videos,
+    audio_to_video,
+    video_still,
+    sticker_to_image,
+    build_source_line,
+    show_preview,
 )
 from skyrelay_config import check_config, show_config
 
@@ -111,7 +111,7 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 # Alle vereins- und kontospezifischen Werte stehen in "skyrelay.conf"
 # (Vorlage: skyrelay.conf.example). Hier wird nur noch gelesen.
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-cfg, cfg_int, cfg_bool, CONFIG_FILE = lade_config(BASE_DIR)
+cfg, cfg_int, cfg_bool, CONFIG_FILE = load_config(BASE_DIR)
 _cfg = configparser.ConfigParser(interpolation=None)
 with open(CONFIG_FILE, encoding="utf-8") as _f:
     _cfg.read_file(_f)  # für den direkten Zugriff auf [team_codes]
@@ -252,7 +252,7 @@ if LOG_TO_FILE:
     log(f"--- Ticker-Start (Log: {LOG_FILE}) ---")
 
 # Eigenes Passwort für den Ticker, sonst das gemeinsame.
-BLUESKY_APP_PASSWORD, PASSWORT_VARIABLE = hole_app_passwort(
+BLUESKY_APP_PASSWORD, PASSWORT_VARIABLE = get_app_password(
     "BLUESKY_TICKER_APP_PASSWORD", "BLUESKY_APP_PASSWORD")
 if not BLUESKY_APP_PASSWORD and not DRY_RUN:
     log(f"Fehler: Kein App-Passwort für das Ticker-Konto @{BLUESKY_HANDLE} gesetzt.")
@@ -522,7 +522,7 @@ def baue_beitragstext(chunk, index, gesamt, hashtags):
     echte Lauf senden würde, statt einer nachgebauten Näherung."""
     tb = client_utils.TextBuilder()
     if index == 0:
-        baue_quellzeile(tb, POST_PREFIX, POST_SOURCE_LABEL, CHANNEL_INVITE_LINK)
+        build_source_line(tb, POST_PREFIX, POST_SOURCE_LABEL, CHANNEL_INVITE_LINK)
     add_text_with_links(tb, chunk if gesamt == 1 else f"{chunk} ({index + 1}/{gesamt})")
     if index == gesamt - 1:
         tb.text("\n\n")
@@ -615,7 +615,7 @@ def ensure_bsky():
     # Erst nach erfolgreicher Anmeldung übernehmen: Sonst bliebe ein
     # unangemeldetes Objekt zurück, und alle folgenden Beiträge liefen
     # ohne Anmeldung ins Leere ("AuthMissing").
-    melde_bei_bluesky_an(verbindung, BLUESKY_HANDLE, BLUESKY_APP_PASSWORD,
+    log_in_to_bluesky(verbindung, BLUESKY_HANDLE, BLUESKY_APP_PASSWORD,
                          PASSWORT_VARIABLE)
     bsky_client = verbindung
 
@@ -739,7 +739,7 @@ def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None,
         video = f", 1 Video ({len(video_bytes)} Bytes)" if video_bytes else ""
         log(f"   [DRY_RUN] Würde posten ({len(text_chunks)} Beitrag/Beiträge, "
             f"{len(image_blobs)} Bild(er){video}{card}):")
-        zeige_vorschau([baue_beitragstext(chunk, i, len(text_chunks), hashtags)
+        show_preview([baue_beitragstext(chunk, i, len(text_chunks), hashtags)
                         for i, chunk in enumerate(text_chunks)])
         return []
 
@@ -759,7 +759,7 @@ def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None,
             log(f"   ⚠️ Video-Upload fehlgeschlagen: {video_err}")
             # Der Beitrag geht sofort mit dem Vorschaubild raus - beim Live-Ticker
             # zählt die Zeit. Das Video bleibt liegen und wird nachgereicht.
-            offenes_video = merke_video_daten(VIDEO_RETRY_DIR, media_name, video_bytes)
+            offenes_video = stash_video(VIDEO_RETRY_DIR, media_name, video_bytes)
             if video_thumb and not image_blobs:
                 try:
                     image_blobs = [compress_image_for_bluesky(video_thumb)]
@@ -801,7 +801,7 @@ def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None,
             parent_ref = root_ref
             created_uris.append(root_post.uri)
             if offenes_video:
-                merke_nachreich_ziel(VIDEO_RETRY_DIR, media_name, bsky_client.me.did,
+                stash_retry_target(VIDEO_RETRY_DIR, media_name, bsky_client.me.did,
                                      root_ref.uri, root_ref.cid,
                                      root_ref.uri, root_ref.cid,
                                      f"{media_name}.mp4", alt_text)
@@ -916,9 +916,9 @@ async def process_newsletter_message(client, raw_msg, server_id):
             audio = await lade_kanal_medien(client, msg)
             log(f"   ✓ Sprachnachricht geladen ({len(audio)} Bytes, {sekunden}s).")
             log("   Erzeuge Video mit Wellenform...")
-            video_bytes = audio_zu_video(audio, AUDIO_SIZE, AUDIO_WAVE_COLOR,
+            video_bytes = audio_to_video(audio, AUDIO_SIZE, AUDIO_WAVE_COLOR,
                                          AUDIO_BG_COLOR, AUDIO_FRAMERATE)
-            video_thumb = video_standbild(video_bytes)
+            video_thumb = video_still(video_bytes)
             log(f"   ✓ Video erzeugt ({len(video_bytes)} Bytes).")
         except Exception as audio_err:
             log(f"   ⚠️ Sprachnachricht nicht übertragbar: {audio_err}")
@@ -932,7 +932,7 @@ async def process_newsletter_message(client, raw_msg, server_id):
         try:
             log("   Lade Sticker aus dem Kanal herunter...")
             roh = await lade_kanal_medien(client, msg)
-            image_blobs.append(sticker_zu_bild(roh, STICKER_BACKGROUND))
+            image_blobs.append(sticker_to_image(roh, STICKER_BACKGROUND))
             log(f"   ✓ Sticker umgewandelt ({len(roh)} Bytes Ausgangsmaterial).")
         except Exception as sticker_err:
             log(f"   ⚠️ Sticker nicht übertragbar: {sticker_err}")
@@ -1301,7 +1301,7 @@ async def main():
                 try:
                     ensure_bsky()
                     await asyncio.to_thread(
-                        reiche_videos_nach, bsky_client, VIDEO_RETRY_DIR,
+                        post_stashed_videos, bsky_client, VIDEO_RETRY_DIR,
                         VIDEO_RETRY_TEXT, VIDEO_RETRY_MAX_ATTEMPTS,
                         MAX_VIDEO_BYTES, VIDEO_JOB_TIMEOUT_SECONDS)
                 except Exception as nach_err:
