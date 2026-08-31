@@ -30,7 +30,7 @@ from atproto_client.models.blob_ref import BlobRef
 # Die Konfigurationswerkzeuge liegen bewusst in einem eigenen Modul ohne
 # Fremdpakete - so kann der Einrichtungsassistent sie auch benutzen, wenn
 # atproto und Pillow noch gar nicht installiert sind.
-from skyrelay_konfig import konfig_pfad
+from skyrelay_config import config_path
 
 
 # ----------------------------------------------------------------- Protokoll
@@ -114,7 +114,7 @@ def lade_config(basis_dir):
     """Lädt skyrelay.conf (oder den Pfad aus SKYRELAY_CONFIG) und liefert
     (cfg, cfg_int, cfg_bool, pfad) zurück. Fehlt die Datei oder ist sie
     unlesbar, endet das Programm mit einer verständlichen Meldung."""
-    pfad = konfig_pfad(basis_dir)
+    pfad = config_path(basis_dir)
 
     if not os.path.exists(pfad):
         print(f"Fehler: Konfigurationsdatei nicht gefunden: {pfad}\n"

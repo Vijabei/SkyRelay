@@ -47,16 +47,16 @@ from skyrelay_common import (
     baue_quellzeile,
     zeige_vorschau,
 )
-from skyrelay_konfig import pruefe_konfiguration, zeige_konfiguration
+from skyrelay_config import check_config, show_config
 
 # Auskunft über die Konfiguration, noch bevor irgendetwas anderes anläuft:
 # Beide Aufrufe verbinden sich mit nichts und schreiben nichts.
 #   --check-config  meldet, was nicht zusammenpasst
 #   --show-config   zeigt, welcher Wert gerade gilt und woher er stammt
 if "--check-config" in sys.argv:
-    sys.exit(pruefe_konfiguration(os.path.dirname(os.path.abspath(__file__))))
+    sys.exit(check_config(os.path.dirname(os.path.abspath(__file__))))
 if "--show-config" in sys.argv:
-    sys.exit(zeige_konfiguration(os.path.dirname(os.path.abspath(__file__))))
+    sys.exit(show_config(os.path.dirname(os.path.abspath(__file__))))
 
 
 # Instagram wechselt regelmäßig die Endpunkte, über die Profildaten abrufbar sind -

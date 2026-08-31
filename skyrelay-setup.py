@@ -19,7 +19,7 @@ import sys
 import unicodedata
 
 import skyrelay_tui as tui
-import skyrelay_konfig as konfig
+import skyrelay_config as config
 
 try:
     import requests
@@ -686,7 +686,7 @@ def m_ticker(zeilen):
         kanal = lies_wert(zeilen, "source", "channel_invite_link")
         kanal_text = "– nicht gesetzt –" if not kanal or "HIER-DEN" in kanal else "gesetzt"
         liga = lies_wert(zeilen, "team", "openligadb_filter") or "ohne Spielplan"
-        wahl = tui.menue(
+        wahl = tui.menu(
             "Spieltags-Ticker", "WhatsApp-Kanal → Bluesky, läuft nur an Spieltagen.",
             [("konto", f"Bluesky-Konto ......  {_zeige(zeilen, 'bluesky', 'handle')}"),
              ("kanal", f"WhatsApp-Kanal ....  {kanal_text}"),
@@ -694,18 +694,18 @@ def m_ticker(zeilen):
         if wahl is None:
             return
         if wahl == "konto":
-            wert = tui.frage("Bluesky-Konto für den TICKER",
+            wert = tui.ask("Bluesky-Konto für den TICKER",
                              "Konto, auf dem die Kanalbeiträge veröffentlicht werden.\n"
                              "Ohne führendes @, z.B. mein-ticker.bsky.social",
                              lies_wert(zeilen, "bluesky", "handle"))
             if wert:
                 fehler = pruefe_handle(wert)
                 if fehler:
-                    tui.meldung("Ungültig", fehler)
+                    tui.message("Ungültig", fehler)
                 else:
                     setze_wert(zeilen, "bluesky", "handle", wert)
         elif wahl == "kanal":
-            wert = tui.frage("WhatsApp-Kanal",
+            wert = tui.ask("WhatsApp-Kanal",
                              "Einladungslink des Kanals.\n\n"
                              "Im Handy: Kanal öffnen → Kanalnamen antippen →\n"
                              "Teilen → Link kopieren.",
@@ -713,7 +713,7 @@ def m_ticker(zeilen):
             if wert:
                 fehler = pruefe_kanal_link(wert)
                 if fehler:
-                    tui.meldung("Ungültig", fehler)
+                    tui.message("Ungültig", fehler)
                 else:
                     setze_wert(zeilen, "source", "channel_invite_link", wert)
         elif wahl == "liga":
@@ -725,14 +725,14 @@ def m_liga(zeilen):
     eintraege = [(k, b) for k, _, b in EMPFOHLENE_LIGEN]
     eintraege += [("suchen", "andere Liga aus OpenLigaDB …"),
                   ("ohne", "kein Spielplan (läuft an jedem Starttag)")]
-    wahl = tui.menue("Liga", "Grundlage für Spieltags-Erkennung und Hashtag.", eintraege)
+    wahl = tui.menu("Liga", "Grundlage für Spieltags-Erkennung und Hashtag.", eintraege)
     if wahl is None:
         return
 
     if wahl == "ohne":
         setze_wert(zeilen, "team", "openligadb_filter", "")
         setze_wert(zeilen, "team", "openligadb_team_id", "0")
-        tui.meldung("Ohne Spielplan",
+        tui.message("Ohne Spielplan",
                     "Die Spieltags-Erkennung ist abgeschaltet.\n\n"
                     "Der Ticker läuft an jedem Tag, an dem er gestartet wird.\n"
                     "Einen wechselnden Hashtag gibst du beim Start über\n"
@@ -741,13 +741,13 @@ def m_liga(zeilen):
         return
 
     if wahl == "suchen":
-        tui.fortschritt("Ligen werden von OpenLigaDB geladen …")
+        tui.progress("Ligen werden von OpenLigaDB geladen …")
         try:
             ligen = hole_aktuelle_ligen()
         except Exception as fehler:
-            tui.meldung("Abruf fehlgeschlagen", str(fehler))
+            tui.message("Abruf fehlgeschlagen", str(fehler))
             return
-        gewaehlt = tui.liste_waehlen(
+        gewaehlt = tui.choose(
             "Liga wählen", f"{len(ligen)} Ligen mit laufender Saison:",
             [(f'{l["leagueShortcut"]}|{l["leagueSeason"]}',
               f'{(l.get("sport") or {}).get("sportName", "?")} · {l["leagueName"]}')
@@ -758,23 +758,23 @@ def m_liga(zeilen):
     else:
         liga = wahl
         saison = next(s for k, s, _ in EMPFOHLENE_LIGEN if k == wahl)
-        eingabe = tui.frage("Saison", "Startjahr der Saison:", saison)
+        eingabe = tui.ask("Saison", "Startjahr der Saison:", saison)
         if eingabe is None:
             return
         saison = eingabe
 
-    tui.fortschritt(f"Mannschaften aus {liga}/{saison} werden geladen …")
+    tui.progress(f"Mannschaften aus {liga}/{saison} werden geladen …")
     try:
         teams = hole_teams(liga, saison)
     except Exception as fehler:
-        tui.meldung("Abruf fehlgeschlagen", str(fehler))
+        tui.message("Abruf fehlgeschlagen", str(fehler))
         return
     if not teams:
-        tui.meldung("Nichts gefunden", f"Zu {liga}/{saison} liefert OpenLigaDB keine Mannschaften.")
+        tui.message("Nichts gefunden", f"Zu {liga}/{saison} liefert OpenLigaDB keine Mannschaften.")
         return
 
     sortiert = sorted(teams, key=lambda t: t.get("shortName") or "")
-    gewaehlt = tui.liste_waehlen(
+    gewaehlt = tui.choose(
         "Verein wählen", "Für welchen Verein läuft der Ticker?",
         [(t["teamId"], f'{t.get("shortName") or t["teamName"]}  ({t["teamName"]})')
          for t in sortiert],
@@ -785,7 +785,7 @@ def m_liga(zeilen):
     verein = next(t for t in teams if str(t["teamId"]) == str(gewaehlt))
     setze_wert(zeilen, "team", "openligadb_team_id", verein["teamId"])
     such = (verein.get("shortName") or verein["teamName"]).split()[-1].lower()
-    eingabe = tui.frage("Suchbegriff",
+    eingabe = tui.ask("Suchbegriff",
                         "Begriff, mit dem OpenLigaDB nach dem Verein sucht:", such)
     setze_wert(zeilen, "team", "openligadb_filter", eingabe or such)
 
@@ -799,7 +799,7 @@ def m_liga(zeilen):
             codes[team["teamId"]] = kuerzel_vorschlag(team)[0]
             neu += 1
     setze_team_codes(zeilen, codes)
-    tui.meldung("Verein gesetzt",
+    tui.message("Verein gesetzt",
                 f'{verein["teamName"]}\n\n'
                 f"Kürzeltabelle: {neu} Mannschaft(en) ergänzt, "
                 f"{len(vorhanden)} bereits vorhanden.\n\n"
@@ -813,7 +813,7 @@ def m_kuerzel(zeilen):
         codes = {int(z.split("=")[0].strip()): z.split("=", 1)[1].strip()
                  for z in zeilen if re.match(r"^\d+\s*=", z)}
         if not codes:
-            tui.meldung("Noch keine Kürzel",
+            tui.message("Noch keine Kürzel",
                         "Wähle zuerst unter „Spieltags-Ticker“ eine Liga und einen Verein.")
             return
         eigenes = lies_wert(zeilen, "team", "openligadb_team_id")
@@ -821,12 +821,12 @@ def m_kuerzel(zeilen):
         for team_id, code in sorted(codes.items(), key=lambda x: x[1]):
             marke = " ←  eigener Verein" if str(team_id) == eigenes else ""
             eintraege.append((team_id, f"{code:6} (Nr. {team_id}){marke}"))
-        wahl = tui.liste_waehlen("Kürzel für Hashtags",
+        wahl = tui.choose("Kürzel für Hashtags",
                                  "Aus Heim + Auswärts entsteht der Hashtag, z.B. #KSCDSC.\n"
                                  "Eintrag wählen zum Ändern.", eintraege)
         if wahl is None:
             return
-        neu = tui.frage("Kürzel ändern", f"Kürzel für Team-Nummer {wahl}:", codes[int(wahl)])
+        neu = tui.ask("Kürzel ändern", f"Kürzel für Team-Nummer {wahl}:", codes[int(wahl)])
         if neu:
             codes[int(wahl)] = neu.strip().upper()
             setze_team_codes(zeilen, codes)
@@ -837,7 +837,7 @@ def m_feed(zeilen):
     while True:
         konto = lies_wert(zeilen, "feed", "bluesky_handle") or \
             (lies_wert(zeilen, "bluesky", "handle") + "  (wie Ticker)")
-        wahl = tui.menue(
+        wahl = tui.menu(
             "Instagram-Feed", "Instagram → Bluesky, läuft im Dauerbetrieb.",
             [("profil", f"Instagram-Profil ..  {_zeige(zeilen, 'feed', 'instagram_profile')}"),
              ("konto2", f"Zweitkonto (Abruf)   {_zeige(zeilen, 'feed', 'instagram_session_user')}"),
@@ -845,13 +845,13 @@ def m_feed(zeilen):
         if wahl is None:
             return
         if wahl == "profil":
-            wert = tui.frage("Instagram-Profil",
+            wert = tui.ask("Instagram-Profil",
                              "Profil, das gespiegelt wird (ohne @):",
                              lies_wert(zeilen, "feed", "instagram_profile"))
             if wert:
                 setze_wert(zeilen, "feed", "instagram_profile", wert.lstrip("@"))
         elif wahl == "konto2":
-            wert = tui.frage("Instagram-Zweitkonto",
+            wert = tui.ask("Instagram-Zweitkonto",
                              "Konto, mit dem abgerufen wird – NICHT das gespiegelte Profil.\n\n"
                              "Sitzung anlegen mit:  venv/bin/instaloader -l <name>",
                              lies_wert(zeilen, "feed", "instagram_session_user"))
@@ -859,15 +859,15 @@ def m_feed(zeilen):
                 setze_wert(zeilen, "feed", "instagram_session_user", wert.lstrip("@"))
         elif wahl == "bsky":
             eigenes = lies_wert(zeilen, "feed", "bluesky_handle")
-            if tui.ja_nein("Bluesky-Konto für den Feed",
+            if tui.confirm("Bluesky-Konto für den Feed",
                            "Soll die Instagram-Spiegelung ein ANDERES Konto\n"
                            f"verwenden als der Ticker ({lies_wert(zeilen, 'bluesky', 'handle')})?",
                            bool(eigenes)):
-                wert = tui.frage("Konto für den Feed", "Handle ohne @:",
+                wert = tui.ask("Konto für den Feed", "Handle ohne @:",
                                  eigenes or lies_wert(zeilen, "bluesky", "handle"))
                 if wert:
                     setze_wert(zeilen, "feed", "bluesky_handle", wert)
-                    tui.meldung("Getrennte Konten",
+                    tui.message("Getrennte Konten",
                                 "Beide Bots brauchen dann eigene App-Passwörter:\n\n"
                                 "  Ticker: BLUESKY_TICKER_APP_PASSWORD\n"
                                 "  Feed:   BLUESKY_FEED_APP_PASSWORD")
@@ -879,7 +879,7 @@ def m_texte(zeilen):
     """Beitragstexte und Profil-Statuszeile."""
     while True:
         an = lies_wert(zeilen, "profile", "enabled")
-        wahl = tui.menue(
+        wahl = tui.menu(
             "Beiträge und Profil", "Wie die Beiträge aussehen und was in der Bio steht.",
             [("tag", f"Dauer-Hashtag .....  {_zeige(zeilen, 'post', 'standing_hashtag', '– keiner –')}"),
              ("kopf", f"Kopfzeile .........  {_zeige(zeilen, 'post', 'prefix', kurz=30)}"),
@@ -889,40 +889,40 @@ def m_texte(zeilen):
         if wahl is None:
             return
         if wahl == "tag":
-            wert = tui.frage("Dauer-Hashtag",
+            wert = tui.ask("Dauer-Hashtag",
                              "Steht unter JEDEM Beitrag, ohne # (leer = keiner):",
                              lies_wert(zeilen, "post", "standing_hashtag"))
             if wert is not None:
                 setze_wert(zeilen, "post", "standing_hashtag", wert.lstrip("#"))
         elif wahl == "kopf":
-            wert = tui.frage("Kopfzeile",
+            wert = tui.ask("Kopfzeile",
                              "Erste Zeile jedes Hauptbeitrags\n"
                              "(leer = keine Kopfzeile):",
                              lies_wert(zeilen, "post", "prefix"))
             if wert is not None:
                 setze_wert(zeilen, "post", "prefix", wert)
         elif wahl == "quelle":
-            wert = tui.frage("Quell-Beschriftung (Ticker)",
+            wert = tui.ask("Quell-Beschriftung (Ticker)",
                              "Text des Links zum WhatsApp-Kanal\n"
                              "(leer = keine Quellenangabe im Beitrag):",
                              lies_wert(zeilen, "post", "source_label"))
             if wert is not None:
                 setze_wert(zeilen, "post", "source_label", wert)
         elif wahl == "quelle_feed":
-            wert = tui.frage("Quell-Beschriftung (Feed)",
+            wert = tui.ask("Quell-Beschriftung (Feed)",
                              "Text des Links zum Instagram-Beitrag\n"
                              "(leer = keine Quellenangabe im Beitrag):",
                              lies_wert(zeilen, "feed", "source_label"))
             if wert is not None:
                 setze_wert(zeilen, "feed", "source_label", wert)
         elif wahl == "profil":
-            if tui.ja_nein("Profil-Statuszeile",
+            if tui.confirm("Profil-Statuszeile",
                            "Soll die erste Zeile der Bluesky-Biografie anzeigen,\n"
                            "ob der Bot gerade läuft?", an != "false"):
                 setze_wert(zeilen, "profile", "enabled", "true")
                 for schluessel, beschriftung in (("line_on", "Text während des Betriebs"),
                                                  ("line_off", "Text nach dem Beenden")):
-                    wert = tui.frage(beschriftung,
+                    wert = tui.ask(beschriftung,
                                      "Platzhalter: {info}, {hashtag}, {date}, {time}",
                                      lies_wert(zeilen, "profile", schluessel))
                     if wert:
@@ -933,18 +933,18 @@ def m_texte(zeilen):
 
 def m_zeiten(zeilen):
     """Zeitfenster und Zeitzone."""
-    wahl = tui.menue("Zeitfenster", "Wann der Ticker arbeitet.",
+    wahl = tui.menu("Zeitfenster", "Wann der Ticker arbeitet.",
                      [("ende", f"Betriebsende ......  {_zeige(zeilen, 'schedule', 'day_end')}"),
                       ("zone", f"Zeitzone ..........  {_zeige(zeilen, 'team', 'timezone')}")])
     if wahl == "ende":
-        wert = tui.frage("Betriebsende",
+        wert = tui.ask("Betriebsende",
                          "Bis zu dieser Uhrzeit lauscht der Ticker (HH:MM),\n"
                          "danach beendet er sich selbst:",
                          lies_wert(zeilen, "schedule", "day_end"))
         if wert:
             setze_wert(zeilen, "schedule", "day_end", wert)
     elif wahl == "zone":
-        wert = tui.frage("Zeitzone", "z.B. Europe/Berlin:",
+        wert = tui.ask("Zeitzone", "z.B. Europe/Berlin:",
                          lies_wert(zeilen, "team", "timezone"))
         if wert:
             setze_wert(zeilen, "team", "timezone", wert)
@@ -969,19 +969,19 @@ def m_pruefen(zeilen):
             berichte.append(f"@{handle}\n   Anmeldung erfolgreich")
         except Exception as fehler:
             berichte.append(f"@{handle}\n   FEHLER: {str(fehler)[:60]}")
-    tui.meldung("Anmeldung geprüft",
+    tui.message("Anmeldung geprüft",
                 "\n\n".join(berichte) or "Es ist noch kein Konto eingetragen.")
 
 
-def m_nachziehen(zeilen):
+def m_add_missing(zeilen):
     """Fehlende Schlüssel aus der Vorlage ergänzen - mit ihren Erklärungen.
 
     Arbeitet auf dem Stand im Assistenten, nicht auf der Datei: Gespeichert wird
     wie sonst auch erst über den Menüpunkt zum Speichern."""
     probe = list(zeilen)
-    ergaenzt = konfig.nachziehen(probe, BASE_DIR)
+    ergaenzt = config.add_missing_keys(probe, BASE_DIR)
     if not ergaenzt:
-        tui.meldung("Nichts nachzuziehen",
+        tui.message("Nichts nachzuziehen",
                     "Alle Schlüssel der Vorlage stehen bereits in der "
                     "Konfiguration.")
         return
@@ -989,13 +989,13 @@ def m_nachziehen(zeilen):
     liste = "\n".join(f"  [{a}] {s} = {w}" for a, s, w in ergaenzt[:18])
     if len(ergaenzt) > 18:
         liste += f"\n  … und {len(ergaenzt) - 18} weitere"
-    if not tui.ja_nein("Konfiguration nachziehen",
+    if not tui.confirm("Konfiguration nachziehen",
                        f"{len(ergaenzt)} Schlüssel fehlen. Sie werden mit den "
                        f"Erklärungen aus der Vorlage ergänzt; vorhandene Werte "
                        f"bleiben unverändert.\n\n{liste}\n\nErgänzen?", True):
         return
     zeilen[:] = probe
-    tui.meldung("Nachgezogen",
+    tui.message("Nachgezogen",
                 f"{len(ergaenzt)} Schlüssel ergänzt.\n\n"
                 f"Noch nicht gespeichert - das erledigt der Menüpunkt "
                 f"\"Speichern und beenden\".")
@@ -1004,11 +1004,11 @@ def m_nachziehen(zeilen):
 def m_konfig_pruefen(zeilen):
     """Konfiguration gegen die Quelltexte und die Vorlage prüfen.
     Geprüft wird der aktuelle Stand im Assistenten, auch ungespeichert."""
-    befunde = konfig.sammle_konfig_befunde(BASE_DIR, "".join(zeilen))
+    befunde = config.collect_findings(BASE_DIR, "".join(zeilen))
     probleme = [t for schwere, t in befunde if schwere == "problem"]
     hinweise = [t for schwere, t in befunde if schwere == "hinweis"]
     if not befunde:
-        tui.meldung("Konfiguration geprüft", "Keine Auffälligkeiten.")
+        tui.message("Konfiguration geprüft", "Keine Auffälligkeiten.")
         return
     teile = []
     if probleme:
@@ -1016,7 +1016,7 @@ def m_konfig_pruefen(zeilen):
     if hinweise:
         teile.append("Hinweise (Vorgaben greifen):\n"
                      + "\n".join(f"  ℹ {t}" for t in hinweise))
-    tui.meldung("Konfiguration geprüft", "\n\n".join(teile))
+    tui.message("Konfiguration geprüft", "\n\n".join(teile))
 
 
 def menue_modus():
@@ -1041,7 +1041,7 @@ def menue_modus():
             "Alle Pflichtangaben sind gesetzt."
         stern = " *" if zeilen != gespeichert else ""
 
-        wahl = tui.menue(
+        wahl = tui.menu(
             "SkyRelay einrichten",
             f"{hinweis_text}\n\nDatei: {os.path.basename(ZIEL)}{stern}",
             [("1", "Spieltags-Ticker    WhatsApp-Kanal → Bluesky"),
@@ -1070,14 +1070,14 @@ def menue_modus():
         elif wahl == "7":
             m_konfig_pruefen(zeilen)
         elif wahl == "8":
-            m_nachziehen(zeilen)
+            m_add_missing(zeilen)
         elif wahl == "9":
             if speichern(zeilen, gespeichert):
                 return
         else:  # Beenden oder Escape
             if zeilen == gespeichert:
                 return
-            if tui.ja_nein("Ungespeicherte Änderungen",
+            if tui.confirm("Ungespeicherte Änderungen",
                            "Es gibt Änderungen, die noch nicht gespeichert sind.\n\n"
                            "Jetzt speichern?", True):
                 if speichern(zeilen, gespeichert):
@@ -1094,7 +1094,7 @@ def speichern(zeilen, gespeichert):
     uebersicht = [f"Ticker:  WhatsApp-Kanal  →  @{ticker}" if ticker else "Ticker:  – kein Konto –"]
     if profil:
         uebersicht.append(f"Feed:    @{profil}  →  @{feed}")
-    if not tui.ja_nein("Speichern",
+    if not tui.confirm("Speichern",
                        "\n".join(uebersicht) + f"\n\nNach {os.path.basename(ZIEL)} schreiben?"):
         return False
 
@@ -1103,7 +1103,7 @@ def speichern(zeilen, gespeichert):
             with open(ZIEL + ".bak", "w", encoding="utf-8") as datei:
                 datei.writelines(gespeichert)
         except Exception as fehler:
-            tui.meldung("Sicherung fehlgeschlagen", str(fehler))
+            tui.message("Sicherung fehlgeschlagen", str(fehler))
     with open(ZIEL, "w", encoding="utf-8") as datei:
         datei.writelines(zeilen)
 
@@ -1116,11 +1116,11 @@ def speichern(zeilen, gespeichert):
         schritte += ["Instagram-Sitzung anlegen (einmalig):",
                      f"  venv/bin/instaloader -l {lies_wert(zeilen, 'feed', 'instagram_session_user')}", ""]
     schritte.append("Danach cron einrichten – siehe README.md")
-    tui.meldung("Fertig", "\n".join(schritte))
+    tui.message("Fertig", "\n".join(schritte))
     return True
 
 
-def nachziehen_ohne_menue():
+def add_missing_without_menu():
     """--nachziehen: Fehlende Schlüssel direkt in der Datei ergänzen.
 
     Für alle, die den Assistenten gar nicht brauchen - etwa nach einem Update
@@ -1133,7 +1133,7 @@ def nachziehen_ohne_menue():
         antwort = input("\nErgänzen? [j/N] ").strip().lower()
         return antwort in ("j", "ja", "y", "yes")
 
-    ergaenzt, fehler = konfig.nachziehen_datei(BASE_DIR, bestaetigen)
+    ergaenzt, fehler = config.add_missing_keys_to_file(BASE_DIR, bestaetigen)
     if fehler == "abgebrochen":
         print("Abgebrochen - die Datei bleibt unverändert.")
         return 1
@@ -1144,17 +1144,17 @@ def nachziehen_ohne_menue():
         print("Alle Schlüssel der Vorlage stehen bereits in der Konfiguration.")
         return 0
     print(f"\n{len(ergaenzt)} Schlüssel ergänzt. "
-          f"Sicherung: {os.path.basename(konfig.konfig_pfad(BASE_DIR))}.bak")
+          f"Sicherung: {os.path.basename(config.config_path(BASE_DIR))}.bak")
     return 0
 
 
 if __name__ == "__main__":
-    if "--nachziehen" in sys.argv:
-        sys.exit(nachziehen_ohne_menue())
+    if "--add-missing" in sys.argv:
+        sys.exit(add_missing_without_menu())
     try:
         # Menüoberfläche, wenn whiptail vorhanden ist und ein Terminal dranhängt.
         # SKYRELAY_SETUP_TEXT=1 erzwingt die zeilenweise Abfrage.
-        if (tui.verfuegbar() and sys.stdin.isatty()
+        if (tui.available() and sys.stdin.isatty()
                 and os.environ.get("SKYRELAY_SETUP_TEXT") != "1"):
             menue_modus()
         else:

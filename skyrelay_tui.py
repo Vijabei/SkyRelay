@@ -1,95 +1,106 @@
 """
-SkyRelay - Menüoberfläche für den Einrichtungsassistenten
+SkyRelay - menu surface for the setup assistant
 
-Dünne Hülle um `whiptail`, das auf Debian und Raspberry Pi OS vorinstalliert ist
-und auch `raspi-config` antreibt. Dadurch fühlt sich die Einrichtung vertraut an,
-läuft über SSH und erlaubt es, gezielt einzelne Punkte zu ändern - statt sich
-durch fünfzehn Fragen am Stück zu arbeiten.
+A thin wrapper around `whiptail`, which comes preinstalled on Debian and
+Raspberry Pi OS and also drives `raspi-config`. That makes the setup feel
+familiar, works over SSH, and lets people change single items instead of
+working through fifteen questions in a row.
 
-Fehlt whiptail, meldet `verfuegbar()` das, und der Assistent fällt auf die
-zeilenweise Abfrage zurück.
+If whiptail is missing, `available()` says so and the assistant falls back to
+asking line by line.
 
-whiptail gibt die Auswahl auf der Fehlerausgabe zurück und meldet über den
-Rückgabewert, ob abgebrochen wurde (Abbrechen-Knopf oder Escape).
+whiptail returns the selection on standard error and reports through its exit
+status whether the dialog was cancelled (cancel button or escape).
+
+The German labels below are what the user sees. They stay German until the
+translation layer arrives (issue #14); everything else in this project speaks
+English.
 """
 
 import shutil
 import subprocess
 
-BREITE = 78
-HOEHE = 20
+WIDTH = 78
+HEIGHT = 20
+
+BACKTITLE = "SkyRelay - Einrichtung"
+LABEL_SELECT = "Auswählen"
+LABEL_BACK = "Zurück"
+LABEL_CANCEL = "Abbrechen"
 
 
-def verfuegbar():
-    """Ist eine Menüoberfläche nutzbar?"""
+def available():
+    """Can we use a menu surface at all?"""
     return shutil.which("whiptail") is not None
 
 
-def _ruf(argumente, eingabe=None):
-    """Ruft whiptail auf. Liefert (abgebrochen, ausgabe)."""
-    ergebnis = subprocess.run(
-        ["whiptail", "--backtitle", "SkyRelay - Einrichtung"] + argumente,
-        stderr=subprocess.PIPE, input=eingabe, text=True,
+def _call(arguments, stdin=None):
+    """Runs whiptail. Returns (cancelled, output)."""
+    result = subprocess.run(
+        ["whiptail", "--backtitle", BACKTITLE] + arguments,
+        stderr=subprocess.PIPE, input=stdin, text=True,
     )
-    return ergebnis.returncode != 0, (ergebnis.stderr or "").strip()
+    return result.returncode != 0, (result.stderr or "").strip()
 
 
-def meldung(titel, text, hoehe=None):
-    """Hinweis mit einem OK-Knopf."""
-    zeilen = max(text.count("\n") + 7, 10)
-    _ruf(["--title", titel, "--msgbox", text, str(hoehe or zeilen), str(BREITE)])
+def message(title, text, height=None):
+    """A note with a single OK button."""
+    lines = max(text.count("\n") + 7, 10)
+    _call(["--title", title, "--msgbox", text, str(height or lines), str(WIDTH)])
 
 
-def frage(titel, text, vorgabe="", passwort=False):
-    """Eingabefeld. Liefert None, wenn abgebrochen wurde."""
-    art = "--passwordbox" if passwort else "--inputbox"
-    zeilen = max(text.count("\n") + 9, 11)
-    abbruch, wert = _ruf(["--title", titel, art, text, str(zeilen), str(BREITE), vorgabe])
-    return None if abbruch else wert
+def ask(title, text, default="", password=False):
+    """Input field. Returns None if the dialog was cancelled - an empty string
+    means the user deliberately cleared the value, which is not the same thing."""
+    kind = "--passwordbox" if password else "--inputbox"
+    lines = max(text.count("\n") + 9, 11)
+    cancelled, value = _call(
+        ["--title", title, kind, text, str(lines), str(WIDTH), default])
+    return None if cancelled else value
 
 
-def ja_nein(titel, text, vorgabe=True):
-    """Ja/Nein-Abfrage. Liefert True/False."""
-    zeilen = max(text.count("\n") + 8, 10)
-    argumente = ["--title", titel]
-    if not vorgabe:
-        argumente.append("--defaultno")
-    argumente += ["--yesno", text, str(zeilen), str(BREITE)]
-    abbruch, _ = _ruf(argumente)
-    return not abbruch
+def confirm(title, text, default=True):
+    """Yes/no question. Returns True or False."""
+    lines = max(text.count("\n") + 8, 10)
+    arguments = ["--title", title]
+    if not default:
+        arguments.append("--defaultno")
+    arguments += ["--yesno", text, str(lines), str(WIDTH)]
+    cancelled, _ = _call(arguments)
+    return not cancelled
 
 
-def menue(titel, text, eintraege, vorgabe=None, abbruch_text="Zurück"):
-    """Auswahlmenü. `eintraege` ist eine Liste aus (Kennung, Beschriftung).
-    Liefert die Kennung oder None bei Abbruch."""
-    sichtbar = min(len(eintraege), HOEHE - 8)
-    argumente = ["--title", titel, "--ok-button", "Auswählen",
-                 "--cancel-button", abbruch_text]
-    if vorgabe:
-        argumente += ["--default-item", vorgabe]
-    argumente += ["--menu", text, str(HOEHE), str(BREITE), str(sichtbar)]
-    for kennung, beschriftung in eintraege:
-        argumente += [str(kennung), beschriftung]
-    abbruch, wert = _ruf(argumente)
-    return None if abbruch else wert
+def menu(title, text, entries, default=None, cancel_label=LABEL_BACK):
+    """Selection menu. `entries` is a list of (key, label).
+    Returns the key, or None if cancelled."""
+    visible = min(len(entries), HEIGHT - 8)
+    arguments = ["--title", title, "--ok-button", LABEL_SELECT,
+                 "--cancel-button", cancel_label]
+    if default:
+        arguments += ["--default-item", default]
+    arguments += ["--menu", text, str(HEIGHT), str(WIDTH), str(visible)]
+    for key, label in entries:
+        arguments += [str(key), label]
+    cancelled, value = _call(arguments)
+    return None if cancelled else value
 
 
-def liste_waehlen(titel, text, eintraege, vorgabe=None):
-    """Wie menue(), aber für lange Listen (Vereine, Ligen) - nutzt die volle
-    Fensterhöhe und erlaubt das Springen per Anfangsbuchstabe."""
-    sichtbar = min(len(eintraege), 14)
-    argumente = ["--title", titel, "--ok-button", "Auswählen",
-                 "--cancel-button", "Abbrechen"]
-    if vorgabe:
-        argumente += ["--default-item", str(vorgabe)]
-    argumente += ["--menu", text, "22", str(BREITE), str(sichtbar)]
-    for kennung, beschriftung in eintraege:
-        argumente += [str(kennung), beschriftung[:BREITE - 20]]
-    abbruch, wert = _ruf(argumente)
-    return None if abbruch else wert
+def choose(title, text, entries, default=None):
+    """Like menu(), but for long lists (clubs, leagues) - uses the full window
+    height and lets people jump by first letter."""
+    visible = min(len(entries), 14)
+    arguments = ["--title", title, "--ok-button", LABEL_SELECT,
+                 "--cancel-button", LABEL_CANCEL]
+    if default:
+        arguments += ["--default-item", str(default)]
+    arguments += ["--menu", text, "22", str(WIDTH), str(visible)]
+    for key, label in entries:
+        arguments += [str(key), label[:WIDTH - 20]]
+    cancelled, value = _call(arguments)
+    return None if cancelled else value
 
 
-def fortschritt(text):
-    """Kurzer Hinweis ohne Knopf - für Wartezeiten (z.B. Netzabfragen)."""
-    subprocess.Popen(["whiptail", "--backtitle", "SkyRelay - Einrichtung",
-                      "--infobox", text, "8", str(BREITE)])
+def progress(text):
+    """A short note without a button - for waits, such as network lookups."""
+    subprocess.Popen(["whiptail", "--backtitle", BACKTITLE,
+                      "--infobox", text, "8", str(WIDTH)])
