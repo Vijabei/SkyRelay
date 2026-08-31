@@ -36,14 +36,21 @@ openligadb_filter = bielefeld
 # Absicherung, weil der Suchbegriff auch fremde Vereine treffen kann.
 # Nachschlagen: https://api.openligadb.de/getavailableteams/bl2/2026
 openligadb_team_id = 83
-# Nur Spiele aus diesen Ligen zählen (Vergleich mit dem Ligakürzel, Komma-Liste).
-# Hintergrund: OpenLigaDB liefert vereinzelt Fantasie-Ligen mit falschen Terminen
-# (real gesehen: "ESP8266"). Ohne diese Sperre würde der Bot an spielfreien Tagen
-# anspringen. bl = alle Bundesligen, dfb = DFB-Pokal.
-# Hier lassen sich auch mehrere Mannschaften eines Vereins abdecken: traegt die
-# zweite Mannschaft bei OpenLigaDB dieselbe Team-Nummer, genuegt es, ihre Liga
-# zu ergaenzen (z.B. "rlw" fuer eine Regionalliga West der Frauen). Spielen dann
-# beide am selben Tag, greift [post] overlap_hashtag.
+# Nur Spiele aus diesen Ligen zählen - EXAKTE Ligakürzel als Komma-Liste,
+# z.B. "bl2, dfb, rlw-frauen". Groß-/Kleinschreibung ist egal.
+# Hintergrund: OpenLigaDB liefert vereinzelt Fantasie-Ligen mit falschen
+# Terminen (real gesehen: "ESP8266"). Ohne diese Sperre würde der Bot an
+# spielfreien Tagen anspringen.
+# Hier lassen sich auch mehrere Mannschaften eines Vereins abdecken: trägt die
+# zweite Mannschaft bei OpenLigaDB dieselbe Team-Nummer, genügt es, ihre Liga zu
+# ergänzen. Spielen dann beide am selben Tag, greift [post] overlap_hashtag.
+# Leer lassen = kein Filter (dann zählt jede Liga, auch erfundene).
+# Welche Kürzel wirklich vorkommen, nennt der Ticker beim Start im Protokoll.
+league_shortcuts =
+# VERALTET, bitte auf league_shortcuts umstellen: Dieser Schlüssel verglich
+# PRÄFIXE. Damit passierte "bl2h" die Prüfung, weil es mit "bl" anfängt - und
+# dieselbe Partie tauchte an einem zweiten, falschen Tag auf. Solange
+# league_shortcuts leer ist, gilt weiterhin dieser Wert.
 league_prefixes = bl, dfb
 # Zeitzone für Anstoßzeiten und das Tagesende.
 timezone = Europe/Berlin
@@ -171,6 +178,9 @@ mixed_placeholder = 📸🎥 Neuer Beitrag
 image_placeholder = 📸 Neues Bild
 # Ersatz für die Bildbeschreibung (Barrierefreiheit), wenn kein Text da ist.
 alt_text_fallback = News
+# Text der Folgebeiträge, wenn ein Instagram-Beitrag mehr Medien als Text hat
+# (z.B. ein Karussell mit mehreren Videos, aber nur einer kurzen Bildunterschrift).
+continuation_text = Weitere Inhalte...
 # Merkliste bereits übernommener Beiträge und eigene Protokolldatei.
 state = skyrelay_feed_posted.txt
 log = skyrelay-feed.log

@@ -204,7 +204,7 @@ Sie lassen sich mitsamt ihren Erklärungen ergänzen — vorhandene Werte, Reihe
 und Kommentare bleiben unangetastet, es wird ausschließlich hinzugefügt:
 
 ```bash
-venv/bin/python skyrelay-setup.py --nachziehen
+venv/bin/python skyrelay-setup.py --add-missing
 ```
 
 Der Aufruf zeigt zuerst, was ergänzt würde, und fragt nach. Vorher entsteht eine

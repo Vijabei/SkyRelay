@@ -1,11 +1,11 @@
 """
-SkyRelay - gemeinsame Bausteine
+SkyRelay - shared building blocks
 
-Alles, was skyrelay-matchday.py und skyrelay-feed.py gleichermaßen brauchen:
-Protokollierung, Konfiguration, Bildaufbereitung und der Video-Upload zu
-Bluesky. Damit gibt es für jede dieser Aufgaben nur noch eine Stelle.
+Everything skyrelay-matchday.py and skyrelay-feed.py both need: logging,
+configuration, image preparation and the video upload to Bluesky. That way each
+of those jobs has exactly one place.
 
-Wird von beiden Programmen importiert und ist nicht zum direkten Aufruf gedacht.
+Imported by both programs; not meant to be run on its own.
 """
 
 import atexit
@@ -27,74 +27,74 @@ from PIL import Image
 from atproto import models
 from atproto_client.models.blob_ref import BlobRef
 
-# Die Konfigurationswerkzeuge liegen bewusst in einem eigenen Modul ohne
-# Fremdpakete - so kann der Einrichtungsassistent sie auch benutzen, wenn
-# atproto und Pillow noch gar nicht installiert sind.
-from skyrelay_konfig import konfig_pfad
+# The configuration tools live in their own module, deliberately without third
+# party imports - that way the setup assistant can use them before atproto and
+# Pillow are installed.
+from skyrelay_config import config_path
 
 
-# ----------------------------------------------------------------- Protokoll
+# ------------------------------------------------------------------- logging
 def log(*args, **kwargs):
-    """print mit vorangestelltem Zeitstempel - für nachvollziehbare Protokolle
-    (etwa aus cron, wo die Startzeit sonst nicht ersichtlich wäre)."""
+    """print with a leading timestamp - for logs one can follow later (from
+    cron, for instance, where the start time would otherwise be a mystery)."""
     print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}]", *args, **kwargs, flush=True)
 
 
 def rotate_log(path, max_bytes, backups):
-    """Rotiert die Protokolldatei beim Start, wenn sie zu groß geworden ist:
-    datei.log -> datei.log.1 -> ... -> datei.log.N (die älteste entfällt)."""
+    """Rotates the log file at startup once it has grown too large:
+    file.log -> file.log.1 -> ... -> file.log.N (the oldest one is dropped)."""
     try:
         if not os.path.exists(path) or os.path.getsize(path) < max_bytes:
             return
-        aelteste = f"{path}.{backups}"
-        if os.path.exists(aelteste):
-            os.remove(aelteste)
+        oldest = f"{path}.{backups}"
+        if os.path.exists(oldest):
+            os.remove(oldest)
         for i in range(backups - 1, 0, -1):
-            quelle = f"{path}.{i}"
-            if os.path.exists(quelle):
-                os.replace(quelle, f"{path}.{i + 1}")
+            source = f"{path}.{i}"
+            if os.path.exists(source):
+                os.replace(source, f"{path}.{i + 1}")
         os.replace(path, f"{path}.1")
-    except Exception as fehler:
-        print(f"⚠️ Protokoll-Rotation fehlgeschlagen: {fehler}", flush=True)
+    except Exception as error:
+        print(f"⚠️ Log rotation failed: {error}", flush=True)
 
 
 def start_file_logging(path, max_bytes=2_000_000, backups=5):
-    """Schreibt ALLE Ausgaben zusätzlich in eine Datei - auch die des Go-Anteils
-    von neonize, der nicht durch Python läuft und den ein gewöhnliches
-    Python-Protokoll deshalb verpassen würde. Dafür werden stdout und stderr in
-    eine Pipe umgehängt; ein Hintergrund-Thread schreibt jede Zeile in die Datei
-    UND auf die echte Konsole (wie "tee"). Schlägt das fehl, läuft das Programm
-    normal weiter - nur eben ohne Protokolldatei."""
+    """Writes ALL output to a file as well - including that of neonize's Go
+    part, which does not pass through Python and which an ordinary Python log
+    would therefore miss. To catch it, stdout and stderr are redirected into a
+    pipe; a background thread writes every line into the file AND to the real
+    console (like "tee"). If that fails, the program carries on normally - just
+    without a log file."""
     try:
         rotate_log(path, max_bytes, backups)
-        logdatei = open(path, "ab", buffering=0)
-        lese_fd, schreib_fd = os.pipe()
-        konsole_fd = os.dup(1)  # Kopie der echten Konsole, bevor umgehängt wird
-        os.dup2(schreib_fd, 1)
-        os.dup2(schreib_fd, 2)
-        os.close(schreib_fd)
+        logfile = open(path, "ab", buffering=0)
+        read_fd, write_fd = os.pipe()
+        console_fd = os.dup(1)  # a copy of the real console, before redirecting
+        os.dup2(write_fd, 1)
+        os.dup2(write_fd, 2)
+        os.close(write_fd)
 
-        def verteile():
-            with os.fdopen(lese_fd, "rb", 0) as pipe:
-                for zeile in iter(pipe.readline, b""):
-                    for ziel in (logdatei.write, lambda b: os.write(konsole_fd, b)):
+        def distribute():
+            with os.fdopen(read_fd, "rb", 0) as pipe:
+                for line in iter(pipe.readline, b""):
+                    for target in (logfile.write, lambda b: os.write(console_fd, b)):
                         try:
-                            ziel(zeile)
+                            target(line)
                         except Exception:
                             pass
 
-        verteiler = threading.Thread(target=verteile, name="log-tee", daemon=True)
-        verteiler.start()
-        # Ohne Terminal ist stdout sonst blockgepuffert - Zeilenpufferung sorgt
-        # dafür, dass "tail -f" sofort mitläuft.
+        writer = threading.Thread(target=distribute, name="log-tee", daemon=True)
+        writer.start()
+        # Without a terminal stdout would be block buffered - line buffering
+        # makes "tail -f" follow along immediately.
         sys.stdout.reconfigure(line_buffering=True)
         sys.stderr.reconfigure(line_buffering=True)
 
-        def abschluss():
-            """Beim Beenden dem Verteiler-Thread Zeit geben, die Pipe zu leeren.
-            Ohne das gehen Ausgaben verloren, sobald sich das Programm kurz nach
-            dem Start beendet - etwa mit einer Meldung zur Konfiguration oder mit
-            "heute kein Spiel". Also genau die Zeilen, die man dann braucht."""
+        def on_exit():
+            """Give the writer thread time to drain the pipe on the way out.
+            Without this, output is lost whenever the program ends shortly after
+            starting - with a message about the configuration, say, or with "no
+            match today". Which is precisely the output one needs then."""
             try:
                 sys.stdout.flush()
                 sys.stderr.flush()
@@ -102,39 +102,39 @@ def start_file_logging(path, max_bytes=2_000_000, backups=5):
                 pass
             time.sleep(0.2)
 
-        atexit.register(abschluss)
+        atexit.register(on_exit)
         return True
-    except Exception as fehler:
-        print(f"⚠️ Datei-Protokoll konnte nicht gestartet werden: {fehler}", flush=True)
+    except Exception as error:
+        print(f"⚠️ Could not start file logging: {error}", flush=True)
         return False
 
 
-# -------------------------------------------------------------- Konfiguration
-def lade_config(basis_dir):
-    """Lädt skyrelay.conf (oder den Pfad aus SKYRELAY_CONFIG) und liefert
-    (cfg, cfg_int, cfg_bool, pfad) zurück. Fehlt die Datei oder ist sie
-    unlesbar, endet das Programm mit einer verständlichen Meldung."""
-    pfad = konfig_pfad(basis_dir)
+# ------------------------------------------------------------- configuration
+def load_config(base_dir):
+    """Loads skyrelay.conf (or the path from SKYRELAY_CONFIG) and returns
+    (cfg, cfg_int, cfg_bool, path). If the file is missing or unreadable, the
+    program ends with a message one can act on."""
+    path = config_path(base_dir)
 
-    if not os.path.exists(pfad):
-        print(f"Fehler: Konfigurationsdatei nicht gefunden: {pfad}\n"
-              f"Am einfachsten mit dem Assistenten anlegen:\n"
+    if not os.path.exists(path):
+        print(f"Error: configuration file not found: {path}\n"
+              f"The easiest way to create one is the assistant:\n"
               f"    venv/bin/python skyrelay-setup.py\n"
-              f"oder von Hand:  cp skyrelay.conf.example skyrelay.conf",
+              f"or by hand:  cp skyrelay.conf.example skyrelay.conf",
               file=sys.stderr)
         sys.exit(1)
 
-    # interpolation=None: sonst deutet configparser Prozentzeichen in Texten.
+    # interpolation=None: otherwise configparser reads percent signs in texts.
     parser = configparser.ConfigParser(interpolation=None)
     try:
-        with open(pfad, encoding="utf-8") as datei:
-            parser.read_file(datei)
-    except Exception as fehler:
-        print(f"Fehler beim Lesen von {pfad}: {fehler}", file=sys.stderr)
+        with open(path, encoding="utf-8") as config:
+            parser.read_file(config)
+    except Exception as error:
+        print(f"Error reading {path}: {error}", file=sys.stderr)
         sys.exit(1)
 
     def cfg(section, key, default=None):
-        """Wert aus der Konfiguration; fehlt er, greift die Vorgabe."""
+        """A value from the configuration; the default applies if it is absent."""
         return parser.get(section, key, fallback=default)
 
     def cfg_int(section, key, default):
@@ -146,23 +146,23 @@ def lade_config(basis_dir):
     def cfg_bool(section, key, default):
         return parser.getboolean(section, key, fallback=default)
 
-    return cfg, cfg_int, cfg_bool, pfad
+    return cfg, cfg_int, cfg_bool, path
 
 
-# ----------------------------------------------------------- Beitragsaufbau
-def baue_quellzeile(tb, prefix, label, url):
-    """Schreibt Kopfzeile und Quellenangabe eines Hauptbeitrags in den
-    TextBuilder - eine Stelle für beide Programme.
+# ----------------------------------------------------------- building a post
+def build_source_line(tb, prefix, label, url):
+    """Writes the header line and the source of a main post into the
+    TextBuilder - one place for both programs.
 
-    Beide Teile sind einzeln abschaltbar, indem man ihren Wert LEER lässt -
-    so wie es [post] standing_hashtag im Projekt schon vormacht. Wichtig ist
-    der Unterschied zum Auskommentieren: Ein fehlender Schlüssel bedeutet für
-    configparser nicht "aus", sondern "es gilt die Vorgabe im Programm". Was
-    davon gerade greift, zeigt --show-config.
+    Either part can be switched off on its own by leaving its value EMPTY, the
+    way [post] standing_hashtag has always worked here. Note the difference to
+    commenting the line out: for configparser a missing key does not mean "off",
+    it means "the program's default applies". What is in effect right now is
+    what --show-config reports.
 
-    Der Feed hatte diese Zeilen früher fest verdrahtet. Deshalb blieb dort
-    [post] prefix wirkungslos, und als Linktext stand die nackte URL (#2)."""
-    etwas_geschrieben = bool(prefix)
+    The feed used to have these lines hard-wired. That is why [post] prefix had
+    no effect there and the bare URL showed up as the link text (#2)."""
+    wrote_something = bool(prefix)
     if prefix:
         tb.text(prefix)
     if label and url:
@@ -170,142 +170,144 @@ def baue_quellzeile(tb, prefix, label, url):
             tb.text("\n")
         tb.text("🔗 Quelle: ")
         tb.link(label, url)
-        etwas_geschrieben = True
-    if etwas_geschrieben:
+        wrote_something = True
+    if wrote_something:
         tb.text("\n\n")
 
 
-def zeige_vorschau(bausteine):
-    """Zeigt im Trockenlauf, wie die Beiträge auf Bluesky aussähen - Zeile für
-    Zeile eingerückt, mit der Zeichenzahl je Beitrag.
+def show_preview(builders):
+    """Shows in a dry run how the posts would look on Bluesky - line by line,
+    indented, with the character count per post.
 
-    Ohne das bleibt vom Trockenlauf nur eine Zusammenfassung ("2 Beiträge,
-    1 Video"), und ob Kopfzeile, Quelle und Hashtags an der richtigen Stelle
-    stehen, sieht man erst am fertigen Beitrag - also zu spät."""
-    for nummer, tb in enumerate(bausteine, start=1):
+    Without this a dry run leaves only a summary ("2 posts, 1 video"), and
+    whether header, source and hashtags sit in the right place is visible only
+    on the finished post - which is too late."""
+    for number, tb in enumerate(builders, start=1):
         text = tb.build_text()
-        log(f"   ┌─ Beitrag {nummer}/{len(bausteine)} ({len(text)} Zeichen)")
-        for zeile in text.split("\n"):
-            log(f"   │ {zeile}")
+        log(f"   ┌─ post {number}/{len(builders)} ({len(text)} characters)")
+        for line in text.split("\n"):
+            log(f"   │ {line}")
         log("   └─")
 
 
-# -------------------------------------------------------------------- Login
-def hole_app_passwort(*namen):
-    """Liefert (Passwort, Variablenname) aus der ersten gesetzten Umgebungs-
-    variablen. Die Reihenfolge geht vom spezifischen zum allgemeinen Namen:
-    Wer Ticker und Feed auf getrennten Konten betreibt, setzt die jeweils
-    eigene Variable; wer ein einziges Konto nutzt, kommt mit
-    BLUESKY_APP_PASSWORD aus."""
-    for name in namen:
-        wert = os.environ.get(name)
-        if wert:
-            return wert, name
-    return None, namen[0]
+# --------------------------------------------------------------------- login
+def get_app_password(*names):
+    """Returns (password, variable name) from the first environment variable
+    that is set. The order goes from the specific name to the general one:
+    whoever runs ticker and feed on separate accounts sets the matching
+    variable, whoever uses a single account gets by with
+    BLUESKY_APP_PASSWORD."""
+    for name in names:
+        value = os.environ.get(name)
+        if value:
+            return value, name
+    return None, names[0]
 
 
-def melde_bei_bluesky_an(client, handle, passwort, passwort_variable):
-    """Meldet sich an und erklärt im Fehlerfall, woran es liegen kann. Ein
-    nackter 401 hilft niemandem - typisch ist, dass Passwort und Konto nicht
-    zusammenpassen, weil Ticker und Feed getrennte Konten verwenden."""
-    if not passwort:
-        log(f"Fehler: {passwort_variable} ist nicht gesetzt.")
-        log(f'Setzen mit:  export {passwort_variable}="xxxx-xxxx-xxxx-xxxx"')
+def log_in_to_bluesky(client, handle, password, password_variable):
+    """Logs in and, if that fails, explains what it can be. A bare 401 helps
+    nobody - the usual cause is a password that does not belong to the account,
+    because ticker and feed use separate ones."""
+    if not password:
+        log(f"Error: {password_variable} is not set.")
+        log(f'Set it with:  export {password_variable}="xxxx-xxxx-xxxx-xxxx"')
         raise SystemExit(1)
     try:
-        client.login(handle, passwort)
-    except Exception as fehler:
-        log(f"✗ Anmeldung bei Bluesky als @{handle} fehlgeschlagen: {fehler}")
-        if "RateLimitExceeded" in str(fehler):
-            log("   Das Anmeldelimit ist erschöpft: Bluesky erlaubt 10 Anmeldungen")
-            log("   pro Tag und Konto. Dagegen hilft nur warten - weitere Versuche")
-            log("   verlängern die Sperre zwar nicht, bringen aber auch nichts.")
-            treffer = re.search(r"['\"]ratelimit-reset['\"]:\s*['\"](\d+)['\"]", str(fehler))
-            if treffer:
-                frei_ab = datetime.fromtimestamp(int(treffer.group(1)))
-                log(f"   Wieder möglich ab: {frei_ab.strftime('%d.%m.%Y %H:%M')} (Ortszeit)")
-        elif "Invalid identifier or password" in str(fehler):
-            log(f"   Gehört das App-Passwort aus {passwort_variable} wirklich zu")
-            log(f"   genau diesem Konto? Werden Ticker und Feed auf getrennten")
-            log(f"   Konten betrieben, brauchen sie auch getrennte Passwörter:")
-            log(f"     Ticker: BLUESKY_TICKER_APP_PASSWORD")
-            log(f"     Feed:   BLUESKY_FEED_APP_PASSWORD")
-            log("   Achtung: Nur 10 Anmeldeversuche pro Tag - nicht blind wiederholen.")
+        client.login(handle, password)
+    except Exception as error:
+        log(f"✗ Login to Bluesky as @{handle} failed: {error}")
+        if "RateLimitExceeded" in str(error):
+            log("   The login limit is used up: Bluesky allows 10 logins per")
+            log("   day and account. Only waiting helps - further attempts do")
+            log("   not extend the block, but they achieve nothing either.")
+            match = re.search(r"['\"]ratelimit-reset['\"]:\s*['\"](\d+)['\"]", str(error))
+            if match:
+                free_at = datetime.fromtimestamp(int(match.group(1)))
+                log(f"   Possible again from: {free_at.strftime('%d.%m.%Y %H:%M')} (local time)")
+        elif "Invalid identifier or password" in str(error):
+            log(f"   Does the app password in {password_variable} really belong")
+            log(f"   to this very account? If ticker and feed run on separate")
+            log(f"   accounts, they need separate passwords as well:")
+            log(f"     ticker: BLUESKY_TICKER_APP_PASSWORD")
+            log(f"     feed:   BLUESKY_FEED_APP_PASSWORD")
+            log("   Careful: only 10 login attempts per day - do not just retry.")
         raise
 
 
-# ------------------------------------------------------------------- Medien
-def compress_image_for_bluesky(quelle, max_dim=2000, max_bytes=1_500_000, start_quality=85):
-    """Verkleinert ein Bild so weit, dass es unter Blueskys Größengrenze passt.
-    Nimmt Bilddaten (bytes) oder einen Dateipfad entgegen."""
-    bild = Image.open(io.BytesIO(quelle) if isinstance(quelle, (bytes, bytearray)) else quelle)
-    if bild.mode in ("RGBA", "P"):
-        bild = bild.convert("RGB")
-    if max(bild.size) > max_dim:
-        bild.thumbnail((max_dim, max_dim), Image.Resampling.LANCZOS)
+# --------------------------------------------------------------------- media
+def compress_image_for_bluesky(source, max_dim=2000, max_bytes=1_500_000,
+                               start_quality=85):
+    """Shrinks an image until it fits under Bluesky's size limit.
+    Takes image data (bytes) or a file path."""
+    image = Image.open(io.BytesIO(source) if isinstance(source, (bytes, bytearray))
+                       else source)
+    if image.mode in ("RGBA", "P"):
+        image = image.convert("RGB")
+    if max(image.size) > max_dim:
+        image.thumbnail((max_dim, max_dim), Image.Resampling.LANCZOS)
 
     quality = start_quality
-    puffer = io.BytesIO()
-    bild.save(puffer, format="JPEG", quality=quality)
-    while puffer.tell() > max_bytes and quality > 50:
-        puffer = io.BytesIO()
+    buffer = io.BytesIO()
+    image.save(buffer, format="JPEG", quality=quality)
+    while buffer.tell() > max_bytes and quality > 50:
+        buffer = io.BytesIO()
         quality -= 10
-        bild.save(puffer, format="JPEG", quality=quality)
-    return puffer.getvalue()
+        image.save(buffer, format="JPEG", quality=quality)
+    return buffer.getvalue()
 
 
 def resolve_pds_did_web(actor_did):
-    """Ermittelt die DID des tatsächlichen Servers (PDS) eines Kontos - nötig
-    als 'aud' für die Zugangsmarke des Video-Uploads."""
+    """Works out the DID of an account's actual server (PDS) - needed as the
+    'aud' of the service token for the video upload."""
     if actor_did.startswith("did:plc:"):
-        antwort = requests.get(f"https://plc.directory/{actor_did}", timeout=15)
+        response = requests.get(f"https://plc.directory/{actor_did}", timeout=15)
     elif actor_did.startswith("did:web:"):
         host = actor_did.split(":", 2)[2]
-        antwort = requests.get(f"https://{host}/.well-known/did.json", timeout=15)
+        response = requests.get(f"https://{host}/.well-known/did.json", timeout=15)
     else:
-        raise ValueError(f"Unbekanntes DID-Format: {actor_did}")
+        raise ValueError(f"Unknown DID format: {actor_did}")
 
-    antwort.raise_for_status()
-    dokument = antwort.json()
+    response.raise_for_status()
+    document = response.json()
 
-    for dienst in dokument.get("service", []):
-        if dienst.get("id") == "#atproto_pds":
-            endpunkt = dienst["serviceEndpoint"]
-            host = endpunkt.split("://", 1)[-1].rstrip("/")
+    for service in document.get("service", []):
+        if service.get("id") == "#atproto_pds":
+            endpoint = service["serviceEndpoint"]
+            host = endpoint.split("://", 1)[-1].rstrip("/")
             return f"did:web:{host}"
 
-    raise ValueError(f"Server-Adresse nicht im DID-Dokument gefunden: {dokument}")
+    raise ValueError(f"Server address not found in the DID document: {document}")
 
 
-_pds_aud = None  # einmal ermittelt, danach wiederverwendet
+_pds_aud = None  # worked out once, reused afterwards
 
 
 def upload_video_to_bluesky(client, video, filename,
                             max_bytes=100_000_000, timeout_seconds=600,
-                            versuche=3):
-    """Lädt ein Video zu Bluesky hoch und liefert das fertige Embed zurück.
-    `video` sind Bilddaten (bytes) oder ein Dateipfad. Bluesky nimmt Videos
-    nicht als einfachen Anhang: erst hochladen, dann verarbeitet der Server sie,
-    und erst danach steht die Einbettung bereit. Bei Fehlschlag fliegt eine
-    Ausnahme - der Aufrufer entscheidet über den Ersatz (z.B. Vorschaubild)."""
+                            attempts=3):
+    """Uploads a video to Bluesky and returns the finished embed. `video` is
+    either image data (bytes) or a file path. Bluesky does not take videos as a
+    plain attachment: first they are uploaded, then the server processes them,
+    and only afterwards is the embed ready. On failure an exception is raised -
+    the caller decides on the fallback (a thumbnail, for instance)."""
     global _pds_aud
 
     if not isinstance(video, (bytes, bytearray)):
-        with open(video, "rb") as datei:
-            video = datei.read()
+        with open(video, "rb") as source:
+            video = source.read()
 
     if len(video) > max_bytes:
         raise RuntimeError(
-            f"Video ist {len(video)} Bytes groß und überschreitet die Bluesky-Grenze "
-            f"von {max_bytes} Bytes - der Upload wird gar nicht erst versucht."
+            f"The video is {len(video)} bytes and exceeds Bluesky's limit of "
+            f"{max_bytes} bytes - the upload is not even attempted."
         )
 
     if _pds_aud is None:
         try:
             _pds_aud = resolve_pds_did_web(client.me.did)
-            log(f"   ✓ Server-Adresse ermittelt: {_pds_aud}")
-        except Exception as fehler:
-            log(f"   ⚠️ Server-Adresse nicht ermittelbar: {fehler}")
+            log(f"   ✓ Server address resolved: {_pds_aud}")
+        except Exception as error:
+            log(f"   ⚠️ Could not resolve the server address: {error}")
             _pds_aud = "did:web:bsky.social"
 
     service_auth = client.com.atproto.server.get_service_auth({
@@ -323,162 +325,162 @@ def upload_video_to_bluesky(client, video, filename,
         "Content-Length": str(len(video)),
     }
 
-    log(f"   Sende Videodaten an: {upload_url} ({len(video)} Bytes)")
+    log(f"   Sending video data to: {upload_url} ({len(video)} bytes)")
 
-    antwort = None
+    response = None
     job_id = None
 
-    for versuch in range(1, versuche + 1):
+    for attempt in range(1, attempts + 1):
         try:
-            antwort = requests.post(upload_url, params=params, headers=headers,
-                                    data=video, timeout=180)
+            response = requests.post(upload_url, params=params, headers=headers,
+                                     data=video, timeout=180)
 
-            if antwort.status_code == 409:
-                # In einem früheren Lauf bereits hochgeladen und fertig verarbeitet -
-                # dann die bestehende Vorgangsnummer weiterverwenden.
-                konflikt = antwort.json()
-                if konflikt.get("error") == "already_exists" and konflikt.get("jobId"):
-                    job_id = konflikt["jobId"]
-                    log(f"   ℹ️ Video war schon verarbeitet, nutze Vorgang: {job_id}")
+            if response.status_code == 409:
+                # Already uploaded and fully processed in an earlier run - then
+                # carry on with the job that already exists.
+                conflict = response.json()
+                if conflict.get("error") == "already_exists" and conflict.get("jobId"):
+                    job_id = conflict["jobId"]
+                    log(f"   ℹ️ The video was already processed, using job: {job_id}")
                     break
 
-            antwort.raise_for_status()
+            response.raise_for_status()
             break
-        except requests.exceptions.HTTPError as fehler:
-            auszug = antwort.text[:500] if antwort is not None else "(keine Antwort)"
-            log(f"   ⚠️ Upload-Versuch {versuch}/{versuche} fehlgeschlagen: {fehler}")
-            log(f"      Server-Antwort: {auszug}")
-            if versuch == versuche:
+        except requests.exceptions.HTTPError as error:
+            excerpt = response.text[:500] if response is not None else "(no response)"
+            log(f"   ⚠️ Upload attempt {attempt}/{attempts} failed: {error}")
+            log(f"      Server response: {excerpt}")
+            if attempt == attempts:
                 raise
-            wartezeit = 10 * versuch
-            log(f"      Warte {wartezeit}s vor dem nächsten Versuch...")
-            time.sleep(wartezeit)
+            wait = 10 * attempt
+            log(f"      Waiting {wait}s before the next attempt...")
+            time.sleep(wait)
 
     if job_id is None:
-        daten = antwort.json()
-        job_id = daten.get("jobStatus", daten).get("jobId")
-        log(f"   ✓ Video übertragen, Vorgangsnummer: {job_id}")
+        data = response.json()
+        job_id = data.get("jobStatus", data).get("jobId")
+        log(f"   ✓ Video transferred, job: {job_id}")
 
-    log("   Warte auf die Verarbeitung durch Bluesky...")
+    log("   Waiting for Bluesky to process it...")
 
     status_url = "https://video.bsky.app/xrpc/app.bsky.video.getJobStatus"
-    frist = time.time() + timeout_seconds
-    blob_daten = None
+    deadline = time.time() + timeout_seconds
+    blob_data = None
     while True:
-        if time.time() > frist:
+        if time.time() > deadline:
             raise RuntimeError(
-                f"Verarbeitung nicht innerhalb von {timeout_seconds}s abgeschlossen "
-                f"(Vorgang {job_id})."
+                f"Processing did not finish within {timeout_seconds}s "
+                f"(job {job_id})."
             )
         status = requests.get(status_url, params={"jobId": job_id},
                               headers={"Authorization": f"Bearer {token}"}, timeout=30)
         status.raise_for_status()
-        daten = status.json()
-        vorgang = daten.get("jobStatus", daten)
-        zustand = vorgang.get("state")
+        data = status.json()
+        job = data.get("jobStatus", data)
+        state = job.get("state")
 
-        if zustand == "JOB_STATE_COMPLETED":
-            blob_daten = vorgang.get("blob")
-            log("   ✓ Verarbeitung abgeschlossen.")
+        if state == "JOB_STATE_COMPLETED":
+            blob_data = job.get("blob")
+            log("   ✓ Processing finished.")
             break
-        if zustand == "JOB_STATE_FAILED":
-            raise RuntimeError("Bluesky meldet einen Fehler bei der Videoverarbeitung: "
-                               + str(vorgang.get("error", "unbekannt")))
-        log(f"   ⏳ Zustand: {zustand}... (warte 5 Sekunden)")
+        if state == "JOB_STATE_FAILED":
+            raise RuntimeError("Bluesky reports an error while processing the video: "
+                               + str(job.get("error", "unknown")))
+        log(f"   ⏳ State: {state}... (waiting 5 seconds)")
         time.sleep(5)
 
     return models.AppBskyEmbedVideo.Main(
-        video=models.get_or_create(blob_daten, model=BlobRef)
+        video=models.get_or_create(blob_data, model=BlobRef)
     )
 
 
-# ------------------------------------------------- Nachreichen von Videos
+# ------------------------------------------------- handing in videos later on
 #
-# Scheitert ein Video-Upload - etwa weil die Video-API von Bluesky gerade
-# stört -, geht der Beitrag trotzdem sofort mit dem Vorschaubild raus: beim
-# Live-Ticker zählt die Zeit. Die Videodaten bleiben dann hier liegen, und ein
-# späterer Lauf hängt das Video als Antwort an den Beitrag. So wird aus einer
-# vorübergehenden Störung kein dauerhaft bebilderter Beitrag.
+# If a video upload fails - because Bluesky's video API is playing up, say -
+# the post still goes out immediately with its thumbnail: on a live ticker,
+# time is what counts. The video data stays here, and a later run attaches the
+# video as a reply to that post. That way a temporary glitch does not leave a
+# permanently picture-only post behind.
 #
-# Je Vorgang liegen zwei Dateien im Nachreich-Ordner:
-#   <kennung>.mp4   die Videodaten
-#   <kennung>.json  wohin geantwortet wird - kommt erst dazu, wenn der
-#                   Beitrag steht und seine URI bekannt ist
-# Eine .mp4 ohne .json stammt aus einem abgebrochenen Lauf: ohne Ziel lässt
-# sich nichts nachreichen, sie wird beim nächsten Durchgang verworfen.
+# Each pending job keeps two files in the retry folder:
+#   <id>.mp4    the video data
+#   <id>.json   where the reply goes - written only once the post exists and
+#               its URI is known
+# An .mp4 without its .json comes from an interrupted run: without a target
+# there is nothing to hand in, so it is dropped on the next pass.
 
-NACHREICH_VIDEO = ".mp4"
-NACHREICH_INFO = ".json"
-
-
-def _nachreich_pfade(ordner, kennung):
-    basis = os.path.join(ordner, kennung)
-    return basis + NACHREICH_VIDEO, basis + NACHREICH_INFO
+RETRY_VIDEO = ".mp4"
+RETRY_INFO = ".json"
 
 
-def _nachreich_aufraeumen(*pfade):
-    for pfad in pfade:
+def _retry_paths(folder, job_id):
+    base = os.path.join(folder, job_id)
+    return base + RETRY_VIDEO, base + RETRY_INFO
+
+
+def _remove_retry_files(*paths):
+    for path in paths:
         try:
-            os.remove(pfad)
+            os.remove(path)
         except FileNotFoundError:
             pass
-        except OSError as fehler:
-            log(f"   ⚠️ {os.path.basename(pfad)} nicht entfernbar: {fehler}")
+        except OSError as error:
+            log(f"   ⚠️ Could not remove {os.path.basename(path)}: {error}")
 
 
-def merke_video_daten(ordner, kennung, video):
-    """Legt die Videodaten für einen späteren Versuch ab. `video` sind Bytes oder
-    ein Dateipfad. Wird direkt beim Fehlschlag gerufen - der Beitrag steht dann
-    noch nicht, deshalb folgt das Ziel erst mit merke_nachreich_ziel()."""
+def stash_video(folder, job_id, video):
+    """Puts the video data aside for a later attempt. `video` is bytes or a file
+    path. Called right when the upload fails - the post does not exist yet at
+    that point, which is why the target follows with stash_retry_target()."""
     try:
-        os.makedirs(ordner, exist_ok=True)
-        video_pfad, _ = _nachreich_pfade(ordner, kennung)
+        os.makedirs(folder, exist_ok=True)
+        video_path, _ = _retry_paths(folder, job_id)
         if not isinstance(video, (bytes, bytearray)):
-            with open(video, "rb") as quelle:
-                video = quelle.read()
-        with open(video_pfad, "wb") as ziel:
-            ziel.write(video)
+            with open(video, "rb") as source:
+                video = source.read()
+        with open(video_path, "wb") as target:
+            target.write(video)
         return True
-    except OSError as fehler:
-        log(f"   ⚠️ Video nicht zum Nachreichen ablegbar: {fehler}")
+    except OSError as error:
+        log(f"   ⚠️ Could not stash the video for a later attempt: {error}")
         return False
 
 
-def merke_nachreich_ziel(ordner, kennung, did, root_uri, root_cid,
-                         parent_uri, parent_cid, dateiname, alt_text=""):
-    """Hält fest, an welchen Beitrag das Video später gehängt wird. Erst damit
-    wird der Vorgang gültig."""
-    video_pfad, info_pfad = _nachreich_pfade(ordner, kennung)
-    if not os.path.exists(video_pfad):
+def stash_retry_target(folder, job_id, did, root_uri, root_cid,
+                       parent_uri, parent_cid, filename, alt_text=""):
+    """Records which post the video will later be attached to. Only this makes
+    the pending job valid."""
+    video_path, info_path = _retry_paths(folder, job_id)
+    if not os.path.exists(video_path):
         return False
     try:
-        with open(info_pfad, "w", encoding="utf-8") as ziel:
+        with open(info_path, "w", encoding="utf-8") as target:
             json.dump({
                 "did": did,
                 "root_uri": root_uri,
                 "root_cid": root_cid,
                 "parent_uri": parent_uri,
                 "parent_cid": parent_cid,
-                "dateiname": dateiname,
+                "filename": filename,
                 "alt_text": alt_text,
-                "versuche": 0,
-                "erstellt": datetime.now().isoformat(timespec="seconds"),
-            }, ziel, ensure_ascii=False, indent=2)
-        log(f"   📌 Video zum Nachreichen vorgemerkt ({kennung}).")
+                "attempts": 0,
+                "created": datetime.now().isoformat(timespec="seconds"),
+            }, target, ensure_ascii=False, indent=2)
+        log(f"   📌 Video noted for a later attempt ({job_id}).")
         return True
-    except OSError as fehler:
-        log(f"   ⚠️ Nachreich-Vermerk fehlgeschlagen: {fehler}")
-        _nachreich_aufraeumen(video_pfad)
+    except OSError as error:
+        log(f"   ⚠️ Could not note the retry target: {error}")
+        _remove_retry_files(video_path)
         return False
 
 
-def _sende_nachreich_antwort(client, info, embed, antwort_text):
-    """Hängt das nachgereichte Video als Antwort an den ursprünglichen Beitrag."""
+def _send_retry_reply(client, info, embed, reply_text):
+    """Attaches the handed-in video as a reply to the original post."""
     alt = info.get("alt_text")
     if alt:
         embed.alt = alt[:1000]
     record = models.AppBskyFeedPost.Record(
-        text=antwort_text,
+        text=reply_text,
         embed=embed,
         reply=models.AppBskyFeedPost.ReplyRef(
             parent=models.ComAtprotoRepoStrongRef.Main(uri=info["parent_uri"],
@@ -497,173 +499,178 @@ def _sende_nachreich_antwort(client, info, embed, antwort_text):
     )
 
 
-def reiche_videos_nach(client, ordner, antwort_text, max_versuche=8,
-                       max_bytes=100_000_000, timeout_seconds=600):
-    """Holt zuvor gescheiterte Video-Uploads nach und hängt jedes geglückte Video
-    als Antwort an seinen Beitrag. Gehört an den Anfang jedes Laufs, direkt nach
-    der Anmeldung. Liefert die Zahl der erledigten Vorgänge."""
-    if not os.path.isdir(ordner):
+def post_stashed_videos(client, folder, reply_text, max_attempts=8,
+                        max_bytes=100_000_000, timeout_seconds=600):
+    """Retries video uploads that failed earlier and attaches each successful
+    one as a reply to its post. Belongs at the start of every run, right after
+    the login. Returns the number of jobs completed."""
+    if not os.path.isdir(folder):
         return 0
 
-    erledigt = 0
-    for name in sorted(os.listdir(ordner)):
-        if not name.endswith(NACHREICH_VIDEO):
+    done = 0
+    for name in sorted(os.listdir(folder)):
+        if not name.endswith(RETRY_VIDEO):
             continue
 
-        kennung = name[:-len(NACHREICH_VIDEO)]
-        video_pfad, info_pfad = _nachreich_pfade(ordner, kennung)
+        job_id = name[:-len(RETRY_VIDEO)]
+        video_path, info_path = _retry_paths(folder, job_id)
 
-        if not os.path.exists(info_pfad):
-            log(f"   Verwerfe Video-Rest ohne Ziel: {kennung}")
-            _nachreich_aufraeumen(video_pfad)
+        if not os.path.exists(info_path):
+            log(f"   Dropping a video without a target: {job_id}")
+            _remove_retry_files(video_path)
             continue
 
         try:
-            with open(info_pfad, encoding="utf-8") as quelle:
-                info = json.load(quelle)
-        except (OSError, ValueError) as fehler:
-            log(f"   ⚠️ Nachreich-Vermerk {kennung} unlesbar, wird verworfen: {fehler}")
-            _nachreich_aufraeumen(video_pfad, info_pfad)
+            with open(info_path, encoding="utf-8") as source:
+                info = json.load(source)
+        except (OSError, ValueError) as error:
+            log(f"   ⚠️ Retry note {job_id} is unreadable, dropping it: {error}")
+            _remove_retry_files(video_path, info_path)
             continue
 
-        # Beide Bots dürfen sich einen Ordner teilen - fremde Vorgänge liegen lassen.
+        # Both bots may share one folder - leave other accounts' jobs alone.
         if info.get("did") and info["did"] != client.me.did:
             continue
 
-        versuch = int(info.get("versuche", 0)) + 1
-        log(f"🎥 Reiche Video nach ({kennung}, Versuch {versuch}/{max_versuche})...")
+        # Notes written before the sources were translated carry German keys.
+        # They may still be sitting on a running installation, so read both.
+        attempt = int(info.get("attempts", info.get("versuche", 0))) + 1
+        filename = info.get("filename") or info.get("dateiname") or name
+
+        log(f"🎥 Handing in a video ({job_id}, attempt {attempt}/{max_attempts})...")
         try:
-            embed = upload_video_to_bluesky(client, video_pfad,
-                                            info.get("dateiname") or name,
+            embed = upload_video_to_bluesky(client, video_path, filename,
                                             max_bytes, timeout_seconds,
-                                            versuche=1)
-            _sende_nachreich_antwort(client, info, embed, antwort_text)
-            log(f"   ✓ Video nachgereicht ({kennung}).")
-            _nachreich_aufraeumen(video_pfad, info_pfad)
-            erledigt += 1
-        except Exception as fehler:
-            log(f"   ⚠️ Nachreichen fehlgeschlagen ({kennung}): {fehler}")
-            if versuch >= max_versuche:
-                log(f"   Nach {versuch} Versuchen aufgegeben - {kennung} wird verworfen.")
-                _nachreich_aufraeumen(video_pfad, info_pfad)
+                                            attempts=1)
+            _send_retry_reply(client, info, embed, reply_text)
+            log(f"   ✓ Video handed in ({job_id}).")
+            _remove_retry_files(video_path, info_path)
+            done += 1
+        except Exception as error:
+            log(f"   ⚠️ Handing in failed ({job_id}): {error}")
+            if attempt >= max_attempts:
+                log(f"   Giving up after {attempt} attempts - dropping {job_id}.")
+                _remove_retry_files(video_path, info_path)
                 continue
-            info["versuche"] = versuch
+            info["attempts"] = attempt
+            info.pop("versuche", None)
             try:
-                with open(info_pfad, "w", encoding="utf-8") as ziel:
-                    json.dump(info, ziel, ensure_ascii=False, indent=2)
-            except OSError as schreib_fehler:
-                log(f"   ⚠️ Versuchszähler nicht gespeichert: {schreib_fehler}")
+                with open(info_path, "w", encoding="utf-8") as target:
+                    json.dump(info, target, ensure_ascii=False, indent=2)
+            except OSError as write_error:
+                log(f"   ⚠️ Could not save the attempt counter: {write_error}")
 
-    return erledigt
+    return done
 
 
-# ------------------------------------------- Sprachnachrichten und Sticker
+# ------------------------------------------------- voice messages and stickers
 #
-# Bluesky kennt weder ein Audio-Format noch Animationen. Beides lässt sich aber
-# in etwas übersetzen, das Bluesky darstellt:
-#   Sprachnachricht -> Video mit animierter Wellenform (Ton bleibt erhalten)
-#   Sticker         -> einzelnes Bild (bei animierten Stickern das erste)
+# Bluesky knows neither an audio format nor animations. Both can be translated
+# into something Bluesky does show:
+#   voice message -> video with an animated waveform (the sound is kept)
+#   sticker       -> a single image (the first frame of an animated one)
 
-def _ffmpeg_vorhanden():
+def _have_ffmpeg():
     return shutil.which("ffmpeg") is not None
 
 
-def audio_zu_video(audio_daten, groesse="720x720", wellenfarbe="White",
-                   hintergrund="0x0b1220", bildrate=25, timeout_seconds=120):
-    """Baut aus einer Sprachnachricht ein Video mit animierter Wellenform und
-    unveränderter Tonspur. Liefert die mp4-Daten.
+def audio_to_video(audio_data, size="720x720", wave_color="White",
+                   background="0x0b1220", framerate=25, timeout_seconds=120):
+    """Turns a voice message into a video with an animated waveform and an
+    unchanged audio track. Returns the mp4 data.
 
-    ACHTUNG bei `wellenfarbe`: Der ffmpeg-Filter showwaves nimmt ausschließlich
-    FARBNAMEN ("White", "DodgerBlue", "Cyan", ...). Hex-Angaben wie 0x38BDF8
-    oder #38BDF8 verwirft er stillschweigend und zeichnet stattdessen grün -
-    ohne Fehlermeldung. Für `hintergrund` gilt das nicht, der nimmt auch Hex.
+    CAREFUL with `wave_color`: ffmpeg's showwaves filter takes COLOUR NAMES
+    only ("White", "DodgerBlue", "Cyan", ...). Hex values such as 0x38BDF8 or
+    #38BDF8 are discarded silently and it draws green instead - without any
+    error message. `background` is different, that one takes hex as well.
     """
-    if not _ffmpeg_vorhanden():
-        raise RuntimeError("ffmpeg ist nicht installiert - Sprachnachrichten "
-                           "lassen sich ohne ffmpeg nicht umwandeln.")
+    if not _have_ffmpeg():
+        raise RuntimeError("ffmpeg is not installed - voice messages cannot be "
+                           "converted without it.")
 
-    if wellenfarbe.startswith(("0x", "#")):
-        log(f"   ⚠️ Wellenfarbe {wellenfarbe!r} ist eine Hex-Angabe - ffmpeg "
-            f"ignoriert die und zeichnet grün. Bitte einen Farbnamen eintragen.")
+    if wave_color.startswith(("0x", "#")):
+        log(f"   ⚠️ The wave colour {wave_color!r} is a hex value - ffmpeg "
+            f"ignores those and draws green. Please use a colour name.")
 
     try:
-        breite, hoehe = (int(t) for t in groesse.lower().split("x"))
+        width, height = (int(part) for part in size.lower().split("x"))
     except ValueError:
-        raise RuntimeError(f"Ungültige Größenangabe für das Audio-Video: {groesse!r} "
-                           f"(erwartet z.B. 720x720).")
-    wellen_hoehe = max(2, hoehe // 2)
+        raise RuntimeError(f"Invalid size for the audio video: {size!r} "
+                           f"(expected something like 720x720).")
+    wave_height = max(2, height // 2)
 
-    filter_kette = (
-        f"color=c={hintergrund}:s={breite}x{hoehe}:r={bildrate}[bg];"
-        f"[0:a]showwaves=s={breite}x{wellen_hoehe}:mode=cline:"
-        f"colors={wellenfarbe}:scale=sqrt:r={bildrate}[w];"
+    filter_chain = (
+        f"color=c={background}:s={width}x{height}:r={framerate}[bg];"
+        f"[0:a]showwaves=s={width}x{wave_height}:mode=cline:"
+        f"colors={wave_color}:scale=sqrt:r={framerate}[w];"
         f"[bg][w]overlay=(W-w)/2:(H-h)/2:shortest=1,format=yuv420p[v]"
     )
 
-    with tempfile.TemporaryDirectory(prefix="skyrelay-audio-") as ordner:
-        quelle = os.path.join(ordner, "stimme")
-        ziel = os.path.join(ordner, "stimme.mp4")
-        with open(quelle, "wb") as f:
-            f.write(audio_daten)
+    with tempfile.TemporaryDirectory(prefix="skyrelay-audio-") as folder:
+        source = os.path.join(folder, "voice")
+        target = os.path.join(folder, "voice.mp4")
+        with open(source, "wb") as f:
+            f.write(audio_data)
 
-        ergebnis = subprocess.run(
-            ["ffmpeg", "-y", "-i", quelle, "-filter_complex", filter_kette,
+        result = subprocess.run(
+            ["ffmpeg", "-y", "-i", source, "-filter_complex", filter_chain,
              "-map", "[v]", "-map", "0:a",
              "-c:v", "libx264", "-preset", "veryfast", "-crf", "28",
              "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart",
-             ziel, "-loglevel", "error"],
+             target, "-loglevel", "error"],
             capture_output=True, text=True, timeout=timeout_seconds)
 
-        if ergebnis.returncode != 0 or not os.path.exists(ziel):
-            meldung = (ergebnis.stderr or "").strip()[:300] or "keine Ausgabe"
-            raise RuntimeError(f"ffmpeg konnte kein Video erzeugen: {meldung}")
+        if result.returncode != 0 or not os.path.exists(target):
+            message = (result.stderr or "").strip()[:300] or "no output"
+            raise RuntimeError(f"ffmpeg could not produce a video: {message}")
 
-        with open(ziel, "rb") as f:
+        with open(target, "rb") as f:
             return f.read()
 
 
-def video_standbild(video_daten, zeitpunkt=1.0, timeout_seconds=60):
-    """Zieht ein Einzelbild aus einem Video - als Ersatzbild, falls der
-    Video-Upload scheitert. Liefert JPEG-Daten oder None."""
-    if not _ffmpeg_vorhanden():
+def video_still(video_data, at_second=1.0, timeout_seconds=60):
+    """Pulls a single frame out of a video - as a stand-in image should the
+    video upload fail. Returns JPEG data or None."""
+    if not _have_ffmpeg():
         return None
     try:
-        with tempfile.TemporaryDirectory(prefix="skyrelay-frame-") as ordner:
-            quelle = os.path.join(ordner, "video.mp4")
-            ziel = os.path.join(ordner, "bild.jpg")
-            with open(quelle, "wb") as f:
-                f.write(video_daten)
-            ergebnis = subprocess.run(
-                ["ffmpeg", "-y", "-ss", str(zeitpunkt), "-i", quelle,
-                 "-frames:v", "1", ziel, "-loglevel", "error"],
+        with tempfile.TemporaryDirectory(prefix="skyrelay-frame-") as folder:
+            source = os.path.join(folder, "video.mp4")
+            target = os.path.join(folder, "frame.jpg")
+            with open(source, "wb") as f:
+                f.write(video_data)
+            result = subprocess.run(
+                ["ffmpeg", "-y", "-ss", str(at_second), "-i", source,
+                 "-frames:v", "1", target, "-loglevel", "error"],
                 capture_output=True, text=True, timeout=timeout_seconds)
-            if ergebnis.returncode != 0 or not os.path.exists(ziel):
+            if result.returncode != 0 or not os.path.exists(target):
                 return None
-            with open(ziel, "rb") as f:
+            with open(target, "rb") as f:
                 return f.read()
-    except Exception as fehler:
-        log(f"   ⚠️ Standbild nicht erzeugbar: {fehler}")
+    except Exception as error:
+        log(f"   ⚠️ Could not produce a still frame: {error}")
         return None
 
 
-def sticker_zu_bild(daten, hintergrund="white", max_dim=2000, max_bytes=1_500_000):
-    """Macht aus einem WhatsApp-Sticker ein Bild für Bluesky. Sticker sind WebP,
-    meist mit transparentem Grund und manchmal animiert. Genommen wird das erste
-    Einzelbild, und die Transparenz kommt auf einen festen Hintergrund - sonst
-    stünde das Motiv auf Schwarz, weil beim Verwerfen des Alphakanals nichts
-    anderes übrig bleibt."""
-    bild = Image.open(io.BytesIO(daten) if isinstance(daten, (bytes, bytearray)) else daten)
+def sticker_to_image(data, background="white", max_dim=2000, max_bytes=1_500_000):
+    """Turns a WhatsApp sticker into an image for Bluesky. Stickers are WebP,
+    usually with a transparent background and sometimes animated. The first
+    frame is taken, and the transparency is laid onto a solid background -
+    otherwise the motif would sit on black, because dropping the alpha channel
+    leaves nothing else behind."""
+    image = Image.open(io.BytesIO(data) if isinstance(data, (bytes, bytearray))
+                       else data)
 
-    # Animierte Sticker: erstes Einzelbild. Bei unbewegten ist seek(0) folgenlos.
+    # Animated stickers: the first frame. On still ones seek(0) does nothing.
     try:
-        bild.seek(0)
+        image.seek(0)
     except EOFError:
         pass
 
-    bild = bild.convert("RGBA")
-    grund = Image.new("RGB", bild.size, hintergrund)
-    grund.paste(bild, mask=bild.split()[3])
+    image = image.convert("RGBA")
+    ground = Image.new("RGB", image.size, background)
+    ground.paste(image, mask=image.split()[3])
 
-    puffer = io.BytesIO()
-    grund.save(puffer, format="PNG")
-    return compress_image_for_bluesky(puffer.getvalue(), max_dim, max_bytes)
+    buffer = io.BytesIO()
+    ground.save(buffer, format="PNG")
+    return compress_image_for_bluesky(buffer.getvalue(), max_dim, max_bytes)

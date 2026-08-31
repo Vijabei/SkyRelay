@@ -1,56 +1,59 @@
 """
-SkyRelay - Spieltags-Ticker: spiegelt einen WhatsApp-Kanal nach Bluesky,
-aber nur an Spieltagen (Prüfung über OpenLigaDB).
+SkyRelay - matchday ticker: mirrors a WhatsApp channel to Bluesky, but only on
+matchdays (checked against OpenLigaDB).
 
-Alle vereins- und kontospezifischen Angaben stehen in "skyrelay.conf"
-(Vorlage: skyrelay.conf.example). Ein abweichender Pfad lässt sich über die
-Umgebungsvariable SKYRELAY_CONFIG angeben - damit sind mehrere Vereine parallel
-möglich. Das Bluesky-App-Passwort kommt aus BLUESKY_APP_PASSWORD, nie aus einer Datei.
+Everything specific to a club or an account lives in "skyrelay.conf" (template:
+skyrelay.conf.example). A different path can be given through the environment
+variable SKYRELAY_CONFIG, which is how several clubs run side by side. The
+Bluesky app password comes from BLUESKY_APP_PASSWORD, never from a file.
 
-Funktionsweise:
-  1. Beim Start wird über OpenLigaDB geprüft, ob die eigene Mannschaft heute
-     spielt. Kein Spiel -> das Programm beendet sich sofort, ohne überhaupt eine
-     Verbindung aufzubauen (gedacht für einen täglichen Start per cron).
-  2. An Spieltagen wird über neonize (whatsmeow) eine Verbindung zu WhatsApp
-     aufgebaut; bis zum konfigurierten Tagesende lauscht das Programm auf
-     Ereignisse des Kanals. Neue Beiträge gehen sofort nach Bluesky, ebenso beim
-     Verbinden nachgelieferte Beiträge von HEUTE - ältere werden verworfen.
-     (Bewusst kein regelmäßiges Abrufen im Dauerbetrieb: get_newsletter_messages
-     stürzt im Go-Teil ab, sobald der Abruf eine unsichtbare Meta-Nachricht
-     erwischt - etwa die Bearbeitung oder Löschung eines Beitrags. Nur REPLAY und
-     CATCHUP nutzen diesen Abruf noch, dort ist ein Absturz verschmerzbar.)
-  3. Der Spiel-Hashtag (z.B. #DSCWOB heim, #WOBDSC auswärts) wird aus den
-     OpenLigaDB-Daten gebildet (Kürzel aus [team_codes], Heimteam zuerst) - oder
-     von Hand über SKYRELAY_HASHTAG gesetzt.
-  4. Doppelte Beiträge nach einem Neustart am selben Tag verhindert die monoton
-     steigende MessageServerID des Kanals (Stand in der Datei aus [files] state).
+How it works:
+  1. At startup OpenLigaDB is asked whether our own team plays today. No match
+     -> the program ends right away without opening a single connection (meant
+     to be started daily from cron).
+  2. On matchdays it connects to WhatsApp through neonize (whatsmeow) and
+     listens for channel events until the configured end of day. New posts go
+     to Bluesky immediately, as do posts delivered on connecting that are from
+     TODAY - older ones are dropped.
+     (Deliberately no polling during normal operation: get_newsletter_messages
+     crashes in the Go layer as soon as a fetch catches an invisible meta
+     message - an edit or a deletion, say. Only REPLAY and CATCHUP still use
+     that call, where a crash is survivable.)
+  3. The match hashtag (#DSCWOB at home, #WOBDSC away) is built from the
+     OpenLigaDB data (codes from [team_codes], home team first) - or set by
+     hand through SKYRELAY_HASHTAG.
+  4. Duplicate posts after a restart on the same day are prevented by the
+     channel's monotonically rising MessageServerID (kept in the file from
+     [files] state).
 
-Einrichtung (64-Bit-System erforderlich - neonize liefert keine 32-Bit-Pakete):
+Setting up (a 64 bit system is required - neonize ships no 32 bit packages):
     ./install.sh
-    cp skyrelay.conf.example skyrelay.conf   # und anpassen
-    # neonize ist in requirements.txt bewusst festgelegt: 0.4.0/0.4.1 lieferten
-    # beschädigte Rückgabewerte ("Wire format was corrupt", Issue #199). Behoben
-    # seit 0.4.2, hier aber ungetestet - vor einem Wechsel die Sitzungsdatei
-    # sichern und mit Trockenlauf prüfen. Der Absturz bei gelöschten Beiträgen
-    # besteht auch in 0.4.3 weiterhin.
+    cp skyrelay.conf.example skyrelay.conf   # and adjust it
+    # neonize is pinned in requirements.txt on purpose: 0.4.0 and 0.4.1
+    # returned corrupted values ("Wire format was corrupt", issue #199). Fixed
+    # in 0.4.2, but untested here - back up the session file before switching
+    # and check with a dry run. The crash on deleted posts is still present in
+    # 0.4.3 as well.
 
-Erste Kopplung - muss interaktiv im Terminal laufen (nicht per cron; SSH genügt):
+First pairing - has to run interactively in a terminal (not from cron; SSH is
+fine):
     SKYRELAY_PAIR_PHONE="4915123456789" SKYRELAY_FORCE=1 SKYRELAY_DRY_RUN=1 venv/bin/python skyrelay-matchday.py
-    (Nummer im internationalen Format ohne + und ohne führende 0)
-    -> Es erscheint ein Kopplungscode. Im Handy: WhatsApp -> Einstellungen ->
-       Verknüpfte Geräte -> Gerät hinzufügen -> "Stattdessen mit Telefonnummer
-       koppeln" -> Code eingeben.
-    Ohne SKYRELAY_PAIR_PHONE erscheint stattdessen ein QR-Code im Terminal. Bei
-    Scan-Problemen: Fenster stark vergrößern und Bildschirm hell stellen, sonst
-    fehlt der Kamera der Kontrast.
-    ACHTUNG: Eine Anmeldung über web.whatsapp.com hilft NICHT - dieses Programm
-    ist ein eigenes verknüpftes Gerät mit eigener Sitzung. Sie landet in der Datei
-    aus [files] session; danach wird SKYRELAY_PAIR_PHONE nicht mehr gebraucht.
+    (the number in international form, without + and without a leading 0)
+    -> A pairing code appears. On the phone: WhatsApp -> Settings -> Linked
+       devices -> Link a device -> "Link with phone number instead" -> enter
+       the code.
+    Without SKYRELAY_PAIR_PHONE a QR code appears in the terminal instead. If
+    scanning gives trouble: enlarge the window a lot and turn the screen
+    brightness up, otherwise the camera lacks contrast.
+    CAREFUL: signing in through web.whatsapp.com does NOT help - this program
+    is a linked device of its own with a session of its own. It ends up in the
+    file from [files] session; after that SKYRELAY_PAIR_PHONE is no longer
+    needed.
 
-Beispiel für cron (täglicher Start um 6 Uhr, den Rest entscheidet das Programm).
-Pfade beachten Groß- und Kleinschreibung, und eine Ausgabeumleitung in die
-Protokolldatei ist NICHT nötig - das Programm schreibt sie selbst:
-    0 6 * * * BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx" /pfad/zu/SkyRelay/venv/bin/python3 /pfad/zu/SkyRelay/skyrelay-matchday.py >/dev/null 2>&1
+Example for cron (a daily start at 6 in the morning, the program decides the
+rest). Paths are case sensitive, and redirecting the output into the log file
+is NOT necessary - the program writes it itself:
+    0 6 * * * BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx" /path/to/SkyRelay/venv/bin/python3 /path/to/SkyRelay/skyrelay-matchday.py >/dev/null 2>&1
 """
 
 import asyncio
@@ -77,71 +80,82 @@ from neonize.types import MessageServerID
 
 from skyrelay_common import (
     log,
-    lade_config,
+    load_config,
     start_file_logging,
-    melde_bei_bluesky_an,
-    hole_app_passwort,
+    log_in_to_bluesky,
+    get_app_password,
     compress_image_for_bluesky,
     upload_video_to_bluesky,
-    merke_video_daten,
-    merke_nachreich_ziel,
-    reiche_videos_nach,
-    audio_zu_video,
-    video_standbild,
-    sticker_zu_bild,
-    baue_quellzeile,
-    zeige_vorschau,
+    stash_video,
+    stash_retry_target,
+    post_stashed_videos,
+    audio_to_video,
+    video_still,
+    sticker_to_image,
+    build_source_line,
+    show_preview,
 )
-from skyrelay_konfig import pruefe_konfiguration, zeige_konfiguration
+from skyrelay_config import check_config, show_config
 
-# Auskunft über die Konfiguration, noch bevor irgendetwas anderes anläuft:
-# Beide Aufrufe verbinden sich mit nichts und schreiben nichts.
-#   --check-config  meldet, was nicht zusammenpasst
-#   --show-config   zeigt, welcher Wert gerade gilt und woher er stammt
+# Answers about the configuration, before anything else gets going:
+# both calls connect to nothing and write nothing.
+#   --check-config  reports what does not add up
+#   --show-config   shows which value applies now and where it comes from
 if "--check-config" in sys.argv:
-    sys.exit(pruefe_konfiguration(os.path.dirname(os.path.abspath(__file__))))
+    sys.exit(check_config(os.path.dirname(os.path.abspath(__file__))))
 if "--show-config" in sys.argv:
-    sys.exit(zeige_konfiguration(os.path.dirname(os.path.abspath(__file__))))
+    sys.exit(show_config(os.path.dirname(os.path.abspath(__file__))))
 
-# httpx (der HTTP-Client der atproto-Bibliothek) protokolliert sonst jede Anfrage.
+# httpx (the HTTP client of the atproto library) would log every request.
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
-# =============================== KONFIGURATION ===============================
-# Alle vereins- und kontospezifischen Werte stehen in "skyrelay.conf"
-# (Vorlage: skyrelay.conf.example). Hier wird nur noch gelesen.
+# ============================== CONFIGURATION ================================
+# Every value specific to a club or an account lives in "skyrelay.conf"
+# (template: skyrelay.conf.example). Here it is only ever read.
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-cfg, cfg_int, cfg_bool, CONFIG_FILE = lade_config(BASE_DIR)
+cfg, cfg_int, cfg_bool, CONFIG_FILE = load_config(BASE_DIR)
 _cfg = configparser.ConfigParser(interpolation=None)
 with open(CONFIG_FILE, encoding="utf-8") as _f:
-    _cfg.read_file(_f)  # für den direkten Zugriff auf [team_codes]
+    _cfg.read_file(_f)  # for direct access to [team_codes]
 
 BLUESKY_HANDLE = cfg("bluesky", "handle", "")
 CHANNEL_INVITE_LINK = cfg("source", "channel_invite_link", "")
 
 OPENLIGADB_TEAM_FILTER = cfg("team", "openligadb_filter", "")
 OPENLIGADB_TEAM_ID = cfg_int("team", "openligadb_team_id", 0)
-LEAGUE_PREFIXES = tuple(
-    p.strip().lower() for p in cfg("team", "league_prefixes", "bl, dfb").split(",") if p.strip()
+# Which leagues count. EXACT shortcuts, comma separated - "bl2, dfb" and not
+# "bl": OpenLigaDB also carries variants of a real league (bl2h next to bl2),
+# and a prefix comparison let those through. The same fixture then appeared on
+# a second, wrong day and the ticker would have started up for it (#19).
+LEAGUE_SHORTCUTS = tuple(
+    s.strip().lower() for s in cfg("team", "league_shortcuts", "").split(",") if s.strip()
+)
+# The predecessor. Still read, so that a configuration nobody has touched keeps
+# behaving as before - and so --check-config does not report it as orphaned.
+# See the note in fetch_team_matches.
+LEGACY_LEAGUE_PREFIXES = tuple(
+    p.strip().lower() for p in cfg("team", "league_prefixes", "").split(",") if p.strip()
 )
 LOCAL_TZ = ZoneInfo(cfg("team", "timezone", "Europe/Berlin"))
 
-# Kürzel für die Hashtag-Bildung, z.B. {83: "DSC"}
+# Codes used to build the hashtag, e.g. {83: "DSC"}
 TEAM_CODES = {}
 if _cfg.has_section("team_codes"):
     for _team_id, _code in _cfg.items("team_codes"):
         try:
             TEAM_CODES[int(_team_id)] = _code.strip().upper()
         except ValueError:
-            print(f"⚠️ [team_codes] '{_team_id}' ist keine Team-Nummer - übersprungen", file=sys.stderr)
+            print(f"⚠️ [team_codes] '{_team_id}' is not a team number - skipped",
+                  file=sys.stderr)
 
 POST_PREFIX = cfg("post", "prefix", "⚽ [Inoffizieller Bot]")
 POST_SOURCE_LABEL = cfg("post", "source_label", "Original-Kanal")
 STANDING_HASHTAG = cfg("post", "standing_hashtag", "").strip().lstrip("#")
-# Spielen an einem Tag mehrere Mannschaften des Vereins, laesst sich einer
-# Kanal-Nachricht nicht ansehen, zu welcher Partie sie gehoert. Statt die
-# Beitraege falsch zu beschriften, tritt dieser Hashtag an die Stelle der
-# Spiel-Hashtags. Leer lassen, um dann gar keinen zu setzen.
+# When several of the club's teams play on the same day, a channel message
+# does not reveal which match it belongs to. Rather than labelling the posts
+# wrongly, this hashtag takes the place of the match hashtags. Leave it empty
+# to set none at all on such days.
 OVERLAP_HASHTAG = cfg("post", "overlap_hashtag", "").strip().lstrip("#")
 IMAGE_PLACEHOLDER = cfg("post", "image_placeholder", "📸 Neues Bild im Kanal")
 VIDEO_PLACEHOLDER = cfg("post", "video_placeholder", "🎥 Neues Video im Kanal")
@@ -150,7 +164,7 @@ AUDIO_PLACEHOLDER = cfg("post", "audio_placeholder",
                        "🔊 Neue Sprachnachricht im Kanal")
 STICKER_PLACEHOLDER = cfg("post", "sticker_placeholder",
                          "✨ Neuer Sticker im Kanal")
-# Sprachnachrichten werden als Video mit Wellenform übertragen (siehe [audio]).
+# Voice messages are carried over as a video with a waveform (see [audio]).
 AUDIO_SIZE = cfg("audio", "size", "720x720")
 AUDIO_WAVE_COLOR = cfg("audio", "waveform_color", "White")
 AUDIO_BG_COLOR = cfg("audio", "background_color", "0x0b1220")
@@ -179,7 +193,7 @@ VIDEO_JOB_TIMEOUT_SECONDS = cfg_int("limits", "video_job_timeout_seconds", 600)
 VIDEO_RETRY_MAX_ATTEMPTS = cfg_int("limits", "video_retry_max_attempts", 8)
 VIDEO_RETRY_TEXT = cfg("post", "video_retry_text",
                       "🎥 Nachgereicht: das Video zum Beitrag oben.")
-# Takt, in dem im Lausch-Betrieb offene Videos erneut versucht werden.
+# How often pending videos are retried while listening.
 VIDEO_RETRY_INTERVAL_SECONDS = cfg_int("limits", "video_retry_interval_seconds", 600)
 
 LOG_TO_FILE = cfg_bool("logging", "to_file", True)
@@ -195,187 +209,224 @@ VIDEO_RETRY_DIR = os.path.join(BASE_DIR,
 
 
 def env(name, default=None):
-    """Liest SKYRELAY_<name>; akzeptiert übergangsweise noch die alten
-    DSC_TICKER_-Namen, damit bestehende Aufrufe und crontab-Zeilen weiterlaufen."""
-    wert = os.environ.get(f"SKYRELAY_{name}")
-    if wert is not None:
-        return wert
-    alt = os.environ.get(f"DSC_TICKER_{name}")
-    if alt is not None:
-        print(f"Hinweis: DSC_TICKER_{name} ist veraltet - bitte SKYRELAY_{name} verwenden.",
+    """Reads SKYRELAY_<name>; for the time being the old DSC_TICKER_ names are
+    still accepted, so existing calls and crontab lines keep working."""
+    value = os.environ.get(f"SKYRELAY_{name}")
+    if value is not None:
+        return value
+    old = os.environ.get(f"DSC_TICKER_{name}")
+    if old is not None:
+        print(f"Note: DSC_TICKER_{name} is deprecated - please use SKYRELAY_{name}.",
               file=sys.stderr)
-        return alt
+        return old
     return default
 
 
-# SKYRELAY_DRY_RUN=1 -> nur protokollieren, nichts auf Bluesky posten.
+# SKYRELAY_DRY_RUN=1 -> only log, post nothing on Bluesky.
 DRY_RUN = env("DRY_RUN") == "1"
-# SKYRELAY_FORCE=1 -> auch laufen, wenn OpenLigaDB heute kein Spiel kennt (Testspiele).
+# SKYRELAY_FORCE=1 -> run even when OpenLigaDB knows no match today (friendlies).
 FORCE_RUN = env("FORCE") == "1"
-# SKYRELAY_PAIR_PHONE=<Nummer> -> Erst-Kopplung per Zahlencode statt QR-Scan
-# (international ohne "+", z.B. 4915123456789). Nur beim ersten Lauf nötig.
+# SKYRELAY_PAIR_PHONE=<number> -> first pairing by numeric code instead of a
+# QR scan (international, without "+", e.g. 4915123456789). First run only.
 PAIR_PHONE = env("PAIR_PHONE")
-# SKYRELAY_REPLAY=N -> Testlauf: verarbeitet einmalig die letzten N vorhandenen
-# Kanal-Beiträge und beendet sich. Der Stand bleibt unangetastet.
+# SKYRELAY_REPLAY=N -> test run: processes the last N existing channel posts
+# once and then ends. The stored position stays untouched.
 REPLAY_COUNT = int(env("REPLAY", "0") or 0)
-# SKYRELAY_CATCHUP=N -> wie REPLAY, überspringt aber bereits Verarbeitetes,
-# schreibt den Stand fort und lauscht danach normal weiter.
+# SKYRELAY_CATCHUP=N -> like REPLAY, but skips what has been processed
+# already, advances the stored position and keeps listening afterwards.
 CATCHUP_COUNT = int(env("CATCHUP", "0") or 0)
-# SKYRELAY_HASHTAG=DSCGUE -> Spiel-Hashtag von Hand setzen (mit oder ohne "#").
+# SKYRELAY_HASHTAG=DSCGUE -> set the match hashtag by hand (with or without "#").
 MANUAL_HASHTAG = (env("HASHTAG", "") or "").strip().lstrip("#").upper()
-# SKYRELAY_PROFILE=on|off -> nur die Profilzeile setzen und sofort beenden.
+# SKYRELAY_PROFILE=on|off -> only set the profile line, then end.
 PROFILE_ONLY = (env("PROFILE", "") or "").strip().lower()
 
 
-def uebernimm_altdatei(neu, alt_name):
-    """Benennt eine Datei aus einer früheren Fassung auf den neuen Namen um.
-    Verhindert, dass nach dem Umstellen auf die Konfigurationsdatei eine neue
-    WhatsApp-Kopplung nötig wird oder der Verarbeitungsstand verloren geht."""
-    alt = os.path.join(BASE_DIR, alt_name)
-    if os.path.exists(alt) and not os.path.exists(neu):
+def adopt_old_file(new_path, old_name):
+    """Renames a file from an earlier version to its new name. Keeps the move to
+    a configuration file from costing a fresh WhatsApp pairing or the position
+    the ticker had already reached."""
+    old_path = os.path.join(BASE_DIR, old_name)
+    if os.path.exists(old_path) and not os.path.exists(new_path):
         try:
-            os.replace(alt, neu)
-            print(f"Übernommen: {alt_name} -> {os.path.basename(neu)}")
-        except Exception as e:
-            print(f"⚠️ Konnte {alt_name} nicht übernehmen: {e}", file=sys.stderr)
+            os.replace(old_path, new_path)
+            print(f"Carried over: {old_name} -> {os.path.basename(new_path)}")
+        except Exception as error:
+            print(f"⚠️ Could not carry over {old_name}: {error}", file=sys.stderr)
 
 
-for _neu, _alt in ((SESSION_DB, "dsc_ticker_session.sqlite3"),
+for _new_name, _old_name in ((SESSION_DB, "dsc_ticker_session.sqlite3"),
                    (STATE_FILE, "dsc_ticker_state.txt"),
                    (POSTS_MAP_FILE, "dsc_ticker_posts.json"),
                    (LOG_FILE, "ticker.log")):
-    uebernimm_altdatei(_neu, _alt)
+    adopt_old_file(_new_name, _old_name)
 
 
 if LOG_TO_FILE:
     start_file_logging(LOG_FILE, LOG_MAX_BYTES, LOG_BACKUP_COUNT)
-    log(f"--- Ticker-Start (Log: {LOG_FILE}) ---")
+    log(f"--- ticker start (log: {LOG_FILE}) ---")
 
-# Eigenes Passwort für den Ticker, sonst das gemeinsame.
-BLUESKY_APP_PASSWORD, PASSWORT_VARIABLE = hole_app_passwort(
+# A password of its own for the ticker, otherwise the shared one.
+BLUESKY_APP_PASSWORD, PASSWORD_VARIABLE = get_app_password(
     "BLUESKY_TICKER_APP_PASSWORD", "BLUESKY_APP_PASSWORD")
 if not BLUESKY_APP_PASSWORD and not DRY_RUN:
-    log(f"Fehler: Kein App-Passwort für das Ticker-Konto @{BLUESKY_HANDLE} gesetzt.")
-    log('Getrennte Konten für Ticker und Feed:')
+    log(f"Error: no app password set for the ticker account @{BLUESKY_HANDLE}.")
+    log('Separate accounts for ticker and feed:')
     log('    export BLUESKY_TICKER_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"')
-    log('Ein gemeinsames Konto für beide:')
+    log('One shared account for both:')
     log('    export BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"')
-    log("cron liest ~/.bashrc NICHT - dort die Variablen oben in die crontab")
-    log("schreiben (ohne Anführungszeichen).")
-    log("Nur lesen, ohne Bluesky:  SKYRELAY_DRY_RUN=1")
+    log("cron does NOT read ~/.bashrc - put the variables above into the")
+    log("crontab itself (without quotation marks).")
+    log("Read only, without Bluesky:  SKYRELAY_DRY_RUN=1")
     sys.exit(1)
 # ----------------------------------
 
 
-# 1. Spieltags-Check über OpenLigaDB (kostenlos, ohne API-Key)
+# 1. The matchday check through OpenLigaDB (free, no API key)
 def team_code(team):
-    """DFL-Kürzel zu einem OpenLigaDB-Team; Fallback für unbekannte (Pokal-)Gegner."""
+    """The DFL code for an OpenLigaDB team; a fallback for unknown cup opponents."""
     code = TEAM_CODES.get(team["teamId"])
     if code is None:
-        # Nur Buchstaben behalten, dann erst großschreiben. isalpha() statt einer
-        # Zeichenklasse, weil dort das ß fehlte und stillschweigend verschwand
-        # ("Großaspach" -> "Groaspach"). Großschreiben VOR dem Kürzen, denn
-        # "ß".upper() ergibt "SS" und hätte das Kürzel sonst vierstellig gemacht.
+        # Keep the letters only, and upper-case afterwards. isalpha() rather
+        # than a character class, because that one was missing ß and dropped
+        # it silently ("Großaspach" -> "Groaspach"). Upper-casing comes
+        # BEFORE the cut, since "ß".upper() is "SS" and would otherwise have
+        # made the code four letters long.
         #
-        # Der Kurzname ist erste Wahl, taugt aber nicht immer: "S04" für Schalke
-        # schrumpft nach dem Aussortieren der Ziffern auf ein einziges "S" und
-        # ergäbe den Hashtag #SDSC. Bleiben weniger als drei Buchstaben übrig,
-        # zählt deshalb der vollständige Vereinsname.
-        def nur_buchstaben(text):
+        # The short name is the first choice, but not always usable: "S04"
+        # for Schalke shrinks to a single "S" once the digits are gone and
+        # would give the hashtag #SDSC. So if fewer than three letters remain,
+        # the full club name counts instead.
+        def letters_only(text):
             return "".join(z for z in (text or "") if z.isalpha()).upper()
 
-        code = nur_buchstaben(team["shortName"])
+        code = letters_only(team["shortName"])
         if len(code) < 3:
-            code = nur_buchstaben(team["teamName"]) or code
+            code = letters_only(team["teamName"]) or code
         code = code[:3]
-        log(f'⚠️ Kein DFL-Kürzel für "{team["teamName"]}" (teamId {team["teamId"]}) hinterlegt - '
-            f'nutze Fallback "{code}". Bitte in TEAM_CODES nachtragen.')
+        log(f'⚠️ No DFL code on file for "{team["teamName"]}" '
+            f'(teamId {team["teamId"]}) - falling back to "{code}". '
+            f'Please add it to [team_codes].')
     return code
 
 
 def match_info_text(match):
-    """Kurzinfo zum Spiel für die Profilzeile: "1. Spieltag" bzw. "DFB-Pokal, 1. Runde"."""
+    """A short note about the match for the profile line: "1. Spieltag" or
+    "DFB-Pokal, 1. Runde"."""
     group = (match.get("group") or {}).get("groupName", "").strip()
     if "pokal" in match.get("leagueName", "").lower():
         return f"DFB-Pokal, {group}" if group else "DFB-Pokal"
     return group or match.get("leagueName", "")
 
 
-def _zuletzt_gepflegt(match):
-    """Wann OpenLigaDB diesen Eintrag zuletzt angefasst hat - entscheidet, welche
-    von zwei Dubletten gilt. Fehlt die Angabe, zaehlt der Eintrag als aeltest."""
+def _last_updated(match):
+    """When OpenLigaDB last touched this entry - it decides which of two
+    duplicates counts. Without the field the entry counts as the oldest."""
     try:
         return datetime.fromisoformat(match.get("lastUpdateDateTime") or "")
     except (TypeError, ValueError):
         return datetime.min
 
 
-def fetch_team_matches(weeks_back=1, weeks_forward=1):
-    """Holt die Spiele der eigenen Mannschaft aus OpenLigaDB und liefert sie als Liste von
-    (kickoff_local, match) - aufsteigend sortiert, doppelte Termine entfernt.
+_legacy_league_note_shown = False
 
-    Filtert zwei Sorten Datenmüll heraus:
-      * fremde Teams (der API-Teamfilter "bielefeld" ist unscharf) -> Prüfung auf teamId
-      * Fantasie-/Testligen: OpenLigaDB listete real z.B. eine Liga "ESP8266"
-        mit demselben Spiel an einem FALSCHEN Datum. Ohne diesen Filter würde der
-        Ticker an einem spielfreien Tag anspringen."""
+
+def _league_wanted(shortcut):
+    """Does a match from this league count? Exact comparison; without any
+    configuration every league counts."""
+    if LEAGUE_SHORTCUTS:
+        return shortcut in LEAGUE_SHORTCUTS
+    if LEGACY_LEAGUE_PREFIXES:
+        return shortcut.startswith(LEGACY_LEAGUE_PREFIXES)
+    return True
+
+
+def fetch_team_matches(weeks_back=1, weeks_forward=1):
+    """Fetches our own team's matches from OpenLigaDB and returns them as a
+    list of (kickoff_local, match) - sorted ascending, duplicates removed.
+
+    Two kinds of rubbish are filtered out:
+      * other teams (the API's team filter "bielefeld" is fuzzy) -> checked
+        against teamId
+      * made up or test leagues: OpenLigaDB really did list a league called
+        "ESP8266" carrying the same match on the WRONG date. Without this
+        filter the ticker would start up on a day with no match at all."""
     url = (f"https://api.openligadb.de/getmatchesbyteam/{OPENLIGADB_TEAM_FILTER}"
            f"/{weeks_back}/{weeks_forward}")
     resp = requests.get(url, timeout=20)
     resp.raise_for_status()
 
-    beste = {}
+    best = {}
     skipped_leagues = set()
+    accepted_leagues = set()
     for match in resp.json():
         if OPENLIGADB_TEAM_ID not in (match["team1"]["teamId"], match["team2"]["teamId"]):
             continue
         shortcut = (match.get("leagueShortcut") or "").lower()
-        if not shortcut.startswith(LEAGUE_PREFIXES):
+        if not _league_wanted(shortcut):
             skipped_leagues.add(f'{match.get("leagueShortcut")} ({match.get("leagueName")})')
             continue
+        accepted_leagues.add(shortcut)
         kickoff_local = datetime.fromisoformat(
             match["matchDateTimeUTC"].replace("Z", "+00:00")
         ).astimezone(LOCAL_TZ)
-        # Dasselbe Spiel kommt doppelt, wenn zwei Ligen es führen (real gesehen:
-        # bl2 und bl2h). Die Anstoßzeit taugt NICHT als Unterscheidung - solange
-        # die Ansetzung offen ist, steht dort ein Platzhalter, und die beiden
-        # Einträge weichen dann um Stunden voneinander ab. Deshalb nach Datum und
-        # Paarung entdoppeln und den zuletzt gepflegten Eintrag behalten: er trägt
-        # die aktuellere Ansetzung.
-        # Ohne das hielte der Ticker eine Dublette für ein zweites Spiel am selben
-        # Tag und würde die Beiträge mit dem Ersatz-Hashtag beschriften.
+        # The same match arrives twice when two leagues carry it (seen in the
+        # wild: bl2 and bl2h). The kickoff time is NOT usable to tell them
+        # apart - while the fixture is still open it holds a placeholder, and
+        # the two entries then differ by hours. So deduplicate by date and
+        # pairing and keep the entry updated last: it carries the more recent
+        # fixture.
+        # Without this the ticker would take a duplicate for a second match on
+        # the same day and label the posts with the overlap hashtag.
         key = (kickoff_local.date(), match["team1"]["teamId"], match["team2"]["teamId"])
-        vorhanden = beste.get(key)
-        if vorhanden is None or _zuletzt_gepflegt(match) > _zuletzt_gepflegt(vorhanden[1]):
-            beste[key] = (kickoff_local, match)
+        existing = best.get(key)
+        if existing is None or _last_updated(match) > _last_updated(existing[1]):
+            best[key] = (kickoff_local, match)
 
     if skipped_leagues:
-        log(f"(OpenLigaDB: Spiele aus unbekannten Ligen ignoriert: {', '.join(sorted(skipped_leagues))})")
-    return sorted(beste.values(), key=lambda item: item[0])
+        log(f"(OpenLigaDB: matches from other leagues ignored: "
+            f"{', '.join(sorted(skipped_leagues))})")
+
+    global _legacy_league_note_shown
+    if LEGACY_LEAGUE_PREFIXES and not LEAGUE_SHORTCUTS and not _legacy_league_note_shown:
+        _legacy_league_note_shown = True
+        log("⚠️ [team] league_prefixes is deprecated: it compares prefixes, so a "
+            "variant of a real league (bl2h next to bl2) passes the check. The "
+            "same fixture can then show up on a second, wrong day.")
+        log("   Please switch to exact shortcuts. These leagues turned up in the")
+        log("   current data - enter the ones you actually want, and leave out any")
+        log("   variant of a league you already have (bl2h beside bl2):")
+        log(f"     {', '.join(sorted(accepted_leagues)) or '(none)'}")
+    elif not LEAGUE_SHORTCUTS and not LEGACY_LEAGUE_PREFIXES:
+        log("ℹ️ No league filter configured ([team] league_shortcuts is empty) - "
+            "every league OpenLigaDB returns counts, made up ones included.")
+
+    return sorted(best.values(), key=lambda item: item[0])
 
 
 def describe_match(kickoff_local, match):
-    """Baut (kickoff_local, beschreibung, hashtag, kurzinfo) aus einem OpenLigaDB-Spiel."""
+    """Builds (kickoff_local, description, hashtag, short info) from an
+    OpenLigaDB match."""
     desc = f'{match["team1"]["teamName"]} - {match["team2"]["teamName"]} ({match["leagueName"]})'
-    heim, gast = team_code(match["team1"]), team_code(match["team2"])  # team1 = Heimteam
-    if heim == gast:
-        # Kommt vor, wenn zwei Vereine dasselbe Kürzel führen (z.B. tragen sowohl
-        # Werder Bremen als auch Waldhof Mannheim "SVW"). Der Hashtag wäre unbrauchbar.
-        log(f'⚠️ Beide Mannschaften führen das Kürzel "{heim}" - der Hashtag #{heim}{gast} '
-            f'ergibt keinen Sinn.')
-        log(f'   Bitte eines der Kürzel in [team_codes] anpassen: Team-Nummern '
-            f'{match["team1"]["teamId"]} ({match["team1"]["teamName"]}) und '
+    # team1 is the home side in the OpenLigaDB data.
+    home_team, away_team = team_code(match["team1"]), team_code(match["team2"])
+    if home_team == away_team:
+        # Happens when two clubs share a code (both Werder Bremen and Waldhof
+        # Mannheim carry "SVW", for instance). The hashtag would be useless.
+        log(f'⚠️ Both teams carry the code "{home_team}" - the hashtag '
+            f'#{home_team}{away_team} makes no sense.')
+        log(f'   Please adjust one of them in [team_codes]: team numbers '
+            f'{match["team1"]["teamId"]} ({match["team1"]["teamName"]}) and '
             f'{match["team2"]["teamId"]} ({match["team2"]["teamName"]}).')
-    return kickoff_local, desc, heim + gast, match_info_text(match)
+    return kickoff_local, desc, home_team + away_team, match_info_text(match)
 
 
 def get_todays_matches():
-    """Liefert alle heutigen Spiele als Liste von (kickoff_local, beschreibung,
-    hashtag, kurzinfo), nach Anstoß sortiert - leer, wenn heute nichts ansteht.
+    """Returns every match of today as a list of (kickoff_local, description,
+    hashtag, short info), sorted by kickoff - empty when nothing is on today.
 
-    Bewusst eine Liste: Spielen etwa Herren- und Frauenmannschaft am selben Tag,
-    laufen beide über denselben WhatsApp-Kanal. Der Hashtag folgt dem Schema
-    Heimteam+Auswärtsteam, also z.B. DSCWOB (heim) bzw. WOBDSC (auswärts)."""
+    A list on purpose: when, say, the men's and the women's team play on the
+    same day, both run through the same WhatsApp channel. The hashtag follows
+    the pattern home+away, so DSCWOB at home and WOBDSC away."""
     today_local = datetime.now(LOCAL_TZ).date()
     return [describe_match(kickoff_local, match)
             for kickoff_local, match in fetch_team_matches(1, 1)
@@ -383,22 +434,22 @@ def get_todays_matches():
 
 
 def get_next_matches():
-    """Liefert alle Spiele des nächsten Spieltags (für die "Bot ist aus"-Profilzeile),
-    sonst eine leere Liste. Schaut bewusst weit voraus, damit auch Winter- und
-    Sommerpausen überbrückt werden. Stehen an dem Tag mehrere Spiele an, kommen
-    alle zurück - die Profilzeile nennt dann jedes."""
+    """Returns every match of the next matchday (for the "bot is off" profile
+    line), otherwise an empty list. It deliberately looks far ahead, so that
+    winter and summer breaks are bridged too. If several matches fall on that
+    day, all of them come back - the profile line then names each one."""
     now = datetime.now(LOCAL_TZ)
-    kommende = [(k, m) for k, m in fetch_team_matches(0, 12) if k > now]
-    if not kommende:
+    upcoming = [(k, m) for k, m in fetch_team_matches(0, 12) if k > now]
+    if not upcoming:
         return []
-    erster_tag = kommende[0][0].date()
-    return [describe_match(k, m) for k, m in kommende if k.date() == erster_tag]
+    first_day = upcoming[0][0].date()
+    return [describe_match(k, m) for k, m in upcoming if k.date() == first_day]
 
 
-# 2. Wasserzeichen-Verwaltung (MessageServerID ist pro Kanal monoton steigend)
+# 2. The watermark (a channel's MessageServerID rises monotonically)
 def load_watermark():
-    """Liest das Wasserzeichen, aber nur wenn es von HEUTE stammt (Neustart am selben Tag).
-    An einem neuen Spieltag wird stattdessen frisch gebaselined."""
+    """Reads the watermark, but only if it is from TODAY (a restart on the same
+    day). On a new matchday a fresh baseline is taken instead."""
     if not os.path.exists(STATE_FILE):
         return None
     try:
@@ -417,9 +468,9 @@ def save_watermark(server_id):
 
 
 def load_posts_map():
-    """Lädt die Zuordnung ServerID -> gepostete Bluesky-URIs + Text-Hash (nur vom
-    heutigen Tag). Wird gebraucht, um bei Kanal-Bearbeitungen die alten
-    Bluesky-Posts löschen und ersetzen zu können."""
+    """Loads the mapping of server ID -> posted Bluesky URIs and text hash (only
+    for today). Needed to delete and replace the old Bluesky posts when a
+    channel post is edited."""
     if not os.path.exists(POSTS_MAP_FILE):
         return {}
     try:
@@ -441,11 +492,11 @@ def text_hash(text):
     return hashlib.sha1((text or "").encode("utf-8")).hexdigest()
 
 
-# 3. Hilfsfunktionen für Nachrichteninhalt & Bluesky
+# 3. Helpers for message content and Bluesky
 def unwrap_message(msg):
-    """Packt generische Container-Nachrichten aus - manche Posts stecken in
-    Wrappern wie ephemeralMessage, bis der eigentliche Inhalt vorliegt.
-    Bearbeitungen kommen als protocolMessage.editedMessage mit dem NEUEN Inhalt."""
+    """Unwraps generic container messages - some posts sit inside wrappers
+    such as ephemeralMessage until the actual content shows up.
+    Edits arrive as protocolMessage.editedMessage carrying the NEW content."""
     for _ in range(3):
         if msg.HasField("ephemeralMessage"):
             msg = msg.ephemeralMessage.message
@@ -461,8 +512,9 @@ def unwrap_message(msg):
 
 
 def extract_text(msg):
-    """Zieht den Text aus einer WhatsApp-E2E-Message (Kanal-Posts sind meist
-    conversation/extendedTextMessage, Bilder tragen den Text als caption)."""
+    """Pulls the text out of a WhatsApp E2E message (channel posts are usually
+    conversation or extendedTextMessage; images carry their text as a
+    caption)."""
     if msg.conversation:
         return msg.conversation
     if msg.HasField("extendedTextMessage") and msg.extendedTextMessage.text:
@@ -477,10 +529,10 @@ def extract_text(msg):
 
 
 def split_text(text, first_limit=200, follow_limit=240):
-    """Zerlegt Text in Chunks unter Blueskys 300-Zeichen-Limit. Der erste Chunk
-    ist kleiner, weil er zusätzlich Präfix + Quell-Link trägt (~60 Zeichen);
-    der letzte bekommt noch die Hashtags. Bricht bevorzugt an Wort-/Zeilengrenzen,
-    notfalls hart."""
+    """Splits text into chunks below Bluesky's 300 character limit. The first
+    chunk is smaller because it also carries the header and the source link
+    (~60 characters); the last one still gets the hashtags. It prefers word
+    and line boundaries and cuts hard only when it has to."""
     text = text.strip()
     if not text:
         return []
@@ -488,7 +540,7 @@ def split_text(text, first_limit=200, follow_limit=240):
     limit = first_limit
     while len(text) > limit:
         cut = max(text.rfind(" ", 0, limit), text.rfind("\n", 0, limit))
-        if cut < limit // 2:  # keine brauchbare Grenze gefunden -> hart schneiden
+        if cut < limit // 2:  # no usable boundary found -> cut hard
             cut = limit
         chunks.append(text[:cut].rstrip())
         text = text[cut:].lstrip()
@@ -502,8 +554,8 @@ URL_REGEX = re.compile(r"https?://[^\s<>()\[\]]+")
 
 
 def add_text_with_links(tb, text):
-    """Fügt Text in den TextBuilder ein und macht enthaltene URLs klickbar
-    (Bluesky braucht dafür Facets - reiner Text wird nicht automatisch verlinkt)."""
+    """Adds text to the TextBuilder and makes any URLs in it clickable
+    (Bluesky needs facets for that - plain text is not linked automatically)."""
     pos = 0
     for m in URL_REGEX.finditer(text):
         if m.start() > pos:
@@ -514,28 +566,28 @@ def add_text_with_links(tb, text):
         tb.text(text[pos:])
 
 
-def baue_beitragstext(chunk, index, gesamt, hashtags):
-    """Baut den Text eines einzelnen Beitrags im Thread - Kopfbereich im ersten,
-    Hashtags im letzten, Zähler dazwischen.
+def build_post_text(chunk, index, total, hashtags):
+    """Builds the text of a single post in the thread - the header in the first
+    one, the hashtags in the last, a counter in between.
 
-    Bewusst eine einzige Stelle: Der Trockenlauf zeigt damit genau das, was der
-    echte Lauf senden würde, statt einer nachgebauten Näherung."""
+    Deliberately one single place: it lets the dry run show exactly what the
+    real run would send, instead of a rebuilt approximation."""
     tb = client_utils.TextBuilder()
     if index == 0:
-        baue_quellzeile(tb, POST_PREFIX, POST_SOURCE_LABEL, CHANNEL_INVITE_LINK)
-    add_text_with_links(tb, chunk if gesamt == 1 else f"{chunk} ({index + 1}/{gesamt})")
-    if index == gesamt - 1:
+        build_source_line(tb, POST_PREFIX, POST_SOURCE_LABEL, CHANNEL_INVITE_LINK)
+    add_text_with_links(tb, chunk if total == 1 else f"{chunk} ({index + 1}/{total})")
+    if index == total - 1:
         tb.text("\n\n")
-        for lfd, tag in enumerate(hashtags):
-            if lfd:
+        for nth, tag in enumerate(hashtags):
+            if nth:
                 tb.text(" ")
             tb.tag(f"#{tag}", tag)
     return tb
 
 
 def fetch_og_data(url):
-    """Holt OpenGraph-Daten (Titel, Beschreibung, Vorschaubild) einer Seite für
-    die Bluesky-Link-Karte. Liefert (title, description, thumb_bytes|None)."""
+    """Fetches the OpenGraph data (title, description, preview image) of a page
+    for the Bluesky link card. Returns (title, description, thumb_bytes|None)."""
     resp = requests.get(
         url, timeout=15, headers={"User-Agent": "Mozilla/5.0 (X11; Linux aarch64)"}
     )
@@ -567,8 +619,9 @@ def fetch_og_data(url):
 
 
 def build_external_embed(url):
-    """Baut eine Bluesky-Link-Vorschaukarte (app.bsky.embed.external). Bluesky
-    erzeugt Previews nicht serverseitig - ohne diese Karte bleibt ein Link nackt."""
+    """Builds a Bluesky link preview card (app.bsky.embed.external). Bluesky
+    does not generate previews server side - without this card a link stays
+    bare."""
     try:
         title, description, thumb_bytes = fetch_og_data(url)
         thumb_blob = None
@@ -589,46 +642,47 @@ def build_external_embed(url):
 
 
 bsky_client = None
-_anmeldeversuche = 0  # begrenzt Wiederholungen, siehe ensure_bsky()
-match_hashtag = None  # wird in main() aus den OpenLigaDB-Daten gesetzt (z.B. "DSCWOB")
-match_hashtags_tag = []  # alle Spiel-Hashtags des Tages - die Profilzeile nennt sie
-match_info = None     # Kurzinfo zum heutigen Spiel, z.B. "1. Spieltag" (für die Profilzeile)
-match_kickoff = None  # Anstoßzeit des heutigen Spiels (für die Profilzeile)
+_login_attempts = 0  # begrenzt Wiederholungen, siehe ensure_bsky()
+match_hashtag = None  # set in main() from the OpenLigaDB data (e.g. "DSCWOB")
+match_hashtags_tag = []  # every match hashtag of the day - the profile line names them
+match_info = None     # short note on today's match, e.g. "1. Spieltag" (profile line)
+match_kickoff = None  # kickoff time of today's match (profile line)
 
 
 def ensure_bsky():
-    """Stellt die Bluesky-Verbindung her (lazy, einmalig pro Lauf)."""
+    """Opens the Bluesky connection (lazily, once per run)."""
     global bsky_client
-    global _anmeldeversuche
+    global _login_attempts
     if bsky_client is not None:
         return
-    # Nach mehreren Fehlschlägen nicht weiter probieren: Bluesky erlaubt nur
-    # 10 Anmeldungen pro Tag und Konto, und an einem Spieltag kämen sonst
-    # dutzende Versuche zusammen - danach wäre auch ein korrigiertes Passwort
-    # für den Rest des Tages gesperrt.
-    if _anmeldeversuche >= 3:
-        raise RuntimeError("Anmeldung bei Bluesky mehrfach fehlgeschlagen - "
-                           "keine weiteren Versuche in diesem Lauf.")
-    _anmeldeversuche += 1
-    log("Verbinde mit Bluesky...")
-    verbindung = Client()
-    # Erst nach erfolgreicher Anmeldung übernehmen: Sonst bliebe ein
-    # unangemeldetes Objekt zurück, und alle folgenden Beiträge liefen
-    # ohne Anmeldung ins Leere ("AuthMissing").
-    melde_bei_bluesky_an(verbindung, BLUESKY_HANDLE, BLUESKY_APP_PASSWORD,
-                         PASSWORT_VARIABLE)
-    bsky_client = verbindung
+    # Do not keep trying after several failures: Bluesky allows only 10
+    # logins per day and account, and on a matchday dozens of attempts would
+    # pile up - after which even a corrected password would be locked out for
+    # the rest of the day.
+    if _login_attempts >= 3:
+        raise RuntimeError("Logging in to Bluesky failed repeatedly - "
+                           "no further attempts in this run.")
+    _login_attempts += 1
+    log("Connecting to Bluesky...")
+    connection = Client()
+    # Take it over only after a successful login: otherwise an
+    # unauthenticated object would stay behind, and every following post
+    # would go out unauthenticated ("AuthMissing").
+    log_in_to_bluesky(connection, BLUESKY_HANDLE, BLUESKY_APP_PASSWORD,
+                         PASSWORD_VARIABLE)
+    bsky_client = connection
 
 
 # --- Profil-Statuszeile -------------------------------------------------------
-profile_status_on = False  # True, sobald die Bio auf "Bot ist an" steht
+profile_status_on = False  # true once the bio says the bot is on
 
 
 def set_profile_status(on):
-    """Schaltet die ERSTE Zeile der Bluesky-Bio zwischen "Bot ist an"/"Bot ist aus" um.
-    Alle weiteren Bio-Zeilen sowie Avatar, Banner und Anzeigename bleiben unangetastet
-    (das komplette Profil-Record wird gelesen und nur die Beschreibung geändert).
-    Fehler werden nur geloggt - der Ticker läuft in jedem Fall weiter."""
+    """Switches the FIRST line of the Bluesky bio between "bot is on" and "bot
+    is off". Every other line of the bio, as well as avatar, banner and display
+    name, is left untouched (the whole profile record is read and only the
+    description changed). Errors are only logged - the ticker carries on either
+    way."""
     global profile_status_on
 
     if not PROFILE_STATUS_ENABLED:
@@ -637,27 +691,28 @@ def set_profile_status(on):
     # Zeile zusammenbauen
     try:
         if on:
-            # Bei mehreren Spielen nennt die Profilzeile alle Partien, auch wenn
-            # die Beitraege selbst nur den Ersatz-Hashtag tragen.
-            sichtbar = match_hashtags_tag or ([match_hashtag] if match_hashtag else [])
+            # With several matches the profile line names all of them, even
+            # though the posts themselves only carry the overlap hashtag.
+            shown = match_hashtags_tag or ([match_hashtag] if match_hashtag else [])
             line = PROFILE_LINE_ON.format(
                 info=match_info or FALLBACK_MATCH_INFO,
-                hashtag=" ".join(f"#{h}" for h in sichtbar),
+                hashtag=" ".join(f"#{h}" for h in shown),
                 date=match_kickoff.strftime("%d.%m.") if match_kickoff else "",
                 time=match_kickoff.strftime("%H:%M") if match_kickoff else "",
             )
         else:
-            naechste = get_next_matches()
-            if naechste:
-                kickoff, _desc, _hashtag, info = naechste[0]
+            next_matches = get_next_matches()
+            if next_matches:
+                kickoff, _desc, _hashtag, info = next_matches[0]
                 line = PROFILE_LINE_OFF.format(
-                    info=" + ".join(dict.fromkeys(i for *_, i in naechste)) or info,
-                    hashtag=" ".join(f"#{h}" for *_, h, _ in naechste),
+                    info=" + ".join(dict.fromkeys(i for *_, i in next_matches)) or info,
+                    hashtag=" ".join(f"#{h}" for *_, h, _ in next_matches),
                     date=kickoff.strftime("%d.%m."), time=kickoff.strftime("%H:%M"),
                 )
             else:
                 line = PROFILE_LINE_OFF_NO_MATCH
-        line = " ".join(line.split())  # doppelte Leerzeichen bei leeren Platzhaltern vermeiden
+        # Empty placeholders would otherwise leave double spaces behind.
+        line = " ".join(line.split())
     except Exception as e:
         log(f"⚠️ Konnte Profil-Statuszeile nicht bauen: {e}")
         return
@@ -688,7 +743,8 @@ def set_profile_status(on):
                 collection="app.bsky.actor.profile",
                 rkey="self",
                 record=record,
-                swap_record=resp.cid,  # verhindert Überschreiben paralleler Bio-Änderungen
+                # Guards against overwriting a bio changed in parallel.
+                swap_record=resp.cid,
             )
         )
         profile_status_on = on
@@ -698,57 +754,58 @@ def set_profile_status(on):
 
 
 # --- Video-Upload: portiert aus skyrelay-feed.py ---------------------------
-# TODO(Auslagerung): resolve_pds_did_web, upload_video_to_bluesky, das Bild-
-# Komprimieren und die Thread-Post-Logik existieren nahezu identisch im
-# Instagram-Reposter. Sobald beide Programme gemeinsame Bausteine teilen,
-# veröffentlicht wird, gehören diese gemeinsamen Funktionen in ein geteiltes
-# Modul - die Redundanz ist hier bewusst und nur vorübergehend.
+# TODO(extract): resolve_pds_did_web, upload_video_to_bluesky, compressing
+# images and the thread posting logic exist almost identically in the
+# Instagram reposter. Once both programs share common building blocks, these
+# functions belong in a shared module - the redundancy here is deliberate and
+# temporary.
 
 # ------------------------------------------------------------------------------
 
 
 def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None,
-                    media_name="video", platzhalter=None):
-    """Postet eine Kanal-Nachricht im Format des Instagram-Reposters: Hauptpost mit
-    "[Inoffizieller Bot]"-Präfix + Quell-Link, bei Überlänge Folge-Chunks als Replies.
-    URLs im Text werden klickbar. Embed-Priorität (ein Post = ein Embed):
-    Video > Bilder > Link-Vorschaukarte. Scheitert der Video-Upload, dient das
-    WhatsApp-Vorschaubild als Bild-Fallback. An den letzten Chunk kommen der
-    generierte Spiel-Hashtag und der Dauer-Hashtag. Liefert die Liste der erzeugten
-    Post-URIs zurück (Hauptpost zuerst) - wird für die Bearbeitungs-Logik
-    gespeichert, um Posts später löschen zu können."""
+                    media_name="video", placeholder=None):
+    """Posts a channel message in the same shape as the Instagram reposter: a
+    main post with the header and the source link, and follow-up chunks as
+    replies when it runs long. URLs in the text become clickable. Embed order
+    (one post = one embed): video > images > link preview card. If the video
+    upload fails, the WhatsApp thumbnail steps in as an image. The last chunk
+    gets the generated match hashtag and the standing hashtag. Returns the list
+    of URIs created (the main post first) - stored for the edit logic, so posts
+    can be deleted later."""
     hashtags = ([match_hashtag] if match_hashtag else []) + \
                ([STANDING_HASHTAG] if STANDING_HASHTAG else [])
 
     text_chunks = split_text(text)
     if not text_chunks and not image_blobs and not video_bytes:
-        log("   (leere Nachricht, wird übersprungen)")
+        log("   (empty message, skipped)")
         return []
 
     card_url_match = URL_REGEX.search(text) if not image_blobs and not video_bytes else None
 
-    # Besteht der Beitrag nur aus Medien, tritt ein Platzhaltertext an die Stelle
-    # des Textes. Das muss vor dem Trockenlauf geschehen, damit der die Vorschau
-    # auf derselben Grundlage baut wie der echte Lauf.
+    # When the post is media only, a placeholder text takes the place of the
+    # text. That has to happen before the dry run, so it builds its preview on
+    # the same footing as the real run.
     if not text_chunks:
-        text_chunks = [platzhalter or
+        text_chunks = [placeholder or
                        (VIDEO_PLACEHOLDER if video_bytes else IMAGE_PLACEHOLDER)]
 
     if DRY_RUN:
-        card = f", Link-Karte für {card_url_match.group(0)}" if card_url_match else ""
+        card = (f", link card for {card_url_match.group(0)}"
+                if card_url_match else "")
         video = f", 1 Video ({len(video_bytes)} Bytes)" if video_bytes else ""
         log(f"   [DRY_RUN] Würde posten ({len(text_chunks)} Beitrag/Beiträge, "
             f"{len(image_blobs)} Bild(er){video}{card}):")
-        zeige_vorschau([baue_beitragstext(chunk, i, len(text_chunks), hashtags)
+        show_preview([build_post_text(chunk, i, len(text_chunks), hashtags)
                         for i, chunk in enumerate(text_chunks)])
         return []
 
     ensure_bsky()
 
-    # Video-Upload zuerst versuchen; bei Fehlschlag Vorschaubild als Bild-Fallback
-    # und das Video zum Nachreichen vormerken.
+    # Try the video upload first; on failure use the thumbnail as an image and
+    # note the video down to be handed in later.
     video_embed = None
-    offenes_video = False
+    video_pending = False
     if video_bytes:
         try:
             video_embed = upload_video_to_bluesky(bsky_client, video_bytes,
@@ -757,17 +814,18 @@ def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None,
                                                   VIDEO_JOB_TIMEOUT_SECONDS)
         except Exception as video_err:
             log(f"   ⚠️ Video-Upload fehlgeschlagen: {video_err}")
-            # Der Beitrag geht sofort mit dem Vorschaubild raus - beim Live-Ticker
-            # zählt die Zeit. Das Video bleibt liegen und wird nachgereicht.
-            offenes_video = merke_video_daten(VIDEO_RETRY_DIR, media_name, video_bytes)
+            # The post goes out with the thumbnail right away - on a live
+            # ticker, time is what counts. The video stays behind and is
+            # handed in later.
+            video_pending = stash_video(VIDEO_RETRY_DIR, media_name, video_bytes)
             if video_thumb and not image_blobs:
                 try:
                     image_blobs = [compress_image_for_bluesky(video_thumb)]
-                    log("   Nutze Video-Vorschaubild als Fallback.")
+                    log("   Using the video thumbnail as a fallback.")
                 except Exception as thumb_err:
                     log(f"   ⚠️ Auch Vorschaubild-Fallback fehlgeschlagen: {thumb_err}")
 
-    # Link-Vorschaukarte nur, wenn keine anderen Medien da sind (ein Post = ein Embed).
+    # A link preview card only when no other media are present (one post = one embed).
     external_embed = None
     if card_url_match:
         external_embed = build_external_embed(card_url_match.group(0))
@@ -793,15 +851,15 @@ def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None,
         elif is_first and external_embed is not None:
             embed = external_embed
 
-        tb = baue_beitragstext(chunk, i, total, hashtags)
+        tb = build_post_text(chunk, i, total, hashtags)
 
         if is_first:
             root_post = bsky_client.send_post(text=tb, embed=embed)
             root_ref = models.ComAtprotoRepoStrongRef.Main(cid=root_post.cid, uri=root_post.uri)
             parent_ref = root_ref
             created_uris.append(root_post.uri)
-            if offenes_video:
-                merke_nachreich_ziel(VIDEO_RETRY_DIR, media_name, bsky_client.me.did,
+            if video_pending:
+                stash_retry_target(VIDEO_RETRY_DIR, media_name, bsky_client.me.did,
                                      root_ref.uri, root_ref.cid,
                                      root_ref.uri, root_ref.cid,
                                      f"{media_name}.mp4", alt_text)
@@ -823,57 +881,60 @@ def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None,
             parent_ref = models.ComAtprotoRepoStrongRef.Main(cid=reply.cid, uri=reply.uri)
             created_uris.append(reply.uri)
 
-    log("   ✓ Auf Bluesky veröffentlicht.")
+    log("   ✓ Published on Bluesky.")
     return created_uris
 
 
 # 4. Kanal-Nachricht verarbeiten
-MEDIENFELDER = ("audioMessage", "videoMessage", "imageMessage",
+MEDIA_FIELDS = ("audioMessage", "videoMessage", "imageMessage",
                 "stickerMessage", "documentMessage")
 
 
-async def lade_kanal_medien(client, msg):
-    """Lädt die Mediendatei einer Kanal-Nachricht herunter.
+async def download_channel_media(client, msg):
+    """Downloads the media file of a channel message.
 
-    Kanalmedien liegen unverschlüsselt hinter `directPath` - Bilder und Videos
-    bringen deshalb gar keinen `mediaKey` mit und laden anstandslos.
-    Sprachnachrichten schleppen aber einen `mediaKey` aus dem gewöhnlichen
-    Chat-Ablauf mit. whatsmeow biegt daraufhin in den Entschlüsselungspfad ab
-    und scheitert dort mit "invalid media hmac", obwohl die Datei abrufbar wäre.
-    Nachgemessen am 19.08.2026: 0 von 5 Sprachnachrichten luden regulär, alle
-    luden ohne den Schlüssel - byte-genau in der angekündigten Länge.
+    Channel media sit unencrypted behind `directPath` - images and videos
+    therefore carry no `mediaKey` at all and download without complaint.
+    Voice messages, however, drag a `mediaKey` along from the ordinary chat
+    flow. whatsmeow then turns into the decryption path and fails there with
+    "invalid media hmac", even though the file could be fetched.
+    Measured on 19.08.2026: 0 of 5 voice messages downloaded the regular way,
+    all 5 downloaded without the key - byte for byte the announced length.
 
-    Deshalb zuerst der reguläre Weg und nur bei einem hmac-Fehler ein zweiter
-    Versuch ohne `mediaKey`. Liefert WhatsApp Kanal-Audio eines Tages doch
-    verschlüsselt aus, greift weiterhin der reguläre Weg."""
+    So the regular way comes first, and only an hmac error triggers a second
+    attempt without the `mediaKey`. Should WhatsApp one day serve channel
+    audio encrypted after all, the regular way still applies."""
     try:
         return await client.download_any(msg)
-    except Exception as fehler:
-        if "hmac" not in str(fehler).lower():
+    except Exception as error:
+        if "hmac" not in str(error).lower():
             raise
-        log("   ℹ️ Download scheitert an der Prüfsumme - zweiter Versuch "
-            "ohne mediaKey (Kanalmedien liegen unverschlüsselt).")
-        ohne_schluessel = type(msg)()
-        ohne_schluessel.CopyFrom(msg)
-        for feld in MEDIENFELDER:
-            if ohne_schluessel.HasField(feld):
-                getattr(ohne_schluessel, feld).ClearField("mediaKey")
+        log("   ℹ️ The download fails on the checksum - trying again without "
+            "the mediaKey (channel media are unencrypted).")
+        without_key = type(msg)()
+        without_key.CopyFrom(msg)
+        for field in MEDIA_FIELDS:
+            if without_key.HasField(field):
+                getattr(without_key, field).ClearField("mediaKey")
                 break
-        return await client.download_any(ohne_schluessel)
+        return await client.download_any(without_key)
 
 
 async def process_newsletter_message(client, raw_msg, server_id):
-    """Verarbeitet eine neue Kanal-Nachricht: Text extrahieren, ggf. Bild laden, reposten."""
+    """Handles a new channel message: extract the text, fetch media if any,
+    repost it."""
     msg = unwrap_message(raw_msg)
 
-    # Diagnose: welche Felder hat die Nachricht wirklich? (Kanal-Posts können
-    # anders strukturiert sein als normale Chats - so sehen wir sofort, was ankommt.)
+    # Diagnosis: which fields does the message really carry? (Channel posts
+    # can be shaped differently from ordinary chats - this shows at once what
+    # arrived.)
     field_names = [fd.name for fd, _ in msg.ListFields()]
-    log(f"   [DEBUG] Message-Felder: {field_names or '(keine)'}")
+    log(f"   [DEBUG] message fields: {field_names or '(none)'}")
 
     text = extract_text(msg)
     if not text and not field_names:
-        log("   [DEBUG] Nachricht ist komplett leer (vermutlich gelöschter Post oder Reaktions-Update).")
+        log("   [DEBUG] the message is completely empty "
+            "(probably a deleted post or a reaction update).")
     elif not text:
         preview = str(msg)[:300].replace("\n", " | ")
         log(f"   [DEBUG] Kein Text extrahierbar, Roh-Vorschau: {preview}")
@@ -881,20 +942,20 @@ async def process_newsletter_message(client, raw_msg, server_id):
     image_blobs = []
     video_bytes = None
     video_thumb = None
-    platzhalter = None
+    placeholder = None
     if msg.HasField("imageMessage"):
         try:
-            raw = await lade_kanal_medien(client, msg)
+            raw = await download_channel_media(client, msg)
             image_blobs.append(compress_image_for_bluesky(raw))
         except Exception as dl_err:
-            # Kanal-Medien laufen teils über andere Endpunkte als normale Chats -
-            # falls der Download scheitert, wird nur der Text gepostet.
+            # Channel media partly run through different endpoints than
+            # ordinary chats - if the download fails, only the text is posted.
             log(f"   ⚠️ Bild-Download fehlgeschlagen ({dl_err}) - poste nur Text.")
     elif msg.HasField("videoMessage"):
         video_thumb = msg.videoMessage.JPEGThumbnail or None
         try:
-            log("   Lade Video aus dem Kanal herunter...")
-            video_bytes = await lade_kanal_medien(client, msg)
+            log("   Downloading the video from the channel...")
+            video_bytes = await download_channel_media(client, msg)
             log(f"   ✓ Video geladen ({len(video_bytes)} Bytes).")
         except Exception as dl_err:
             log(f"   ⚠️ Video-Download fehlgeschlagen ({dl_err}) - poste Text"
@@ -907,52 +968,52 @@ async def process_newsletter_message(client, raw_msg, server_id):
             if text:
                 text += f"\n\n{VIDEO_HINT}"
     elif msg.HasField("audioMessage"):
-        # Bluesky kennt kein Audio-Format. Aus der Sprachnachricht wird deshalb
-        # ein Video mit animierter Wellenform - der Ton bleibt dabei erhalten.
-        platzhalter = AUDIO_PLACEHOLDER
-        sekunden = msg.audioMessage.seconds or 0
+        # Bluesky knows no audio format. A voice message therefore becomes a
+        # video with an animated waveform - the sound is kept.
+        placeholder = AUDIO_PLACEHOLDER
+        seconds = msg.audioMessage.seconds or 0
         try:
-            log("   Lade Sprachnachricht aus dem Kanal herunter...")
-            audio = await lade_kanal_medien(client, msg)
-            log(f"   ✓ Sprachnachricht geladen ({len(audio)} Bytes, {sekunden}s).")
-            log("   Erzeuge Video mit Wellenform...")
-            video_bytes = audio_zu_video(audio, AUDIO_SIZE, AUDIO_WAVE_COLOR,
+            log("   Downloading the voice message from the channel...")
+            audio = await download_channel_media(client, msg)
+            log(f"   ✓ Sprachnachricht geladen ({len(audio)} Bytes, {seconds}s).")
+            log("   Building the video with a waveform...")
+            video_bytes = audio_to_video(audio, AUDIO_SIZE, AUDIO_WAVE_COLOR,
                                          AUDIO_BG_COLOR, AUDIO_FRAMERATE)
-            video_thumb = video_standbild(video_bytes)
+            video_thumb = video_still(video_bytes)
             log(f"   ✓ Video erzeugt ({len(video_bytes)} Bytes).")
         except Exception as audio_err:
             log(f"   ⚠️ Sprachnachricht nicht übertragbar: {audio_err}")
             if not text:
-                log("   (ohne Text bleibt nichts zu posten - übersprungen)")
+                log("   (without text there is nothing to post - skipped)")
                 return []
     elif msg.HasField("stickerMessage"):
-        # Sticker sind WebP, oft transparent und manchmal animiert. Bluesky
-        # spielt keine Animationen ab, also geht das erste Einzelbild raus.
-        platzhalter = STICKER_PLACEHOLDER
+        # Stickers are WebP, often transparent and sometimes animated. Bluesky
+        # plays no animations, so the first frame goes out.
+        placeholder = STICKER_PLACEHOLDER
         try:
-            log("   Lade Sticker aus dem Kanal herunter...")
-            roh = await lade_kanal_medien(client, msg)
-            image_blobs.append(sticker_zu_bild(roh, STICKER_BACKGROUND))
-            log(f"   ✓ Sticker umgewandelt ({len(roh)} Bytes Ausgangsmaterial).")
+            log("   Downloading the sticker from the channel...")
+            raw_sticker = await download_channel_media(client, msg)
+            image_blobs.append(sticker_to_image(raw_sticker, STICKER_BACKGROUND))
+            log(f"   ✓ Sticker umgewandelt ({len(raw_sticker)} Bytes Ausgangsmaterial).")
         except Exception as sticker_err:
             log(f"   ⚠️ Sticker nicht übertragbar: {sticker_err}")
             if not text:
-                log("   (ohne Text bleibt nichts zu posten - übersprungen)")
+                log("   (without text there is nothing to post - skipped)")
                 return []
 
     log(f"   Text ({len(text)} Zeichen): {text[:100]!r}...")
     return post_to_bluesky(text, image_blobs, video_bytes, video_thumb,
                            media_name=f"{MEDIA_PREFIX}_{server_id}",
-                           platzhalter=platzhalter)
+                           placeholder=placeholder)
 
 
 async def handle_edit(client, event, server_id, posts_map):
-    """Behandelt ein Event zu einer bereits verarbeiteten ServerID: Bei einer
-    echten Bearbeitung werden die alten Bluesky-Posts gelöscht und die neue
-    Version gepostet; unveränderte Wiederzustellungen werden ignoriert."""
+    """Handles an event for a server ID that was processed already: on a real
+    edit the old Bluesky posts are deleted and the new version is posted;
+    unchanged redeliveries are ignored."""
     msg = unwrap_message(event.Message)
     new_text = extract_text(msg)
-    has_media = any(msg.HasField(feld) for feld in
+    has_media = any(msg.HasField(field) for field in
                     ("imageMessage", "videoMessage", "audioMessage", "stickerMessage"))
 
     if not new_text and not has_media:
@@ -965,8 +1026,8 @@ async def handle_edit(client, event, server_id, posts_map):
         return
 
     if not entry:
-        # Bearbeitung zu einem Post, den dieser Bot heute nicht (nachvollziehbar)
-        # veröffentlicht hat - alte Tickerposts sind uninteressant, ignorieren.
+        # An edit to a post this bot did not publish today (or cannot trace) -
+        # old ticker posts are of no interest, so ignore it.
         log(f"   (Bearbeitung zu ServerID {server_id} ohne gespeicherte Bluesky-Posts - "
             f"alter/unbekannter Post, wird ignoriert)")
         return
@@ -974,13 +1035,13 @@ async def handle_edit(client, event, server_id, posts_map):
     log(f"[EDIT] Kanal-Post {server_id} wurde bearbeitet - ersetze Bluesky-Post(s).")
 
     if DRY_RUN:
-        log(f"   [DRY_RUN] Würde {len(entry['uris'])} alte(n) Bluesky-Post(s) löschen "
-            f"und neu posten: {new_text[:100]!r}...")
+        log(f"   [DRY_RUN] would delete {len(entry['uris'])} old Bluesky post(s) "
+            f"and post anew: {new_text[:100]!r}...")
         return
 
     ensure_bsky()
     deleted = 0
-    # Replies zuerst löschen (umgekehrte Reihenfolge), zum Schluss den Hauptpost.
+    # Delete the replies first (in reverse order), the main post last.
     for uri in reversed(entry["uris"]):
         try:
             bsky_client.delete_post(uri)
@@ -998,9 +1059,9 @@ async def handle_edit(client, event, server_id, posts_map):
 # 5. Hauptablauf
 client = NewAClient(SESSION_DB)
 
-# connect() kehrt sofort zurück - Login/Pairing laufen asynchron. Wer zu früh
+# connect() returns immediately - login and pairing run asynchronously. Acting
 # Newsletter-Methoden aufruft, provoziert einen Segfault im Go-Layer (nil Client).
-# Deshalb: auf das Connected-Event warten, bevor irgendetwas anderes passiert.
+# So: wait for the connected event before anything else happens.
 wa_connected = asyncio.Event()
 
 
@@ -1011,7 +1072,7 @@ async def on_connected(_, __):
 
 @client.event(PairStatusEv)
 async def on_pair_status(_, __):
-    log("✓ Gerät erfolgreich mit dem WhatsApp-Konto gekoppelt.")
+    log("✓ The device is paired with the WhatsApp account.")
 
 
 _qr_instructions_shown = False
@@ -1019,46 +1080,49 @@ _qr_instructions_shown = False
 
 @client.event.qr
 async def on_qr(_, data_qr):
-    """Eigener QR-Handler statt des neonize-Standards: Die Anleitung erscheint so
-    nur, wenn wirklich eine Erst-Kopplung ansteht - nicht bei jedem normalen Start."""
+    """A QR handler of our own instead of neonize's default: this way the
+    instructions appear only when a first pairing is really due - not on every
+    ordinary start."""
     global _qr_instructions_shown
     if not _qr_instructions_shown:
         _qr_instructions_shown = True
-        log("Erst-Kopplung nötig - diesen QR-Code mit dem Handy der Wegwerf-Nummer scannen:")
-        log("(WhatsApp -> Einstellungen -> Verknüpfte Geräte -> Gerät hinzufügen;")
-        log(" bei Scan-Problemen Terminal stark vergrößern und Bildschirm heller stellen.")
-        log(" Alternative: Kopplung per Zahlencode via SKYRELAY_PAIR_PHONE=<Nummer>.)")
+        log("A first pairing is needed - scan this QR code with the phone that "
+            "holds the number:")
+        log("(WhatsApp -> Settings -> Linked devices -> Link a device;")
+        log(" if scanning gives trouble, enlarge the terminal a lot and turn the "
+            "screen brighter.")
+        log(" Alternative: pairing by numeric code through SKYRELAY_PAIR_PHONE=<number>.)")
     else:
-        log("(neuer QR-Code - der alte ist abgelaufen)")
+        log("(a new QR code - the old one expired)")
     segno.make_qr(data_qr).terminal(compact=True)
 
 
-# Kanal-Posts kommen als Live-Events herein. Regelmäßiges Polling über
-# get_newsletter_messages ist im Dauerbetrieb TABU: Enthält der Kanal eine
-# inhaltslose Nachricht, panict der Go-Layer von neonize beim Serialisieren
-# ("required field ... Message not set") und reißt den ganzen Prozess mit.
-# Auslöser sind UNSICHTBARE Meta-Nachrichten (im Kanal nicht sichtbar, belegen
-# aber eine eigene ServerID) - z.B. die Bearbeitung oder Löschung eines Posts,
-# evtl. auch Album-Gruppierungen. Was genau, ließ sich nicht abschließend klären:
-# Die Nachricht ist mit neonize nicht inspizierbar, jeder Abruf stirbt an ihr.
-# Auf dem Event-Weg passiert das nicht: whatsmeow filtert solche Nachrichten
+# Channel posts arrive as live events. Polling get_newsletter_messages regularly
+# is TABOO during normal operation: if the channel holds a message without
+# content, neonize's Go layer panics while serialising it ("required field ...
+# Message not set") and takes the whole process with it. The trigger is an
+# INVISIBLE meta message (not shown in the channel, but occupying a server ID
+# of its own) - the edit or deletion of a post, say, possibly album grouping
+# too. What exactly it is could not be settled: the message cannot be
+# inspected with neonize, every fetch dies on it. On the event path this does
+# not happen: whatsmeow filters such messages out
 # selbst aus ("doesn't have byte content").
-channel_user = None                       # User-Teil der Kanal-JID, wird in main() gesetzt
+channel_user = None  # the user part of the channel JID, set in main()
 incoming_events: asyncio.Queue = asyncio.Queue()
 
 
 @client.event(MessageEv)
 async def on_message(_, event):
     # Bewusst ALLE Newsletter-Events annehmen: Die Offline-Nachlieferung kommt
-    # sofort beim Verbinden - also BEVOR main() die Kanal-JID aufgelöst hat.
-    # Der Kanal-Filter passiert deshalb erst bei der Verarbeitung im Loop.
+    # right on connecting - that is, BEFORE main() has resolved the channel
+    # JID. The channel filter therefore happens later, during processing.
     if event.Info.MessageSource.Chat.Server == "newsletter":
         await incoming_events.put(event)
 
 
 async def with_retries(description, coro_factory, max_attempts=6, wait_seconds=15):
-    """Führt eine WhatsApp-Abfrage mit Wiederholungen aus. Nötig, weil whatsmeow
-    v.a. direkt nach dem Erst-Pairing mehrfach neu verbindet (Code 515, History-Sync,
+    """Runs a WhatsApp query with retries. Needed because whatsmeow reconnects
+    several times right after a first pairing in particular (code 515, history
     Prekey-Upload) - Abfragen in dieser Phase scheitern oder liefern kaputte Antworten
     (z.B. protobuf 'Wire format was corrupt')."""
     for attempt in range(1, max_attempts + 1):
@@ -1075,18 +1139,19 @@ async def with_retries(description, coro_factory, max_attempts=6, wait_seconds=1
 async def main():
     global match_hashtag, match_hashtags_tag, match_info, match_kickoff, channel_user
 
-    fehlend = [name for name, wert in (
+    missing = [name for name, value in (
         ("[source] channel_invite_link", CHANNEL_INVITE_LINK),
         ("[bluesky] handle", BLUESKY_HANDLE),
         ("[team] openligadb_filter", OPENLIGADB_TEAM_FILTER),
-    ) if not wert or "HIER-DEN" in wert or wert.startswith("dein-bot.")]
-    if fehlend:
-        log(f"Fehler: In {os.path.basename(CONFIG_FILE)} fehlen noch Angaben: {', '.join(fehlend)}")
-        log("Den Kanal-Link bekommst du im Handy über: Kanal öffnen -> Kanalnamen")
-        log("antippen -> Teilen -> Link kopieren.")
+    ) if not value or "HIER-DEN" in value or value.startswith("dein-bot.")]
+    if missing:
+        log(f"Error: {os.path.basename(CONFIG_FILE)} is still missing: "
+            f"{', '.join(missing)}")
+        log("The channel link comes from the phone: open the channel -> tap the")
+        log("channel name -> Share -> copy link.")
         sys.exit(1)
 
-    # Nur-Profil-Modus "off": braucht weder Spieltag noch WhatsApp.
+    # Profile-only mode "off": needs neither a matchday nor WhatsApp.
     if PROFILE_ONLY == "off":
         set_profile_status(False)
         return
@@ -1095,38 +1160,40 @@ async def main():
         match_hashtag = MANUAL_HASHTAG
         log(f"Manueller Spiel-Hashtag gesetzt: #{match_hashtag}")
 
-    # Spieltags-Check VOR dem WhatsApp-Connect - an spielfreien Tagen wird gar
-    # keine Verbindung aufgebaut (minimiert Laufzeit und Auffälligkeit).
-    # FORCE heißt "starte trotzdem", NICHT "ignoriere die Spieldaten": Findet
-    # OpenLigaDB ein Spiel, werden Hashtag und Spieltagsinfo auch dann genutzt.
-    # Ohne konfigurierten Verein (Sportart nicht bei OpenLigaDB) entfällt die
-    # Prüfung ganz - dann läuft der Ticker an jedem Tag, an dem er gestartet wird.
-    ohne_spielplan = not OPENLIGADB_TEAM_FILTER or not OPENLIGADB_TEAM_ID
-    heutige = []
-    if ohne_spielplan:
-        log("Kein Spielplan konfiguriert ([team] openligadb_filter leer) - "
-            "Spieltags-Prüfung entfällt.")
+    # The matchday check comes BEFORE connecting to WhatsApp - on days without
+    # a match no connection is opened at all (which keeps both the runtime and
+    # the footprint small).
+    # FORCE means "start anyway", NOT "ignore the fixture data": if
+    # OpenLigaDB does find a match, hashtag and matchday info are used all the
+    # same. Without a club configured (a sport OpenLigaDB does not carry) the
+    # check is skipped entirely - the ticker then runs on any day it is
+    # started.
+    without_schedule = not OPENLIGADB_TEAM_FILTER or not OPENLIGADB_TEAM_ID
+    todays_matches = []
+    if without_schedule:
+        log("No fixture list configured ([team] openligadb_filter is empty) - "
+            "skipping the matchday check.")
     else:
         try:
-            heutige = get_todays_matches()
+            todays_matches = get_todays_matches()
         except Exception as e:
             log(f"Fehler beim OpenLigaDB-Abruf: {e}")
             if not FORCE_RUN:
                 sys.exit(1)
 
-    if heutige:
-        match_hashtags_tag = [h for *_, h, _ in heutige]
-        match_kickoff = heutige[0][0]
-        match_info = " + ".join(dict.fromkeys(i for *_, i in heutige))
-        for kickoff, desc, hashtag, info in heutige:
-            log(f"⚽ Heute ist Spieltag: {desc}, {info}, "
-                f"Anstoß {kickoff.strftime('%H:%M')} Uhr. Spiel-Hashtag: #{hashtag}")
+    if todays_matches:
+        match_hashtags_tag = [h for *_, h, _ in todays_matches]
+        match_kickoff = todays_matches[0][0]
+        match_info = " + ".join(dict.fromkeys(i for *_, i in todays_matches))
+        for kickoff, desc, hashtag, info in todays_matches:
+            log(f"⚽ Today is a matchday: {desc}, {info}, "
+                f"kickoff {kickoff.strftime('%H:%M')}. Match hashtag: #{hashtag}")
 
-        if len(heutige) > 1:
-            # Mehrere Mannschaften an einem Tag, ein gemeinsamer Kanal: einer
-            # Nachricht sieht man nicht an, zu welchem Spiel sie gehört. Lieber
-            # keinen Spiel-Hashtag als den falschen.
-            log(f"ℹ️ {len(heutige)} Spiele an einem Tag - die Beiträge bekommen "
+        if len(todays_matches) > 1:
+            # Several teams on one day sharing one channel: a message does not
+            # reveal which match it belongs to. Better no match hashtag than
+            # the wrong one.
+            log(f"ℹ️ {len(todays_matches)} Spiele an einem Tag - die Beiträge bekommen "
                 f"statt der Spiel-Hashtags "
                 + (f"#{OVERLAP_HASHTAG}." if OVERLAP_HASHTAG else "gar keinen.")
                 + " Die Profilzeile nennt beide Partien.")
@@ -1134,91 +1201,95 @@ async def main():
                 match_hashtag = OVERLAP_HASHTAG or None
         elif not match_hashtag:
             match_hashtag = match_hashtags_tag[0]
-    elif FORCE_RUN or ohne_spielplan:
-        note = "" if match_hashtag else " (ohne Spiel-Hashtag)"
-        grund = ("ohne Spielplan-Prüfung" if ohne_spielplan
-                 else "SKYRELAY_FORCE=1 gesetzt - kein OpenLigaDB-Spiel für heute gefunden")
-        log(f"{grund}, laufe trotzdem{note}.")
+    elif FORCE_RUN or without_schedule:
+        note = "" if match_hashtag else " (without a match hashtag)"
+        reason = ("no fixture check configured" if without_schedule
+                  else "SKYRELAY_FORCE=1 is set - OpenLigaDB knows no match today")
+        log(f"{reason}, running anyway{note}.")
     else:
-        log("Heute kein Spiel - Script beendet sich.")
+        log("No match today - the program ends here.")
         return
 
-    # Nur-Profil-Modus "on": Statuszeile setzen und beenden, ohne WhatsApp.
+    # Profile-only mode "on": set the status line and end, without WhatsApp.
     if PROFILE_ONLY == "on":
         set_profile_status(True)
         return
 
     if DRY_RUN:
-        log("SKYRELAY_DRY_RUN=1 gesetzt - es wird NICHTS auf Bluesky gepostet.")
+        log("SKYRELAY_DRY_RUN=1 is set - NOTHING will be posted on Bluesky.")
 
-    log("Verbinde mit WhatsApp...")
+    log("Connecting to WhatsApp...")
     await client.connect()
 
     if PAIR_PHONE:
-        # Kurz warten: Existiert schon eine gültige Session, ist kein Pairing nötig
-        # (PairPhone würde bei bestehendem Login einen Fehler werfen).
+        # Wait briefly: if a valid session already exists, no pairing is needed
+        # (PairPhone would raise an error on an existing login).
         try:
             await asyncio.wait_for(wa_connected.wait(), timeout=10)
-            log("ℹ️ Bereits gekoppelt - SKYRELAY_PAIR_PHONE wird ignoriert.")
+            log("ℹ️ Already paired - SKYRELAY_PAIR_PHONE is ignored.")
         except asyncio.TimeoutError:
             try:
                 code = await client.PairPhone(PAIR_PHONE, show_push_notification=True)
                 log("=" * 50)
-                log(f"KOPPLUNGSCODE: {code}")
-                log("Im Handy eingeben: WhatsApp -> Einstellungen -> Verknüpfte Geräte")
-                log('-> Gerät hinzufügen -> "Stattdessen mit Telefonnummer koppeln"')
+                log(f"PAIRING CODE: {code}")
+                log("Enter it on the phone: WhatsApp -> Settings -> Linked devices")
+                log('-> Link a device -> "Link with phone number instead"')
                 log("=" * 50)
             except Exception as pair_err:
-                # Nicht fatal: Schlägt u.a. fehl, wenn parallel schon der QR-Code
-                # gescannt wurde (Race zwischen beiden Pairing-Wegen) - dann steht
-                # die Verbindung gleich trotzdem. Der Wait unten klärt das.
+                # Not fatal: this fails when the QR code has already been
+                # scanned in parallel (a race between the two pairing paths) -
+                # the connection then stands anyway. The wait below sorts it out.
                 log(f"⚠️ Kopplung per Code nicht möglich ({pair_err}) - "
                     f"falls der QR-Code gescannt wurde, geht es trotzdem weiter.")
 
     try:
         await asyncio.wait_for(wa_connected.wait(), timeout=300)
     except asyncio.TimeoutError:
-        log("Fehler: Innerhalb von 5 Minuten keine eingeloggte WhatsApp-Verbindung.")
-        log("Wurde der QR-Code gescannt? Bei einer kaputten Session hilft Löschen + Neu-Pairing:")
+        log("Error: no logged-in WhatsApp connection within 5 minutes.")
+        log("Was the QR code scanned? For a broken session, deleting it and pairing")
+        log("again helps:")
         log(f"  rm {SESSION_DB}")
         sys.exit(1)
-    log("✓ WhatsApp verbunden und eingeloggt.")
+    log("✓ WhatsApp connected and logged in.")
 
-    # Kurz durchatmen: direkt nach dem Login (v.a. nach Erst-Pairing) laufen noch
-    # Reconnects und History-Sync - Abfragen wären jetzt unzuverlässig.
+    # Catch a breath: right after logging in (especially after a first
+    # pairing) reconnects and a history sync are still running - queries
+    # would be unreliable now.
     await asyncio.sleep(5)
 
-    log("Löse Kanal über Invite-Link auf...")
+    log("Resolving the channel from its invite link...")
     metadata = await with_retries(
-        "Kanal-Auflösung",
+        "resolving the channel",
         lambda: client.get_newsletter_info_with_invite(CHANNEL_INVITE_LINK),
     )
     channel_jid = metadata.ID
-    channel_user = channel_jid.User  # ab jetzt nimmt der Event-Handler Kanal-Posts an
-    log(f"✓ Kanal gefunden: JID {channel_jid.User}@{channel_jid.Server}")
+    # From here on the event handler accepts channel posts.
+    channel_user = channel_jid.User
+    log(f"✓ Channel found: JID {channel_jid.User}@{channel_jid.Server}")
 
     try:
         await client.follow_newsletter(channel_jid)
-        log("✓ Kanal ist abonniert.")
+        log("✓ The channel is followed.")
     except Exception as follow_err:
-        # Schlägt u.a. fehl, wenn der Kanal bereits abonniert ist - unkritisch.
-        log(f"ℹ️ follow_newsletter: {follow_err} (vermutlich bereits abonniert)")
+        # Fails when the channel is followed already, among other things -
+        # nothing to worry about.
+        log(f"ℹ️ follow_newsletter: {follow_err} (probably followed already)")
 
-    # Wasserzeichen früh laden - CATCHUP und der Lausch-Loop brauchen es beide.
+    # Load the watermark early - CATCHUP and the listening loop both need it.
     watermark = load_watermark() or 0
     if watermark:
-        log(f"Wasserzeichen von heute geladen: MessageServerID {watermark}.")
-    seen_ids = set()  # Fallback-Dedup über Message-IDs, falls Events ohne ServerID kommen
-    posts_map = load_posts_map()  # ServerID -> Bluesky-URIs (für die Bearbeitungs-Logik)
+        log(f"Watermark from today loaded: MessageServerID {watermark}.")
+    seen_ids = set()  # fallback dedup by message ID, for events without a server ID
+    posts_map = load_posts_map()  # server ID -> Bluesky URIs (for the edit logic)
 
-    # REPLAY: die letzten N Posts einmal durch die Pipeline (Testwerkzeug; ignoriert
-    #         das Wasserzeichen, verändert es nicht, Script endet danach).
-    # CATCHUP: verpasste Posts nachholen (respektiert + pflegt das Wasserzeichen)
-    #          und danach normal weiterlauschen.
-    # ACHTUNG bekannter neonize-Bug: Liegt unter den letzten N Nachrichten eine
-    # inhaltslose Meta-Nachricht (unsichtbar im Kanal, z.B. Bearbeitung/Löschung),
-    # stürzt der Go-Layer hart ab (panic). Deshalb wird exakt N abgerufen - und
-    # der Live-Betrieb nutzt diesen Abruf gar nicht, sondern lauscht auf Events.
+    # REPLAY:  put the last N posts through the pipeline once (a test tool; it
+    #          ignores the watermark and does not change it, then ends).
+    # CATCHUP: fetch missed posts (respecting and maintaining the watermark)
+    #          and keep listening normally afterwards.
+    # CAREFUL, known neonize bug: if one of the last N messages is a meta
+    # message without content (invisible in the channel, an edit or a deletion
+    # for instance), the Go layer panics hard. So exactly N are fetched - and
+    # live operation does not use this call at all, it listens for events.
     if REPLAY_COUNT > 0 or CATCHUP_COUNT > 0:
         mode = "REPLAY" if REPLAY_COUNT > 0 else "CATCHUP"
         count = REPLAY_COUNT or CATCHUP_COUNT
@@ -1249,17 +1320,17 @@ async def main():
                 traceback.print_exc()
             if mode == "CATCHUP":
                 watermark = nm.MessageServerID
-                if not DRY_RUN:  # im Trockenlauf nichts als erledigt markieren
+                if not DRY_RUN:  # a dry run marks nothing as done
                     save_watermark(watermark)
             await asyncio.sleep(PAUSE_BETWEEN_POSTS_SECONDS)
         if mode == "REPLAY":
-            log("REPLAY abgeschlossen - Script beendet sich.")
+            log("REPLAY finished - the program ends here.")
             return
-        log("CATCHUP abgeschlossen - lausche jetzt auf neue Posts.")
+        log("CATCHUP finished - now listening for new posts.")
 
-    # Live-Updates abonnieren: Kanal-Posts werden dann als Events gepusht.
-    # Das Abo gilt nur wenige Minuten und wird im Loop regelmäßig erneuert.
-    # (Gefolgte Kanäle pushen meist auch ohne Abo - das Abo ist Absicherung.)
+    # Subscribe to live updates: channel posts are then pushed as events.
+    # The subscription lasts a few minutes only and is renewed in the loop.
+    # (Followed channels usually push without it - this is a safety net.)
     try:
         await client.newsletter_subscribe_live_updates(channel_jid)
         log("✓ Live-Updates abonniert.")
@@ -1267,18 +1338,18 @@ async def main():
         log(f"⚠️ Live-Update-Abo fehlgeschlagen ({sub_err}) - weiter ohne, "
             f"gefolgte Kanäle pushen in der Regel trotzdem.")
     next_renew = time.monotonic() + SUBSCRIBE_RENEW_SECONDS
-    next_nachreichen = time.monotonic() + VIDEO_RETRY_INTERVAL_SECONDS
+    next_retry_at = time.monotonic() + VIDEO_RETRY_INTERVAL_SECONDS
 
-    # Events sind per Definition neu - eine Baseline-Abfrage ist nicht nötig.
-    # WhatsApp liefert beim Verbinden auch aufgelaufene Posts nach; die
-    # Datums-Prüfung unten verwirft dabei alles, was nicht von heute ist.
+    # Events are new by definition - no baseline query is needed. On
+    # connecting, WhatsApp also delivers posts that piled up; the date check
+    # below drops everything that is not from today.
     day_end = datetime.now(LOCAL_TZ).replace(
         hour=DAY_END_HOUR, minute=DAY_END_MINUTE, second=0, microsecond=0
     )
-    # Ab jetzt ist der Bot "im Dienst" -> Bio-Statuszeile umschalten.
+    # From here the bot is "on duty" -> switch the bio status line.
     set_profile_status(True)
 
-    log(f"Lausche auf neue Kanal-Posts bis {day_end.strftime('%H:%M')} Uhr...")
+    log(f"Listening for new channel posts until {day_end.strftime('%H:%M')}...")
 
     while datetime.now(LOCAL_TZ) < day_end:
         if time.monotonic() >= next_renew:
@@ -1292,25 +1363,26 @@ async def main():
             event = await asyncio.wait_for(incoming_events.get(), timeout=15)
         except asyncio.TimeoutError:
             # Gerade nichts los - guter Moment, um offene Videos nachzureichen.
-            # In einem Thread, damit eingehende Kanal-Posts weiter in die Queue
-            # laufen, und nur im Leerlauf, damit nie ein Live-Post wartet.
-            if (not DRY_RUN and time.monotonic() >= next_nachreichen
+            # In a thread, so incoming channel posts keep flowing into the
+            # queue, and only while idle, so a live post never has to wait.
+            if (not DRY_RUN and time.monotonic() >= next_retry_at
                     and os.path.isdir(VIDEO_RETRY_DIR)
                     and any(n.endswith(".json") for n in os.listdir(VIDEO_RETRY_DIR))):
-                next_nachreichen = time.monotonic() + VIDEO_RETRY_INTERVAL_SECONDS
+                next_retry_at = time.monotonic() + VIDEO_RETRY_INTERVAL_SECONDS
                 try:
                     ensure_bsky()
                     await asyncio.to_thread(
-                        reiche_videos_nach, bsky_client, VIDEO_RETRY_DIR,
+                        post_stashed_videos, bsky_client, VIDEO_RETRY_DIR,
                         VIDEO_RETRY_TEXT, VIDEO_RETRY_MAX_ATTEMPTS,
                         MAX_VIDEO_BYTES, VIDEO_JOB_TIMEOUT_SECONDS)
                 except Exception as nach_err:
                     log(f"⚠️ Nachreichen offener Videos fehlgeschlagen: {nach_err}")
             continue
 
-        # Schutzmantel um die GESAMTE Event-Verarbeitung: Ein einzelnes kaputtes
-        # Event darf den Lauscher nie beenden (Lehre vom 14.07.: Timestamp in ms
-        # statt s -> ValueError -> Loop tot, ausgerechnet während des Spiels).
+        # A guard around the WHOLE event handling: a single broken event must
+        # never end the listener (the lesson of 14.07.: a timestamp in ms
+        # instead of s -> ValueError -> loop dead, during the match of all
+        # times).
         try:
             chat = event.Info.MessageSource.Chat
             if chat.User != channel_user:
@@ -1322,8 +1394,8 @@ async def main():
             when = ""
             msg_time = None
             if event.Info.Timestamp:
-                # Live-Events liefern den Timestamp in MILLIsekunden, andere Pfade
-                # in Sekunden - anhand der Größenordnung normalisieren.
+                # Live events deliver the timestamp in MILLIseconds, other
+                # paths in seconds - normalise it by its magnitude.
                 ts = event.Info.Timestamp
                 if ts > 1e14:    # Mikrosekunden
                     ts = ts / 1e6
@@ -1334,29 +1406,30 @@ async def main():
                     when = f" vom {msg_time.strftime('%d.%m. %H:%M')}"
                 except (ValueError, OverflowError, OSError):
                     msg_time = None
-            log(f"Kanal-Event empfangen: ServerID {server_id or '?'}{when} (ID {msg_id})")
+            log(f"Channel event received: server ID {server_id or '?'}{when} "
+                f"(ID {msg_id})")
 
             if msg_id in seen_ids:
-                log("   (in diesem Lauf bereits verarbeitet - übersprungen)")
+                log("   (already processed in this run - skipped)")
                 continue
             if server_id and server_id <= watermark:
-                # Bereits verarbeitete ServerID mit neuem Event = vermutlich eine
-                # Bearbeitung im Kanal -> alte Bluesky-Posts ersetzen.
+                # An already processed server ID with a new event is most
+                # likely an edit in the channel -> replace the old posts.
                 await handle_edit(client, event, server_id, posts_map)
                 seen_ids.add(msg_id)
                 continue
 
-            # Nachgelieferte Posts aus der Offline-Queue können älter sein - alles,
-            # was nicht vom heutigen (Spiel-)Tag stammt, wird verworfen.
+            # Posts delivered late from the offline queue can be older -
+            # everything not from today's match day is dropped.
             if msg_time and msg_time.date() != datetime.now(LOCAL_TZ).date():
-                log("   (nicht von heute - übersprungen)")
+                log("   (not from today - skipped)")
                 if server_id:
                     watermark = server_id
                     if not DRY_RUN:
                         save_watermark(watermark)
                 continue
 
-            log(f"[NEU] Kanal-Nachricht mit ServerID {server_id or '?'}:")
+            log(f"[NEW] channel message with server ID {server_id or '?'}:")
             try:
                 uris = await process_newsletter_message(client, event.Message, server_id)
                 if uris and server_id:
@@ -1368,10 +1441,10 @@ async def main():
             except Exception as post_err:
                 log(f"   ⚠️ Fehler beim Reposten: {post_err}")
                 traceback.print_exc()
-            # Dedup auch bei Fehler fortschreiben, sonst bleibt das Programm an
-            # derselben kaputten Nachricht hängen. Im Trockenlauf wird der Stand
-            # NICHT gespeichert - sonst gälte ein nur getesteter Beitrag später
-            # als erledigt und würde nie veröffentlicht.
+            # Advance the dedup even on an error, or the program would keep
+            # hanging on the same broken message. In a dry run the position is
+            # NOT saved - otherwise a merely tested post would later count as
+            # done and never be published.
             seen_ids.add(msg_id)
             if server_id:
                 watermark = server_id
@@ -1382,24 +1455,26 @@ async def main():
             log(f"⚠️ Fehler bei der Event-Verarbeitung ({event_err}) - Event übersprungen, lausche weiter.")
             traceback.print_exc()
 
-    log("Tagesende erreicht - Ticker beendet sich. Bis zum nächsten Spieltag!")
+    log("End of day reached - the ticker stops. See you next matchday!")
 
 
 async def run():
-    """Wrapper um main(): trennt die WhatsApp-Verbindung am Ende IMMER sauber -
-    sonst halten die Go-Threads den Prozess minutenlang am Leben (Executor-Hang)."""
+    """A wrapper around main(): it ALWAYS closes the WhatsApp connection cleanly
+    at the end - otherwise the Go threads keep the process alive for minutes
+    (an executor hang)."""
     try:
         await main()
     finally:
-        # Bio zurück auf "Bot ist aus" - auch bei Strg+C oder einem Fehler.
-        # (Im Nur-Profil-Modus "on" natürlich nicht: da ist "an" ja das Ergebnis.)
+        # Put the bio back to "bot is off" - on Ctrl+C or an error as well.
+        # (Not in profile-only mode "on", of course: there "on" is the point.)
         if profile_status_on and PROFILE_ONLY != "on":
             set_profile_status(False)
         try:
             await asyncio.wait_for(client.stop(), timeout=10)
-            # Gnadenfrist: Der Go-Socket-Thread loggt seinen Verbindungsabbruch über
-            # einen Callback nach Python. Beenden wir zu schnell, zeigt der Callback
-            # ins Leere -> SIGSEGV beim Exit (kosmetisch, aber unschön; neonize-Race).
+            # A moment's grace: the Go socket thread logs its disconnect through
+            # a callback into Python. Ending too quickly leaves that callback
+            # pointing nowhere -> SIGSEGV on exit (cosmetic, but ugly; a
+            # neonize race).
             await asyncio.sleep(2)
         except Exception:
             pass
@@ -1409,4 +1484,4 @@ if __name__ == "__main__":
     try:
         asyncio.run(run())
     except KeyboardInterrupt:
-        log("Abbruch per Strg+C - WhatsApp-Verbindung wurde getrennt.")
+        log("Interrupted with Ctrl+C - the WhatsApp connection was closed.")
