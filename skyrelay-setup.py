@@ -857,7 +857,8 @@ def m_texte(zeilen):
             "Beiträge und Profil", "Wie die Beiträge aussehen und was in der Bio steht.",
             [("tag", f"Dauer-Hashtag .....  {_zeige(zeilen, 'post', 'standing_hashtag', '– keiner –')}"),
              ("kopf", f"Kopfzeile .........  {_zeige(zeilen, 'post', 'prefix', kurz=30)}"),
-             ("quelle", f"Quell-Beschriftung   {_zeige(zeilen, 'post', 'source_label', kurz=30)}"),
+             ("quelle", f"Quelle (Ticker) ...  {_zeige(zeilen, 'post', 'source_label', kurz=30)}"),
+             ("quelle_feed", f"Quelle (Feed) .....  {_zeige(zeilen, 'feed', 'source_label', kurz=30)}"),
              ("profil", f"Statuszeile .......  {'ein' if an != 'false' else 'aus'}")])
         if wahl is None:
             return
@@ -873,10 +874,17 @@ def m_texte(zeilen):
             if wert:
                 setze_wert(zeilen, "post", "prefix", wert)
         elif wahl == "quelle":
-            wert = tui.frage("Quell-Beschriftung", "Text des Links zur Quelle:",
+            wert = tui.frage("Quell-Beschriftung (Ticker)",
+                             "Text des Links zum WhatsApp-Kanal:",
                              lies_wert(zeilen, "post", "source_label"))
             if wert:
                 setze_wert(zeilen, "post", "source_label", wert)
+        elif wahl == "quelle_feed":
+            wert = tui.frage("Quell-Beschriftung (Feed)",
+                             "Text des Links zum Instagram-Beitrag:",
+                             lies_wert(zeilen, "feed", "source_label"))
+            if wert:
+                setze_wert(zeilen, "feed", "source_label", wert)
         elif wahl == "profil":
             if tui.ja_nein("Profil-Statuszeile",
                            "Soll die erste Zeile der Bluesky-Biografie anzeigen,\n"
@@ -935,6 +943,32 @@ def m_pruefen(zeilen):
                 "\n\n".join(berichte) or "Es ist noch kein Konto eingetragen.")
 
 
+def m_konfig_pruefen(zeilen):
+    """Konfiguration gegen die Quelltexte und die Vorlage prüfen (#3).
+    Geprüft wird der aktuelle Stand im Assistenten, auch ungespeichert."""
+    try:
+        from skyrelay_common import sammle_konfig_befunde
+    except ImportError as fehler:
+        tui.meldung("Prüfung nicht möglich",
+                    f"Ein benötigtes Paket fehlt ({fehler}).\n\n"
+                    f"Zuerst ./install.sh ausführen.")
+        return
+
+    befunde = sammle_konfig_befunde(BASE_DIR, "".join(zeilen))
+    probleme = [t for schwere, t in befunde if schwere == "problem"]
+    hinweise = [t for schwere, t in befunde if schwere == "hinweis"]
+    if not befunde:
+        tui.meldung("Konfiguration geprüft", "Keine Auffälligkeiten.")
+        return
+    teile = []
+    if probleme:
+        teile.append("Probleme:\n" + "\n".join(f"  ✗ {t}" for t in probleme))
+    if hinweise:
+        teile.append("Hinweise (Vorgaben greifen):\n"
+                     + "\n".join(f"  ℹ {t}" for t in hinweise))
+    tui.meldung("Konfiguration geprüft", "\n\n".join(teile))
+
+
 def menue_modus():
     """Hauptmenü - Einstiegspunkt der Oberfläche."""
     if not os.path.exists(VORLAGE):
@@ -966,7 +1000,8 @@ def menue_modus():
              ("4", "Beiträge und Profil"),
              ("5", "Zeitfenster"),
              ("6", "Anmeldung bei Bluesky prüfen"),
-             ("7", "Speichern und beenden")],
+             ("7", "Konfiguration prüfen"),
+             ("8", "Speichern und beenden")],
             abbruch_text="Beenden")
 
         if wahl == "1":
@@ -982,6 +1017,8 @@ def menue_modus():
         elif wahl == "6":
             m_pruefen(zeilen)
         elif wahl == "7":
+            m_konfig_pruefen(zeilen)
+        elif wahl == "8":
             if speichern(zeilen, gespeichert):
                 return
         else:  # Beenden oder Escape

@@ -89,7 +89,14 @@ from skyrelay_common import (
     audio_zu_video,
     video_standbild,
     sticker_zu_bild,
+    baue_quellzeile,
+    pruefe_konfiguration,
 )
+
+# Prüfung der Konfiguration, noch bevor irgendetwas anderes anläuft: Der Aufruf
+# verbindet sich mit nichts und schreibt nichts (#3).
+if "--check-config" in sys.argv:
+    sys.exit(pruefe_konfiguration(os.path.dirname(os.path.abspath(__file__))))
 
 # httpx (der HTTP-Client der atproto-Bibliothek) protokolliert sonst jede Anfrage.
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -762,9 +769,7 @@ def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None,
 
         tb = client_utils.TextBuilder()
         if is_first:
-            tb.text(f"{POST_PREFIX}\n🔗 Quelle: ")
-            tb.link(POST_SOURCE_LABEL, CHANNEL_INVITE_LINK)
-            tb.text("\n\n")
+            baue_quellzeile(tb, POST_PREFIX, POST_SOURCE_LABEL, CHANNEL_INVITE_LINK)
         add_text_with_links(tb, chunk if total == 1 else f"{chunk} ({i + 1}/{total})")
         if is_last:
             tb.text("\n\n")

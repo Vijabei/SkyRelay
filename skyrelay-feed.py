@@ -44,7 +44,14 @@ from skyrelay_common import (
     merke_video_daten,
     merke_nachreich_ziel,
     reiche_videos_nach,
+    baue_quellzeile,
+    pruefe_konfiguration,
 )
+
+# Prüfung der Konfiguration, noch bevor irgendetwas anderes anläuft: Der Aufruf
+# verbindet sich mit nichts und schreibt nichts (#3).
+if "--check-config" in sys.argv:
+    sys.exit(pruefe_konfiguration(os.path.dirname(os.path.abspath(__file__))))
 
 
 # Instagram wechselt regelmäßig die Endpunkte, über die Profildaten abrufbar sind -
@@ -81,6 +88,9 @@ IMAGE_PLACEHOLDER = cfg("feed", "image_placeholder", "📸 Neues Bild")
 ALT_TEXT_FALLBACK = cfg("feed", "alt_text_fallback", "News")
 
 POST_PREFIX = cfg("post", "prefix", "⚽ [Inoffizieller Bot]")
+# Eigene Beschriftung für den Quell-Link: [post] source_label beschreibt den
+# WhatsApp-Kanal des Tickers und passt nicht auf einen Instagram-Beitrag.
+FEED_SOURCE_LABEL = cfg("feed", "source_label", "Beitrag auf Instagram")
 STANDING_HASHTAG = cfg("post", "standing_hashtag", "").strip().lstrip("#")
 
 MAX_VIDEO_BYTES = cfg_int("limits", "max_video_bytes", 100_000_000)
@@ -510,9 +520,8 @@ for post in latest_posts:
 
             tb = client_utils.TextBuilder()
             if is_first:
-                tb.text("⚽ [Inoffizieller Bot]\n🔗 Quelle: ")
-                tb.link(insta_url, insta_url)
-                tb.text(f"\n\n{current_text}")
+                baue_quellzeile(tb, POST_PREFIX, FEED_SOURCE_LABEL, insta_url)
+                tb.text(current_text)
                 if total_posts > 1:
                     tb.text(f" (1/{total_posts})")
             else:
