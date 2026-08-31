@@ -133,7 +133,8 @@ durch alle Fragen am Stück zu arbeiten:
   5  Zeitfenster
   6  Anmeldung bei Bluesky prüfen
   7  Konfiguration prüfen
-  8  Speichern und beenden
+  8  Konfiguration nachziehen
+  9  Speichern und beenden
 ```
 
 Das ist auch der bequeme Weg für spätere Änderungen: Ein einzelnes Kürzel
@@ -142,6 +143,26 @@ Menü an, welche Pflichtangaben noch fehlen.
 
 Fehlt `whiptail` auf dem System, fällt der Assistent automatisch auf eine
 zeilenweise Abfrage zurück; erzwingen lässt sie sich mit `SKYRELAY_SETUP_TEXT=1`.
+
+### Was gilt eigentlich gerade?
+
+Eine Konfiguration wird über die Jahre undurchsichtig: Fehlt ein Schlüssel, gilt
+still die Vorgabe aus dem Programm — man sieht der Datei nicht an, was tatsächlich
+wirkt. Deshalb gibt jeder Bot darüber Auskunft:
+
+```bash
+venv/bin/python skyrelay-feed.py --show-config
+```
+
+Das listet jeden Wert, den die Programme lesen, mit seiner Herkunft:
+
+```
+[post]
+  prefix                        (Datei)      ⚽ [Inoffizieller Bot]
+  source_label                  (Datei)      WhatsApp-Kanal des Vereins
+[feed]
+  source_label                  (Vorgabe)    Beitrag auf Instagram
+```
 
 ### Konfiguration prüfen
 
@@ -159,6 +180,19 @@ undokumentiert geblieben ist. Der Aufruf verbindet sich mit nichts, verändert
 nichts und postet nichts; der Rückgabewert ist 0, solange es keine Probleme gibt.
 Denselben Bericht zeigt der Assistent unter Punkt 7 — dort auch für Änderungen,
 die noch nicht gespeichert sind.
+
+### Fehlende Schlüssel nachziehen
+
+Nach einem Update kennt die Vorlage Schlüssel, die in der eigenen Datei fehlen.
+Sie lassen sich mitsamt ihren Erklärungen ergänzen — vorhandene Werte, Reihenfolge
+und Kommentare bleiben unangetastet, es wird ausschließlich hinzugefügt:
+
+```bash
+venv/bin/python skyrelay-setup.py --nachziehen
+```
+
+Der Aufruf zeigt zuerst, was ergänzt würde, und fragt nach. Vorher entsteht eine
+Sicherung als `skyrelay.conf.bak`. Im Menü steht dasselbe unter Punkt 8.
 
 Beim ersten Einrichten führt der Assistent durch dieselben Punkte wie zuvor:
 

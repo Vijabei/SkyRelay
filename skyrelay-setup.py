@@ -19,6 +19,7 @@ import sys
 import unicodedata
 
 import skyrelay_tui as tui
+import skyrelay_konfig as konfig
 
 try:
     import requests
@@ -968,18 +969,38 @@ def m_pruefen(zeilen):
                 "\n\n".join(berichte) or "Es ist noch kein Konto eingetragen.")
 
 
-def m_konfig_pruefen(zeilen):
-    """Konfiguration gegen die Quelltexte und die Vorlage prüfen (#3).
-    Geprüft wird der aktuelle Stand im Assistenten, auch ungespeichert."""
-    try:
-        from skyrelay_common import sammle_konfig_befunde
-    except ImportError as fehler:
-        tui.meldung("Prüfung nicht möglich",
-                    f"Ein benötigtes Paket fehlt ({fehler}).\n\n"
-                    f"Zuerst ./install.sh ausführen.")
+def m_nachziehen(zeilen):
+    """Fehlende Schlüssel aus der Vorlage ergänzen - mit ihren Erklärungen.
+
+    Arbeitet auf dem Stand im Assistenten, nicht auf der Datei: Gespeichert wird
+    wie sonst auch erst über den Menüpunkt zum Speichern."""
+    probe = list(zeilen)
+    ergaenzt = konfig.nachziehen(probe, BASE_DIR)
+    if not ergaenzt:
+        tui.meldung("Nichts nachzuziehen",
+                    "Alle Schlüssel der Vorlage stehen bereits in der "
+                    "Konfiguration.")
         return
 
-    befunde = sammle_konfig_befunde(BASE_DIR, "".join(zeilen))
+    liste = "\n".join(f"  [{a}] {s} = {w}" for a, s, w in ergaenzt[:18])
+    if len(ergaenzt) > 18:
+        liste += f"\n  … und {len(ergaenzt) - 18} weitere"
+    if not tui.ja_nein("Konfiguration nachziehen",
+                       f"{len(ergaenzt)} Schlüssel fehlen. Sie werden mit den "
+                       f"Erklärungen aus der Vorlage ergänzt; vorhandene Werte "
+                       f"bleiben unverändert.\n\n{liste}\n\nErgänzen?", True):
+        return
+    zeilen[:] = probe
+    tui.meldung("Nachgezogen",
+                f"{len(ergaenzt)} Schlüssel ergänzt.\n\n"
+                f"Noch nicht gespeichert - das erledigt der Menüpunkt "
+                f"\"Speichern und beenden\".")
+
+
+def m_konfig_pruefen(zeilen):
+    """Konfiguration gegen die Quelltexte und die Vorlage prüfen.
+    Geprüft wird der aktuelle Stand im Assistenten, auch ungespeichert."""
+    befunde = konfig.sammle_konfig_befunde(BASE_DIR, "".join(zeilen))
     probleme = [t for schwere, t in befunde if schwere == "problem"]
     hinweise = [t for schwere, t in befunde if schwere == "hinweis"]
     if not befunde:
@@ -1026,7 +1047,8 @@ def menue_modus():
              ("5", "Zeitfenster"),
              ("6", "Anmeldung bei Bluesky prüfen"),
              ("7", "Konfiguration prüfen"),
-             ("8", "Speichern und beenden")],
+             ("8", "Konfiguration nachziehen"),
+             ("9", "Speichern und beenden")],
             abbruch_text="Beenden")
 
         if wahl == "1":
@@ -1044,6 +1066,8 @@ def menue_modus():
         elif wahl == "7":
             m_konfig_pruefen(zeilen)
         elif wahl == "8":
+            m_nachziehen(zeilen)
+        elif wahl == "9":
             if speichern(zeilen, gespeichert):
                 return
         else:  # Beenden oder Escape
@@ -1092,7 +1116,37 @@ def speichern(zeilen, gespeichert):
     return True
 
 
+def nachziehen_ohne_menue():
+    """--nachziehen: Fehlende Schlüssel direkt in der Datei ergänzen.
+
+    Für alle, die den Assistenten gar nicht brauchen - etwa nach einem Update
+    auf einem Server, der ohne whiptail auskommt."""
+    def bestaetigen(ergaenzt):
+        print(f"{len(ergaenzt)} Schlüssel fehlen und werden mit ihren "
+              f"Erklärungen ergänzt:")
+        for abschnitt, schluessel, wert in ergaenzt:
+            print(f"  [{abschnitt}] {schluessel} = {wert}")
+        antwort = input("\nErgänzen? [j/N] ").strip().lower()
+        return antwort in ("j", "ja", "y", "yes")
+
+    ergaenzt, fehler = konfig.nachziehen_datei(BASE_DIR, bestaetigen)
+    if fehler == "abgebrochen":
+        print("Abgebrochen - die Datei bleibt unverändert.")
+        return 1
+    if fehler:
+        print(f"Fehler: {fehler}", file=sys.stderr)
+        return 1
+    if not ergaenzt:
+        print("Alle Schlüssel der Vorlage stehen bereits in der Konfiguration.")
+        return 0
+    print(f"\n{len(ergaenzt)} Schlüssel ergänzt. "
+          f"Sicherung: {os.path.basename(konfig.konfig_pfad(BASE_DIR))}.bak")
+    return 0
+
+
 if __name__ == "__main__":
+    if "--nachziehen" in sys.argv:
+        sys.exit(nachziehen_ohne_menue())
     try:
         # Menüoberfläche, wenn whiptail vorhanden ist und ein Terminal dranhängt.
         # SKYRELAY_SETUP_TEXT=1 erzwingt die zeilenweise Abfrage.
