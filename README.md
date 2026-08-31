@@ -132,7 +132,8 @@ durch alle Fragen am Stück zu arbeiten:
   4  Beiträge und Profil
   5  Zeitfenster
   6  Anmeldung bei Bluesky prüfen
-  7  Speichern und beenden
+  7  Konfiguration prüfen
+  8  Speichern und beenden
 ```
 
 Das ist auch der bequeme Weg für spätere Änderungen: Ein einzelnes Kürzel
@@ -141,6 +142,23 @@ Menü an, welche Pflichtangaben noch fehlen.
 
 Fehlt `whiptail` auf dem System, fällt der Assistent automatisch auf eine
 zeilenweise Abfrage zurück; erzwingen lässt sie sich mit `SKYRELAY_SETUP_TEXT=1`.
+
+### Konfiguration prüfen
+
+Ein falsch geschriebener Schlüssel wirkt einfach nicht — ohne Fehlermeldung, weil
+das Programm dann still seine Vorgabe nimmt. Deshalb prüfen beide Bots die
+Konfiguration auf Zuruf:
+
+```bash
+venv/bin/python skyrelay-feed.py --check-config
+```
+
+Gemeldet wird, was kein Programm liest (Tippfehler oder veraltet), was fehlt und
+deshalb auf die Vorgabe zurückfällt, und was in `skyrelay.conf.example`
+undokumentiert geblieben ist. Der Aufruf verbindet sich mit nichts, verändert
+nichts und postet nichts; der Rückgabewert ist 0, solange es keine Probleme gibt.
+Denselben Bericht zeigt der Assistent unter Punkt 7 — dort auch für Änderungen,
+die noch nicht gespeichert sind.
 
 Beim ersten Einrichten führt der Assistent durch dieselben Punkte wie zuvor:
 

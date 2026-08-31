@@ -89,7 +89,15 @@ from skyrelay_common import (
     audio_zu_video,
     video_standbild,
     sticker_zu_bild,
+    baue_quellzeile,
+    zeige_vorschau,
+    pruefe_konfiguration,
 )
+
+# Prüfung der Konfiguration, noch bevor irgendetwas anderes anläuft: Der Aufruf
+# verbindet sich mit nichts und schreibt nichts (#3).
+if "--check-config" in sys.argv:
+    sys.exit(pruefe_konfiguration(os.path.dirname(os.path.abspath(__file__))))
 
 # httpx (der HTTP-Client der atproto-Bibliothek) protokolliert sonst jede Anfrage.
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -502,6 +510,25 @@ def add_text_with_links(tb, text):
         tb.text(text[pos:])
 
 
+def baue_beitragstext(chunk, index, gesamt, hashtags):
+    """Baut den Text eines einzelnen Beitrags im Thread - Kopfbereich im ersten,
+    Hashtags im letzten, Zähler dazwischen.
+
+    Bewusst eine einzige Stelle: Der Trockenlauf zeigt damit genau das, was der
+    echte Lauf senden würde, statt einer nachgebauten Näherung."""
+    tb = client_utils.TextBuilder()
+    if index == 0:
+        baue_quellzeile(tb, POST_PREFIX, POST_SOURCE_LABEL, CHANNEL_INVITE_LINK)
+    add_text_with_links(tb, chunk if gesamt == 1 else f"{chunk} ({index + 1}/{gesamt})")
+    if index == gesamt - 1:
+        tb.text("\n\n")
+        for lfd, tag in enumerate(hashtags):
+            if lfd:
+                tb.text(" ")
+            tb.tag(f"#{tag}", tag)
+    return tb
+
+
 def fetch_og_data(url):
     """Holt OpenGraph-Daten (Titel, Beschreibung, Vorschaubild) einer Seite für
     die Bluesky-Link-Karte. Liefert (title, description, thumb_bytes|None)."""
@@ -696,20 +723,23 @@ def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None,
 
     card_url_match = URL_REGEX.search(text) if not image_blobs and not video_bytes else None
 
-    if DRY_RUN:
-        preview = text_chunks[0][:120] if text_chunks else (platzhalter or "(nur Medien)")
-        tags = " ".join(f"#{t}" for t in hashtags)
-        card = f", Link-Karte für {card_url_match.group(0)}" if card_url_match else ""
-        video = f", 1 Video ({len(video_bytes)} Bytes)" if video_bytes else ""
-        log(f"   [DRY_RUN] Würde posten ({len(text_chunks)} Chunk(s), "
-            f"{len(image_blobs)} Bild(er){video}, Tags: {tags}{card}): {preview}...")
-        return []
-
-    ensure_bsky()
-
+    # Besteht der Beitrag nur aus Medien, tritt ein Platzhaltertext an die Stelle
+    # des Textes. Das muss vor dem Trockenlauf geschehen, damit der die Vorschau
+    # auf derselben Grundlage baut wie der echte Lauf.
     if not text_chunks:
         text_chunks = [platzhalter or
                        (VIDEO_PLACEHOLDER if video_bytes else IMAGE_PLACEHOLDER)]
+
+    if DRY_RUN:
+        card = f", Link-Karte für {card_url_match.group(0)}" if card_url_match else ""
+        video = f", 1 Video ({len(video_bytes)} Bytes)" if video_bytes else ""
+        log(f"   [DRY_RUN] Würde posten ({len(text_chunks)} Beitrag/Beiträge, "
+            f"{len(image_blobs)} Bild(er){video}{card}):")
+        zeige_vorschau([baue_beitragstext(chunk, i, len(text_chunks), hashtags)
+                        for i, chunk in enumerate(text_chunks)])
+        return []
+
+    ensure_bsky()
 
     # Video-Upload zuerst versuchen; bei Fehlschlag Vorschaubild als Bild-Fallback
     # und das Video zum Nachreichen vormerken.
@@ -746,7 +776,6 @@ def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None,
 
     for i, chunk in enumerate(text_chunks):
         is_first = i == 0
-        is_last = i == total - 1
 
         embed = None
         if is_first and video_embed is not None:
@@ -760,18 +789,7 @@ def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None,
         elif is_first and external_embed is not None:
             embed = external_embed
 
-        tb = client_utils.TextBuilder()
-        if is_first:
-            tb.text(f"{POST_PREFIX}\n🔗 Quelle: ")
-            tb.link(POST_SOURCE_LABEL, CHANNEL_INVITE_LINK)
-            tb.text("\n\n")
-        add_text_with_links(tb, chunk if total == 1 else f"{chunk} ({i + 1}/{total})")
-        if is_last:
-            tb.text("\n\n")
-            for idx, tag in enumerate(hashtags):
-                if idx:
-                    tb.text(" ")
-                tb.tag(f"#{tag}", tag)
+        tb = baue_beitragstext(chunk, i, total, hashtags)
 
         if is_first:
             root_post = bsky_client.send_post(text=tb, embed=embed)

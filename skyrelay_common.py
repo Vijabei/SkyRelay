@@ -105,11 +105,17 @@ def start_file_logging(path, max_bytes=2_000_000, backups=5):
 
 
 # -------------------------------------------------------------- Konfiguration
+def konfig_pfad(basis_dir):
+    """Pfad der eigenen Konfiguration - im Programmverzeichnis oder dort, wohin
+    SKYRELAY_CONFIG zeigt (so lassen sich mehrere Vereine parallel betreiben)."""
+    return os.environ.get("SKYRELAY_CONFIG") or os.path.join(basis_dir, "skyrelay.conf")
+
+
 def lade_config(basis_dir):
     """Lädt skyrelay.conf (oder den Pfad aus SKYRELAY_CONFIG) und liefert
     (cfg, cfg_int, cfg_bool, pfad) zurück. Fehlt die Datei oder ist sie
     unlesbar, endet das Programm mit einer verständlichen Meldung."""
-    pfad = os.environ.get("SKYRELAY_CONFIG") or os.path.join(basis_dir, "skyrelay.conf")
+    pfad = konfig_pfad(basis_dir)
 
     if not os.path.exists(pfad):
         print(f"Fehler: Konfigurationsdatei nicht gefunden: {pfad}\n"
@@ -142,6 +148,170 @@ def lade_config(basis_dir):
         return parser.getboolean(section, key, fallback=default)
 
     return cfg, cfg_int, cfg_bool, pfad
+
+
+# --------------------------------------------------------- Konfiguration prüfen
+# Abschnitte, deren Schlüssel frei wählbar sind und deshalb in keinem Quelltext
+# vorkommen: [team_codes] enthält OpenLigaDB-Team-Nummern.
+FREIE_ABSCHNITTE = {"team_codes"}
+
+# So greifen die Programme auf Werte zu: die beiden Bots über cfg, cfg_int und
+# cfg_bool, der Einrichtungsassistent über lies_wert und setze_wert - jeweils
+# mit Abschnitt und Schlüssel als feste Zeichenketten.
+# (Ein Beispielaufruf hat hier bewusst nichts zu suchen: Er stünde als Zugriff
+#  in der Auswertung. Deshalb werden Kommentarzeilen zusätzlich übergangen.)
+_ZUGRIFFSMUSTER = (
+    re.compile(r"""\bcfg(?:_int|_bool)?\(\s*["'](\w+)["']\s*,\s*["'](\w+)["']"""),
+    re.compile(r"""\b(?:lies_wert|setze_wert)\(\s*\w+\s*,\s*["'](\w+)["']\s*,\s*["'](\w+)["']"""),
+)
+
+_QUELLTEXTE = {
+    "skyrelay-matchday.py": "Ticker",
+    "skyrelay-feed.py": "Feed",
+    "skyrelay-setup.py": "Assistent",
+    "skyrelay-testlauf.py": "Testlauf",
+    "skyrelay_common.py": "gemeinsames Modul",
+}
+
+
+def _ohne_kommentare(text):
+    """Schneidet Zeilenkommentare ab. Ohne das würde ein erklärender Kommentar
+    mit einem Beispielaufruf als echter Zugriff gezählt. Zeichenketten mit
+    Rautezeichen sind unkritisch: Der Aufruf steht davor, nicht dahinter."""
+    return "\n".join(zeile.split("#", 1)[0] for zeile in text.splitlines())
+
+
+def _gelesene_schluessel(basis_dir):
+    """Ermittelt aus den Quelltexten, welche Werte tatsächlich gelesen werden.
+    Eine von Hand gepflegte Liste wäre nach dem ersten Umbau falsch - und genau
+    solche Abweichungen soll diese Prüfung ja finden."""
+    gefunden = {}
+    for datei, name in _QUELLTEXTE.items():
+        try:
+            with open(os.path.join(basis_dir, datei), encoding="utf-8") as quelle:
+                text = quelle.read()
+        except OSError:
+            continue
+        text = _ohne_kommentare(text)
+        for muster in _ZUGRIFFSMUSTER:
+            for abschnitt, schluessel in muster.findall(text):
+                gefunden.setdefault((abschnitt, schluessel), set()).add(name)
+    return gefunden
+
+
+def _schluesselpaare(text):
+    """Alle (Abschnitt, Schlüssel) einer Konfiguration."""
+    parser = configparser.ConfigParser(interpolation=None)
+    parser.read_string(text)
+    return {(abschnitt, schluessel)
+            for abschnitt in parser.sections()
+            for schluessel in parser[abschnitt]}
+
+
+def sammle_konfig_befunde(basis_dir, konfig_text=None):
+    """Vergleicht die eigene Konfiguration mit dem, was die Programme lesen, und
+    mit der Vorlage. Liefert Paare (schwere, text); schwere ist "problem" oder
+    "hinweis". Ohne konfig_text wird die Datei auf der Platte gelesen - der
+    Assistent reicht stattdessen seinen noch ungespeicherten Stand herein."""
+    if konfig_text is None:
+        try:
+            with open(konfig_pfad(basis_dir), encoding="utf-8") as datei:
+                konfig_text = datei.read()
+        except OSError as fehler:
+            return [("problem", f"Konfiguration nicht lesbar: {fehler}")]
+    try:
+        eigene = _schluesselpaare(konfig_text)
+    except configparser.Error as fehler:
+        return [("problem", f"Konfiguration ist fehlerhaft: {fehler}")]
+
+    befunde = []
+    gelesen = _gelesene_schluessel(basis_dir)
+    try:
+        with open(os.path.join(basis_dir, "skyrelay.conf.example"),
+                  encoding="utf-8") as datei:
+            vorlage = _schluesselpaare(datei.read())
+    except (OSError, configparser.Error):
+        vorlage = None
+        befunde.append(("hinweis", "skyrelay.conf.example fehlt oder ist "
+                                   "fehlerhaft - der Abgleich mit der Vorlage "
+                                   "entfällt."))
+
+    # 1. Steht etwas in der eigenen Datei, das niemand liest? Genau so blieb
+    #    [post] prefix im Feed monatelang wirkungslos (#2).
+    for abschnitt, schluessel in sorted(eigene):
+        if abschnitt in FREIE_ABSCHNITTE:
+            continue
+        if (abschnitt, schluessel) not in gelesen:
+            befunde.append(("problem",
+                            f"[{abschnitt}] {schluessel} wird von keinem "
+                            f"Programm gelesen - Tippfehler oder veraltet?"))
+
+    # 2. Fehlt etwas, das gelesen wird? Dann greift still die Vorgabe.
+    # 3. Fehlt etwas in der Vorlage? Dann erfährt niemand davon.
+    for (abschnitt, schluessel), programme in sorted(gelesen.items()):
+        wer = ", ".join(sorted(programme))
+        if (abschnitt, schluessel) not in eigene:
+            befunde.append(("hinweis",
+                            f"[{abschnitt}] {schluessel} fehlt - es greift die "
+                            f"Vorgabe im Programm ({wer})"))
+        if vorlage is not None and (abschnitt, schluessel) not in vorlage:
+            befunde.append(("problem",
+                            f"[{abschnitt}] {schluessel} fehlt in "
+                            f"skyrelay.conf.example ({wer})"))
+    return befunde
+
+
+def pruefe_konfiguration(basis_dir):
+    """Druckt den Bericht und liefert den Rückgabewert für die Kommandozeile:
+    0 = keine Probleme, 1 = mindestens eines. Verbindet sich mit nichts und
+    verändert nichts."""
+    print(f"Konfiguration: {konfig_pfad(basis_dir)}")
+    befunde = sammle_konfig_befunde(basis_dir)
+    probleme = [text for schwere, text in befunde if schwere == "problem"]
+    hinweise = [text for schwere, text in befunde if schwere == "hinweis"]
+
+    for titel, eintraege, zeichen in (("Probleme", probleme, "✗"),
+                                      ("Hinweise", hinweise, "ℹ")):
+        if eintraege:
+            print(f"\n{titel}:")
+            for eintrag in eintraege:
+                print(f"  {zeichen} {eintrag}")
+
+    if not befunde:
+        print("\n✓ Keine Auffälligkeiten.")
+    else:
+        print(f"\n{len(probleme)} Problem(e), {len(hinweise)} Hinweis(e).")
+    return 1 if probleme else 0
+
+
+# ----------------------------------------------------------- Beitragsaufbau
+def baue_quellzeile(tb, prefix, label, url):
+    """Schreibt Kopfzeile und Quellenangabe eines Hauptbeitrags in den
+    TextBuilder - eine Stelle für beide Programme.
+
+    Der Feed hatte diese Zeilen früher fest verdrahtet. Deshalb blieb dort
+    [post] prefix wirkungslos, und als Linktext stand die nackte URL (#2).
+    Ohne Beschriftung bleibt es bei der URL - besser als ein leerer Link."""
+    if prefix:
+        tb.text(f"{prefix}\n")
+    tb.text("🔗 Quelle: ")
+    tb.link(label or url, url)
+    tb.text("\n\n")
+
+
+def zeige_vorschau(bausteine):
+    """Zeigt im Trockenlauf, wie die Beiträge auf Bluesky aussähen - Zeile für
+    Zeile eingerückt, mit der Zeichenzahl je Beitrag.
+
+    Ohne das bleibt vom Trockenlauf nur eine Zusammenfassung ("2 Beiträge,
+    1 Video"), und ob Kopfzeile, Quelle und Hashtags an der richtigen Stelle
+    stehen, sieht man erst am fertigen Beitrag - also zu spät."""
+    for nummer, tb in enumerate(bausteine, start=1):
+        text = tb.build_text()
+        log(f"   ┌─ Beitrag {nummer}/{len(bausteine)} ({len(text)} Zeichen)")
+        for zeile in text.split("\n"):
+            log(f"   │ {zeile}")
+        log("   └─")
 
 
 # -------------------------------------------------------------------- Login

@@ -44,7 +44,15 @@ from skyrelay_common import (
     merke_video_daten,
     merke_nachreich_ziel,
     reiche_videos_nach,
+    baue_quellzeile,
+    zeige_vorschau,
+    pruefe_konfiguration,
 )
+
+# Prüfung der Konfiguration, noch bevor irgendetwas anderes anläuft: Der Aufruf
+# verbindet sich mit nichts und schreibt nichts (#3).
+if "--check-config" in sys.argv:
+    sys.exit(pruefe_konfiguration(os.path.dirname(os.path.abspath(__file__))))
 
 
 # Instagram wechselt regelmäßig die Endpunkte, über die Profildaten abrufbar sind -
@@ -81,6 +89,9 @@ IMAGE_PLACEHOLDER = cfg("feed", "image_placeholder", "📸 Neues Bild")
 ALT_TEXT_FALLBACK = cfg("feed", "alt_text_fallback", "News")
 
 POST_PREFIX = cfg("post", "prefix", "⚽ [Inoffizieller Bot]")
+# Eigene Beschriftung für den Quell-Link: [post] source_label beschreibt den
+# WhatsApp-Kanal des Tickers und passt nicht auf einen Instagram-Beitrag.
+FEED_SOURCE_LABEL = cfg("feed", "source_label", "Beitrag auf Instagram")
 STANDING_HASHTAG = cfg("post", "standing_hashtag", "").strip().lstrip("#")
 
 MAX_VIDEO_BYTES = cfg_int("limits", "max_video_bytes", 100_000_000)
@@ -228,6 +239,26 @@ def build_alt_text(caption, suffix=""):
     if len(base) > 200:
         base = base[:200].rstrip() + "…"
     return base + suffix
+
+
+def baue_beitragstext(inhalt, index, gesamt, quell_url):
+    """Baut den Text eines einzelnen Beitrags im Thread - Kopfbereich im ersten,
+    Dauer-Hashtag im letzten, Zähler dazwischen.
+
+    Bewusst eine einzige Stelle: Der Trockenlauf zeigt damit genau das, was der
+    echte Lauf senden würde, statt einer nachgebauten Näherung."""
+    tb = client_utils.TextBuilder()
+    if index == 0:
+        baue_quellzeile(tb, POST_PREFIX, FEED_SOURCE_LABEL, quell_url)
+        tb.text(inhalt)
+        if gesamt > 1:
+            tb.text(f" (1/{gesamt})")
+    else:
+        tb.text(f"{inhalt} ({index + 1}/{gesamt})")
+    if index == gesamt - 1 and STANDING_HASHTAG:
+        tb.text("\n\n")
+        tb.tag(f"#{STANDING_HASHTAG}", STANDING_HASHTAG)
+    return tb
 
 
 client = None
@@ -413,15 +444,24 @@ for post in latest_posts:
             medien = []
             if bluesky_images:
                 medien.append(f"{len(bluesky_images)} Bild(er)")
-            anzahl_videos = (len(video_pairs) if is_multi_video_post and video_pairs
+            # Dieselbe Bedingung wie beim echten Lauf weiter unten - vorher fehlte
+            # hier das gemischte Karussell, sodass dessen Videos unterschlagen wurden.
+            anzahl_videos = (len(video_pairs)
+                             if (is_multi_video_post or is_mixed_post) and video_pairs
                              else 1 if (is_video_post and mp4_files) else 0)
             if anzahl_videos:
                 medien.append(f"{anzahl_videos} Video(s)")
+            # So viele Beiträge, wie der echte Lauf anlegen würde: Text-Abschnitte
+            # gegen Medien-Plätze (Bildgruppen im Hauptpost, je ein Video danach).
+            vorschau_gesamt = max(len(text_chunks), len(image_chunks) + anzahl_videos)
             log(f"   [DRY_RUN] Würde auf @{BLUESKY_HANDLE} posten: "
-                f"{len(text_chunks)} Beitrag/Beiträge"
+                f"{vorschau_gesamt} Beitrag/Beiträge"
                 + (f", {', '.join(medien)}" if medien else ", ohne Medien"))
-            log(f"   [DRY_RUN] Quelle: {insta_url}")
-            log(f"   [DRY_RUN] Text: {text_chunks[0][:120]}...")
+            zeige_vorschau([
+                baue_beitragstext(text_chunks[i] if i < len(text_chunks)
+                                  else "Weitere Inhalte...",
+                                  i, vorschau_gesamt, insta_url)
+                for i in range(vorschau_gesamt)])
             continue
 
         # 8. Bluesky-Verbindung herstellen (erst wenn wirklich gebraucht).
@@ -489,7 +529,6 @@ for post in latest_posts:
 
         for i in range(total_posts):
             is_first = (i == 0)
-            is_last = (i == total_posts - 1)
 
             current_text = text_chunks[i] if i < len(text_chunks) else "Weitere Inhalte..."
 
@@ -508,19 +547,7 @@ for post in latest_posts:
                         embed = models.AppBskyEmbedImages.Main(images=uploaded_images)
                         log(f"✓ Binde Bild-Embed ({len(uploaded_images)} Bild(er)) {i+1}/{total_posts} ein.")
 
-            tb = client_utils.TextBuilder()
-            if is_first:
-                tb.text("⚽ [Inoffizieller Bot]\n🔗 Quelle: ")
-                tb.link(insta_url, insta_url)
-                tb.text(f"\n\n{current_text}")
-                if total_posts > 1:
-                    tb.text(f" (1/{total_posts})")
-            else:
-                tb.text(f"{current_text} ({i+1}/{total_posts})")
-
-            if is_last and STANDING_HASHTAG:
-                tb.text("\n\n")
-                tb.tag(f"#{STANDING_HASHTAG}", STANDING_HASHTAG)
+            tb = baue_beitragstext(current_text, i, total_posts, insta_url)
 
             if is_first:
                 log(f"Sende Hauptpost für {post.shortcode}...")

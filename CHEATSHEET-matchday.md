@@ -10,7 +10,7 @@ an Spieltagen automatisch von 6 bis 24 Uhr, gesteuert über Umgebungsvariablen.
 | Variable | Werte | Funktion |
 |---|---|---|
 | `BLUESKY_TICKER_APP_PASSWORD` | `xxxx-xxxx-xxxx-xxxx` | **Pflicht** (außer im Dry-Run). App-Passwort des **Ticker**-Kontos. Der Feed nutzt entsprechend `BLUESKY_FEED_APP_PASSWORD`. |
-| `SKYRELAY_DRY_RUN` | `1` | Nur loggen, **nichts** auf Bluesky posten. Für gefahrlose Tests. |
+| `SKYRELAY_DRY_RUN` | `1` | Nur loggen, **nichts** auf Bluesky posten. Zeigt jeden Beitrag so, wie er auf Bluesky stünde - samt Zeichenzahl. Für gefahrlose Tests. |
 | `SKYRELAY_FORCE` | `1` | Läuft auch dann, wenn OpenLigaDB für heute **kein** Spiel kennt (Testspiele, manuelle Läufe). Findet OpenLigaDB doch eins, werden Hashtag und Spieltagsinfo trotzdem übernommen. |
 | `SKYRELAY_HASHTAG` | z. B. `DSCGUE` | Spiel-Hashtag **manuell** setzen (mit/ohne `#`, Groß-/Kleinschreibung egal). Hat Vorrang vor dem automatisch generierten. Nötig bei Testspielen, die OpenLigaDB nicht kennt. |
 | `SKYRELAY_REPLAY` | Zahl `N` | Testmodus: verarbeitet einmalig die **letzten N vorhandenen** Kanal-Posts und **beendet sich**. Wasserzeichen bleibt unberührt, keine Duplikatsprüfung. |

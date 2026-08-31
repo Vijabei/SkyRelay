@@ -150,6 +150,10 @@ instagram_profile = arminiaofficial
 # Zweitkonto, mit dem abgerufen wird. Sitzung einmalig anlegen mit:
 #   venv/bin/instaloader -l <zweitkonto>
 instagram_session_user = dein_zweitkonto
+# Beschriftung des Quell-Links unter jedem Beitrag. Eigener Wert, weil
+# [post] source_label den WhatsApp-Kanal des Tickers beschreibt. Leer lassen,
+# um wie früher die nackte Instagram-Adresse anzuzeigen.
+source_label = Beitrag auf Instagram
 # Wie viele der letzten Beiträge je Lauf geprüft werden. Mehr als 5, damit
 # angeheftete Beiträge keine neuen verdrängen.
 posts_to_check = 10
