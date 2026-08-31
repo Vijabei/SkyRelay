@@ -99,6 +99,12 @@ from skyrelay_common import (
     source_block,
     DEFAULT_SOURCE_TEMPLATE,
     tag_block,
+    post_overhead,
+    split_body,
+    counter_suffix,
+    GRAPHEME_LIMIT,
+    BYTE_LIMIT,
+    GRAPHEME_SOURCE,
     show_preview,
 )
 from skyrelay_config import check_config, show_config
@@ -148,6 +154,10 @@ LOCAL_TZ = ZoneInfo(cfg("team", "timezone", "Europe/Berlin"))
 # Where header, source and hashtags go (#6). Without a [layout] section the
 # defaults apply, and those are what the ticker always did.
 LAYOUT = load_layout(cfg, log)
+if "regex" not in GRAPHEME_SOURCE:
+    log("ℹ️ Counting characters with the built-in approximation. "
+        "'pip install regex' makes it exact for every emoji sequence "
+        "- until then a rare one may be counted a little high.")
 
 # Codes used to build the hashtag, e.g. {83: "DSC"}
 TEAM_CODES = {}
@@ -543,26 +553,35 @@ def extract_text(msg):
     return ""
 
 
-def split_text(text, first_limit=200, follow_limit=240):
-    """Splits text into chunks below Bluesky's 300 character limit. The first
-    chunk is smaller because it also carries the header and the source link
-    (~60 characters); the last one still gets the hashtags. It prefers word
-    and line boundaries and cuts hard only when it has to."""
-    text = text.strip()
-    if not text:
-        return []
-    chunks = []
-    limit = first_limit
-    while len(text) > limit:
-        cut = max(text.rfind(" ", 0, limit), text.rfind("\n", 0, limit))
-        if cut < limit // 2:  # no usable boundary found -> cut hard
-            cut = limit
-        chunks.append(text[:cut].rstrip())
-        text = text[cut:].lstrip()
-        limit = follow_limit
-    if text:
-        chunks.append(text)
-    return chunks
+def post_writers(match_tag):
+    """The blocks a post is assembled from.
+
+    One place for measuring and for building - otherwise the budget could be
+    worked out for a different post than the one that actually goes out."""
+    return {
+        "prefix": text_block(bot_notice(BOT_NOTICE, BOT_NOTICE_MARKER,
+                                        PROFILE_STATUS_MARKER, POST_PREFIX,
+                                        bsky_client)),
+        "source": source_block(SOURCE_TEMPLATE, POST_SOURCE_LABEL,
+                               CHANNEL_INVITE_LINK),
+        "match_hashtag": tag_block(match_tag),
+        "standing_hashtag": tag_block(STANDING_HASHTAG),
+    }
+
+
+def split_text(text, match_tag=None):
+    """Splits text so that every finished post stays inside Bluesky's limits.
+
+    What is left for the body is not a flat reserve any more but what this very
+    post actually carries: the blocks the layout puts on it, their blank lines
+    and the counter (#8)."""
+    writers = post_writers(match_tag)
+
+    def budget(index, total):
+        used_graphemes, used_bytes = post_overhead(index, total, writers, LAYOUT)
+        return GRAPHEME_LIMIT - used_graphemes, BYTE_LIMIT - used_bytes
+
+    return split_body(text, budget)
 
 
 URL_REGEX = re.compile(r"https?://[^\s<>()\[\]]+")
@@ -588,18 +607,10 @@ def build_post_text(chunk, index, total, match_tag):
 
     Deliberately one single place: it lets the dry run show exactly what the
     real run would send, instead of a rebuilt approximation."""
-    body = chunk if total == 1 else f"{chunk} ({index + 1}/{total})"
-    writers = {
-        "prefix": text_block(bot_notice(BOT_NOTICE, BOT_NOTICE_MARKER,
-                                        PROFILE_STATUS_MARKER, POST_PREFIX,
-                                        bsky_client)),
-        "source": source_block(SOURCE_TEMPLATE, POST_SOURCE_LABEL,
-                               CHANNEL_INVITE_LINK),
-        "match_hashtag": tag_block(match_tag),
-        "standing_hashtag": tag_block(STANDING_HASHTAG),
-    }
+    body = chunk + counter_suffix(index, total)
     return build_post(client_utils.TextBuilder(), index, total,
-                      lambda tb: add_text_with_links(tb, body), writers, LAYOUT)
+                      lambda tb: add_text_with_links(tb, body),
+                      post_writers(match_tag), LAYOUT)
 
 
 def fetch_og_data(url):
@@ -791,7 +802,13 @@ def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None,
     of URIs created (the main post first) - stored for the edit logic, so posts
     can be deleted later."""
 
-    text_chunks = split_text(text)
+    # Log in before measuring, not after: with [post] bot_notice = auto the
+    # header only settles once the profile can be read, and the budget has to
+    # know whether that header is going to be there.
+    if not DRY_RUN:
+        ensure_bsky()
+
+    text_chunks = split_text(text, match_hashtag)
     if not text_chunks and not image_blobs and not video_bytes:
         log("   (empty message, skipped)")
         return []
