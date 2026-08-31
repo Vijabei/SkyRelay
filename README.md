@@ -164,6 +164,22 @@ Das listet jeden Wert, den die Programme lesen, mit seiner Herkunft:
   source_label                  (Vorgabe)    Beitrag auf Instagram
 ```
 
+**Auskommentieren schaltet nichts ab.** Eine Zeile mit `#` davor zählt als
+fehlend, und dann greift die Vorgabe aus dem Programm — die Einstellung wirkt
+also weiter, nur eben mit einem anderen Wert. Wer etwas *weglassen* will, lässt
+den Wert leer:
+
+```ini
+# keine Quellenangabe im Beitrag:
+source_label =
+# keine Kopfzeile:
+prefix =
+```
+
+Dasselbe gilt für `standing_hashtag`. In der Übersicht oben ist der Unterschied
+an der Herkunft ablesbar: `(Datei)` heißt „so steht es bei dir", `(Vorgabe)`
+heißt „das Programm hat entschieden".
+
 ### Konfiguration prüfen
 
 Ein falsch geschriebener Schlüssel wirkt einfach nicht — ohne Fehlermeldung, weil
