@@ -181,6 +181,31 @@ Dasselbe gilt für `standing_hashtag`. In der Übersicht oben ist der Unterschie
 an der Herkunft ablesbar: `(Datei)` heißt „so steht es bei dir", `(Vorgabe)`
 heißt „das Programm hat entschieden".
 
+### Wie die Quellenangabe aussieht
+
+Welcher Teil der Zeile den Link trägt, entscheidet eine Vorlage. Was in
+**[eckigen Klammern]** steht, wird zum Link; `{label}` ist die Beschriftung aus
+`[post] source_label` bzw. `[feed] source_label`:
+
+```ini
+[post]
+source_template = 🔗 [Quelle]: {label}
+```
+
+| Vorlage | Ergebnis (fett = anklickbar) |
+|---|---|
+| `🔗 [Quelle]: {label}` | 🔗 **Quelle**: WhatsApp-Kanal des Vereins |
+| `🔗 [Quelle]` | 🔗 **Quelle** |
+| `🔗 Quelle: [{label}]` | 🔗 Quelle: **WhatsApp-Kanal des Vereins** |
+
+Die erste Zeile ist die Vorgabe. Bis Version 1.3 galt die dritte: Der Link hing
+an der Beschriftung, und das Wort davor war toter Text. Die zweite Variante
+spart rund 28 Zeichen — bei Blueskys Grenze von 300 durchaus spürbar.
+
+Fehlt die Beschriftung, fällt der Doppelpunkt mit weg. Fehlen die eckigen
+Klammern ganz, wird die ganze Zeile zum Link — eine Quellenangabe ohne Link wäre
+sinnlos.
+
 ### Wo Kopfzeile, Quelle und Hashtags stehen
 
 Bis dahin war das festgelegt: Kopfzeile und Quelle oben im ersten Beitrag, die
