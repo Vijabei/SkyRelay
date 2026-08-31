@@ -27,7 +27,6 @@ import glob
 import shutil
 import instaloader
 from atproto import Client, models, client_utils
-import textwrap
 import time
 import requests
 import traceback
@@ -50,6 +49,12 @@ from skyrelay_common import (
     source_block,
     DEFAULT_SOURCE_TEMPLATE,
     tag_block,
+    post_overhead,
+    split_body,
+    counter_suffix,
+    GRAPHEME_LIMIT,
+    BYTE_LIMIT,
+    GRAPHEME_SOURCE,
     show_preview,
 )
 from skyrelay_config import check_config, show_config
@@ -119,6 +124,10 @@ STANDING_HASHTAG = cfg("post", "standing_hashtag", "").strip().lstrip("#")
 # Where header, source and the standing hashtag go (#6). The feed knows no
 # match hashtag, so that block simply never has anything to show.
 LAYOUT = load_layout(cfg, log)
+if "regex" not in GRAPHEME_SOURCE:
+    log("ℹ️ Counting characters with the built-in approximation. "
+        "'pip install regex' makes it exact for every emoji sequence "
+        "- until then a rare one may be counted a little high.")
 
 MAX_VIDEO_BYTES = cfg_int("limits", "max_video_bytes", 100_000_000)
 VIDEO_JOB_TIMEOUT_SECONDS = cfg_int("limits", "video_job_timeout_seconds", 600)
@@ -232,32 +241,29 @@ except Exception as error:
 
 
 # 4. Helpers
-def split_caption(caption, first_limit, follow_limit):
-    """Splits the caption into chunks. With break_long_words=False textwrap can
-    return chunks longer than the target width (long URLs or hashtag chains, for
-    instance) - which is why they are additionally cut hard to the limit."""
-    wrapped = textwrap.wrap(caption, width=first_limit, break_long_words=False,
-                            replace_whitespace=False)
-    if not wrapped:
-        return []
+def post_writers(source_url):
+    """The blocks a post is assembled from - one place for measuring and for
+    building, so the budget can never belong to a different post."""
+    return {
+        "prefix": text_block(bot_notice(BOT_NOTICE, BOT_NOTICE_MARKER,
+                                        PROFILE_STATUS_MARKER, POST_PREFIX,
+                                        client)),
+        "source": source_block(SOURCE_TEMPLATE, FEED_SOURCE_LABEL, source_url),
+        "match_hashtag": None,
+        "standing_hashtag": tag_block(STANDING_HASHTAG),
+    }
 
-    raw_chunks = [wrapped[0]]
-    remaining_text = caption[len(wrapped[0]):].strip()
-    if remaining_text:
-        raw_chunks.extend(textwrap.wrap(remaining_text, width=follow_limit,
-                                        break_long_words=False,
-                                        replace_whitespace=False))
 
-    chunks = []
-    for chunk in raw_chunks:
-        limit = first_limit if not chunks else follow_limit
-        while len(chunk) > limit:
-            chunks.append(chunk[:limit])
-            chunk = chunk[limit:].lstrip()
-            limit = follow_limit
-        if chunk:
-            chunks.append(chunk)
-    return chunks
+def split_caption(caption, source_url):
+    """Splits the caption so that every finished post stays inside Bluesky's
+    limits, counting what this very post actually carries (#8)."""
+    writers = post_writers(source_url)
+
+    def budget(index, total):
+        used_graphemes, used_bytes = post_overhead(index, total, writers, LAYOUT)
+        return GRAPHEME_LIMIT - used_graphemes, BYTE_LIMIT - used_bytes
+
+    return split_body(caption, budget)
 
 
 def natural_sort_key(path):
@@ -284,17 +290,9 @@ def build_post_text(body, index, total, source_url):
 
     Deliberately one single place: it lets the dry run show exactly what the
     real run would send, instead of a rebuilt approximation."""
-    text = body if total == 1 else f"{body} ({index + 1}/{total})"
-    writers = {
-        "prefix": text_block(bot_notice(BOT_NOTICE, BOT_NOTICE_MARKER,
-                                        PROFILE_STATUS_MARKER, POST_PREFIX,
-                                        client)),
-        "source": source_block(SOURCE_TEMPLATE, FEED_SOURCE_LABEL, source_url),
-        "match_hashtag": None,
-        "standing_hashtag": tag_block(STANDING_HASHTAG),
-    }
+    text = body + counter_suffix(index, total)
     return build_post(client_utils.TextBuilder(), index, total,
-                      lambda tb: tb.text(text), writers, LAYOUT)
+                      lambda tb: tb.text(text), post_writers(source_url), LAYOUT)
 
 
 client = None

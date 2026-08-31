@@ -181,6 +181,44 @@ Dasselbe gilt für `standing_hashtag`. In der Übersicht oben ist der Unterschie
 an der Herkunft ablesbar: `(Datei)` heißt „so steht es bei dir", `(Vorgabe)`
 heißt „das Programm hat entschieden".
 
+### Wie SkyRelay die Zeichengrenze einhält
+
+Bluesky begrenzt einen Beitrag doppelt — die Lexikon-Definition von
+`app.bsky.feed.post` sagt es genau:
+
+```json
+{ "type": "string", "maxLength": 3000, "maxGraphemes": 300 }
+```
+
+Also **300 Graphemes und 3000 Bytes**. Ein Graphem ist, was ein Mensch als ein
+Zeichen sieht: `👨‍👩‍👧‍👦` besteht aus sieben Codepoints und 25 Bytes und zählt
+trotzdem als **eines**. Eine API zum Nachfragen gibt es nicht — der Zähler in
+der Bluesky-App läuft im Browser, und der Server sagt erst am fertigen Beitrag
+Nein.
+
+SkyRelay zählt deshalb selbst, nach derselben Regel (UAX #29), und rechnet vor
+dem Aufteilen aus, **was dieser eine Beitrag tatsächlich trägt**: die Bausteine,
+die das Layout auf ihn legt, deren Leerzeilen und den `(2/3)`-Zähler. Weil die
+Anzahl der Beiträge wiederum die Breite des Zählers bestimmt, wird das in
+Runden ermittelt, bis es sich einpendelt.
+
+Was das ausmacht, zeigt derselbe Text mit verschiedenen Quellenzeilen:
+
+| Quellenzeile | Rahmen | Beiträge |
+|---|---|---|
+| `🔗 [Quelle]: {label}` mit Beschriftung | 66 Zeichen | 2 |
+| `🔗 [Quelle]` | 50 Zeichen | **1** |
+
+Getrennt wird in dieser Vorliebe: Absatz, Satz, Wort, notfalls hart — **nie**
+mitten in einer URL (Bluesky kürzt Links nicht, ein halber ist wertlos) und nie
+mitten in einem Graphem-Cluster.
+
+Für die Zählung ist das Paket `regex` empfohlen, das UAX #29 vollständig kann.
+Fehlt es, rechnet SkyRelay mit einer eingebauten Näherung weiter, die alles
+abdeckt, was real vorkommt — Umlaute, Emoji mit Hautfarbe, ZWJ-Folgen, Flaggen.
+**Ein `git pull` ohne `pip install` bleibt damit gefahrlos**; der Bot sagt beim
+Start nur, mit welcher Zählweise er arbeitet.
+
 ### Muss der Bot-Hinweis in jedem Beitrag stehen?
 
 Wenn die Bluesky-Biografie schon deutlich sagt, dass hier ein Bot schreibt, ist

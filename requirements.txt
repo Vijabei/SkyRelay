@@ -21,6 +21,17 @@ neonize==0.4.3.post0
 protobuf>=7.34.1
 segno>=1.6.1
 
+# --- Zeichenzaehlung (empfohlen, aber nicht zwingend) ---
+# Bluesky begrenzt einen Beitrag auf 300 Graphemes und 3000 Bytes. Graphemes
+# sind das, was ein Mensch als EIN Zeichen sieht - "👨‍👩‍👧‍👦" besteht aus sieben
+# Codepoints und zaehlt trotzdem als eines. Python bringt dafuer nichts mit;
+# regex kann es ueber \X nach dem Unicode-Standard UAX #29.
+# Fehlt das Paket, rechnet SkyRelay mit einer eingebauten Naeherung weiter, die
+# alles abdeckt, was in Beitraegen real vorkommt (Umlaute, Emoji mit
+# Hautfarbe, ZWJ-Folgen, Flaggen). Der Bot laeuft also auch ohne - ein
+# "git pull" ohne "pip install" bleibt gefahrlos.
+regex>=2024.11.6
+
 # --- skyrelay-feed.py (Quelle: Instagram) ---
 # ACHTUNG: instaloader ist bewusst auf 4.15.2 festgelegt.
 # 4.15.3 stellte die Profilabfrage auf den Endpunkt "web_profile_info" um
