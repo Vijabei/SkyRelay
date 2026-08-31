@@ -130,11 +130,12 @@ durch alle Fragen am Stück zu arbeiten:
   2  Instagram-Feed      Instagram → Bluesky
   3  Kürzel für Hashtags
   4  Beiträge und Profil
-  5  Zeitfenster
-  6  Anmeldung bei Bluesky prüfen
-  7  Konfiguration prüfen
-  8  Konfiguration nachziehen
-  9  Speichern und beenden
+  5  Aufbau der Beiträge (Kopfzeile, Quelle, Hashtags)
+  6  Zeitfenster
+  7  Anmeldung bei Bluesky prüfen
+  8  Konfiguration prüfen
+  9  Konfiguration nachziehen
+  0  Speichern und beenden
 ```
 
 Das ist auch der bequeme Weg für spätere Änderungen: Ein einzelnes Kürzel
@@ -179,6 +180,47 @@ prefix =
 Dasselbe gilt für `standing_hashtag`. In der Übersicht oben ist der Unterschied
 an der Herkunft ablesbar: `(Datei)` heißt „so steht es bei dir", `(Vorgabe)`
 heißt „das Programm hat entschieden".
+
+### Wo Kopfzeile, Quelle und Hashtags stehen
+
+Bis dahin war das festgelegt: Kopfzeile und Quelle oben im ersten Beitrag, die
+Hashtags unten im letzten. Der Abschnitt `[layout]` macht daraus eine
+Entscheidung — eine Zeile je Baustein:
+
+```ini
+[layout]
+#                  Beiträge ; Stelle ; Reihenfolge
+prefix           = first ; top    ; 1
+source           = first ; top    ; 2
+match_hashtag    = last  ; bottom ; 1
+standing_hashtag = last  ; bottom ; 2
+```
+
+| Spalte | Werte | Bedeutung |
+|---|---|---|
+| Beiträge | `first`, `last`, `all`, `none` | an welchen Beiträgen des Threads |
+| Stelle | `top`, `bottom` | über oder unter dem Text |
+| Reihenfolge | Zahl | wer zuerst kommt, wenn zwei an derselben Stelle landen |
+
+Die Werte oben sind die Vorgaben und erzeugen genau das Aussehen, das SkyRelay
+immer hatte. Einen Baustein ganz weglassen geht auf zwei Wegen: `none`
+eintragen, oder seinen Inhalt leer lassen (`source_label =`).
+
+Am bequemsten ist der Assistent unter Punkt 5 — er zeigt die Matrix und auf
+Wunsch eine **Vorschau des fertigen Beitrags**, bevor irgendetwas gepostet wird:
+
+```
+── Beitrag 1 von 2 ──────────────────────────────
+⚽ [Inoffizieller Bot]
+🔗 Quelle: WhatsApp-Kanal des Vereins
+
+Beispieltext, Teil 1. (1/2)
+
+── Beitrag 2 von 2 ──────────────────────────────
+Beispieltext, Teil 2. (2/2)
+
+#DSCWOB #arminia
+```
 
 ### Konfiguration prüfen
 

@@ -37,6 +37,11 @@ LINE_FUNCTIONS = {"read_value": 1, "set_value": 1,
 
 NO_DEFAULT = object()  # the default is not a literal, or there is none
 
+# [layout] is read through cfg("layout", block, "") with block as a variable, so
+# parsing the sources cannot find those keys - it would report every one of them
+# as read by nobody. They are registered here instead.
+from skyrelay_layout import LAYOUT_BLOCKS, DEFAULT_LAYOUT  # noqa: E402
+
 
 def config_path(base_dir):
     """Path of the own configuration - in the program directory, or wherever
@@ -93,6 +98,12 @@ def accessed_keys(base_dir):
                 default = _literal(node.args[offset + 2])
                 if default is not NO_DEFAULT and entry["default"] is NO_DEFAULT:
                     entry["default"] = default
+
+    for block in LAYOUT_BLOCKS:
+        selector, spot, order = DEFAULT_LAYOUT[block]
+        found.setdefault(("layout", block),
+                         {"programs": {"ticker", "feed"},
+                          "default": f"{selector} ; {spot} ; {order}"})
     return found
 
 

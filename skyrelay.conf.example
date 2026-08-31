@@ -118,6 +118,36 @@ media_prefix = skyrelay
 video_retry_text = 🎥 Nachgereicht: das Video zum Beitrag oben.
 
 
+[layout]
+# ---------------------------------------------------------------------------
+#  Wo die Bausteine eines Beitrags stehen. Eine Zeile je Baustein:
+#
+#      baustein = <Beiträge> ; <Stelle> ; <Reihenfolge>
+#
+#  Beiträge:     first  nur der erste Beitrag des Threads
+#                last   nur der letzte
+#                all    jeder Beitrag
+#                none   gar nicht
+#  Stelle:       top    über dem Text        bottom  unter dem Text
+#  Reihenfolge:  Zahl - entscheidet, was zuerst kommt, wenn zwei Bausteine
+#                an derselben Stelle landen.
+#
+#  Die Vorgaben unten erzeugen genau das Aussehen, das SkyRelay immer hatte.
+#  Einen Baustein ganz weglassen geht auf zwei Wegen: hier "none" eintragen,
+#  oder seinen Inhalt leer lassen (z.B. [post] source_label).
+#  Wie das Ergebnis aussieht, zeigt ein Trockenlauf:
+#      SKYRELAY_DRY_RUN=1 SKYRELAY_FORCE=1 SKYRELAY_REPLAY=1 #          venv/bin/python skyrelay-matchday.py
+# ---------------------------------------------------------------------------
+# Die Kopfzeile aus [post] prefix.
+prefix = first ; top ; 1
+# Der Quell-Link (Beschriftung aus [post] source_label bzw. [feed] source_label).
+source = first ; top ; 2
+# Der aus dem Spielplan gebildete Hashtag - nur der Ticker hat einen.
+match_hashtag = last ; bottom ; 1
+# Der Dauer-Hashtag aus [post] standing_hashtag.
+standing_hashtag = last ; bottom ; 2
+
+
 [audio]
 # ---------------------------------------------------------------------------
 #  Sprachnachrichten aus dem WhatsApp-Kanal.

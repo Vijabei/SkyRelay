@@ -92,7 +92,11 @@ from skyrelay_common import (
     audio_to_video,
     video_still,
     sticker_to_image,
-    build_source_line,
+    build_post,
+    load_layout,
+    text_block,
+    source_block,
+    tag_block,
     show_preview,
 )
 from skyrelay_config import check_config, show_config
@@ -138,6 +142,10 @@ LEGACY_LEAGUE_PREFIXES = tuple(
     p.strip().lower() for p in cfg("team", "league_prefixes", "").split(",") if p.strip()
 )
 LOCAL_TZ = ZoneInfo(cfg("team", "timezone", "Europe/Berlin"))
+
+# Where header, source and hashtags go (#6). Without a [layout] section the
+# defaults apply, and those are what the ticker always did.
+LAYOUT = load_layout(cfg, log)
 
 # Codes used to build the hashtag, e.g. {83: "DSC"}
 TEAM_CODES = {}
@@ -566,23 +574,22 @@ def add_text_with_links(tb, text):
         tb.text(text[pos:])
 
 
-def build_post_text(chunk, index, total, hashtags):
-    """Builds the text of a single post in the thread - the header in the first
-    one, the hashtags in the last, a counter in between.
+def build_post_text(chunk, index, total, match_tag):
+    """Builds the text of a single post in the thread. Where header, source and
+    hashtags land is decided by [layout]; the body and its counter always sit in
+    the middle.
 
     Deliberately one single place: it lets the dry run show exactly what the
     real run would send, instead of a rebuilt approximation."""
-    tb = client_utils.TextBuilder()
-    if index == 0:
-        build_source_line(tb, POST_PREFIX, POST_SOURCE_LABEL, CHANNEL_INVITE_LINK)
-    add_text_with_links(tb, chunk if total == 1 else f"{chunk} ({index + 1}/{total})")
-    if index == total - 1:
-        tb.text("\n\n")
-        for nth, tag in enumerate(hashtags):
-            if nth:
-                tb.text(" ")
-            tb.tag(f"#{tag}", tag)
-    return tb
+    body = chunk if total == 1 else f"{chunk} ({index + 1}/{total})"
+    writers = {
+        "prefix": text_block(POST_PREFIX),
+        "source": source_block(POST_SOURCE_LABEL, CHANNEL_INVITE_LINK),
+        "match_hashtag": tag_block(match_tag),
+        "standing_hashtag": tag_block(STANDING_HASHTAG),
+    }
+    return build_post(client_utils.TextBuilder(), index, total,
+                      lambda tb: add_text_with_links(tb, body), writers, LAYOUT)
 
 
 def fetch_og_data(url):
@@ -773,8 +780,6 @@ def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None,
     gets the generated match hashtag and the standing hashtag. Returns the list
     of URIs created (the main post first) - stored for the edit logic, so posts
     can be deleted later."""
-    hashtags = ([match_hashtag] if match_hashtag else []) + \
-               ([STANDING_HASHTAG] if STANDING_HASHTAG else [])
 
     text_chunks = split_text(text)
     if not text_chunks and not image_blobs and not video_bytes:
@@ -796,7 +801,7 @@ def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None,
         video = f", 1 Video ({len(video_bytes)} Bytes)" if video_bytes else ""
         log(f"   [DRY_RUN] Würde posten ({len(text_chunks)} Beitrag/Beiträge, "
             f"{len(image_blobs)} Bild(er){video}{card}):")
-        show_preview([build_post_text(chunk, i, len(text_chunks), hashtags)
+        show_preview([build_post_text(chunk, i, len(text_chunks), match_hashtag)
                         for i, chunk in enumerate(text_chunks)])
         return []
 
@@ -851,7 +856,7 @@ def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None,
         elif is_first and external_embed is not None:
             embed = external_embed
 
-        tb = build_post_text(chunk, i, total, hashtags)
+        tb = build_post_text(chunk, i, total, match_hashtag)
 
         if is_first:
             root_post = bsky_client.send_post(text=tb, embed=embed)
