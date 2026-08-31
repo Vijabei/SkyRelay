@@ -299,6 +299,21 @@ def baue_quellzeile(tb, prefix, label, url):
     tb.text("\n\n")
 
 
+def zeige_vorschau(bausteine):
+    """Zeigt im Trockenlauf, wie die Beiträge auf Bluesky aussähen - Zeile für
+    Zeile eingerückt, mit der Zeichenzahl je Beitrag.
+
+    Ohne das bleibt vom Trockenlauf nur eine Zusammenfassung ("2 Beiträge,
+    1 Video"), und ob Kopfzeile, Quelle und Hashtags an der richtigen Stelle
+    stehen, sieht man erst am fertigen Beitrag - also zu spät."""
+    for nummer, tb in enumerate(bausteine, start=1):
+        text = tb.build_text()
+        log(f"   ┌─ Beitrag {nummer}/{len(bausteine)} ({len(text)} Zeichen)")
+        for zeile in text.split("\n"):
+            log(f"   │ {zeile}")
+        log("   └─")
+
+
 # -------------------------------------------------------------------- Login
 def hole_app_passwort(*namen):
     """Liefert (Passwort, Variablenname) aus der ersten gesetzten Umgebungs-

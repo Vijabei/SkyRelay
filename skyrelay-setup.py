@@ -205,15 +205,40 @@ def lies_wert(zeilen, abschnitt, schluessel):
 
 
 def setze_wert(zeilen, abschnitt, schluessel, wert):
-    """Ersetzt einen Wert und lässt alle Kommentare unangetastet."""
+    """Setzt einen Wert und lässt alle Kommentare unangetastet.
+
+    Fehlt der Schlüssel, wird er am Ende seines Abschnitts ergänzt; fehlt auch
+    der Abschnitt, entsteht er am Dateiende. Früher geschah in diesen Fällen
+    schlicht nichts: Wer eine Konfiguration aus einer älteren Fassung
+    weiterbenutzte, gab im Assistenten Werte ein, die stillschweigend verfielen -
+    das Menü meldete "gespeichert", geändert hatte sich nichts."""
     aktuell = None
+    abschnitt_start = None
+    abschnitt_ende = None
     for i, zeile in enumerate(zeilen):
         if zeile.startswith("["):
+            if aktuell == abschnitt and abschnitt_ende is None:
+                abschnitt_ende = i
             aktuell = zeile.strip().strip("[]")
+            if aktuell == abschnitt:
+                abschnitt_start = i
         elif aktuell == abschnitt and re.match(rf"\s*{re.escape(schluessel)}\s*=", zeile):
             zeilen[i] = f"{schluessel} = {wert}\n"
             return True
-    return False
+
+    if abschnitt_start is None:
+        if zeilen and zeilen[-1].strip():
+            zeilen.append("\n")
+        zeilen.extend([f"[{abschnitt}]\n", f"{schluessel} = {wert}\n"])
+        return True
+
+    # Hinter die letzte inhaltliche Zeile des Abschnitts, noch vor die
+    # Leerzeilen zum nächsten Abschnitt.
+    einfuegen = abschnitt_ende if abschnitt_ende is not None else len(zeilen)
+    while einfuegen > abschnitt_start + 1 and not zeilen[einfuegen - 1].strip():
+        einfuegen -= 1
+    zeilen.insert(einfuegen, f"{schluessel} = {wert}\n")
+    return True
 
 
 def setze_team_codes(zeilen, codes):
