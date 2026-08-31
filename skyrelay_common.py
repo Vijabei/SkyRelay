@@ -154,14 +154,25 @@ def baue_quellzeile(tb, prefix, label, url):
     """Schreibt Kopfzeile und Quellenangabe eines Hauptbeitrags in den
     TextBuilder - eine Stelle für beide Programme.
 
+    Beide Teile sind einzeln abschaltbar, indem man ihren Wert LEER lässt -
+    so wie es [post] standing_hashtag im Projekt schon vormacht. Wichtig ist
+    der Unterschied zum Auskommentieren: Ein fehlender Schlüssel bedeutet für
+    configparser nicht "aus", sondern "es gilt die Vorgabe im Programm". Was
+    davon gerade greift, zeigt --show-config.
+
     Der Feed hatte diese Zeilen früher fest verdrahtet. Deshalb blieb dort
-    [post] prefix wirkungslos, und als Linktext stand die nackte URL (#2).
-    Ohne Beschriftung bleibt es bei der URL - besser als ein leerer Link."""
+    [post] prefix wirkungslos, und als Linktext stand die nackte URL (#2)."""
+    etwas_geschrieben = bool(prefix)
     if prefix:
-        tb.text(f"{prefix}\n")
-    tb.text("🔗 Quelle: ")
-    tb.link(label or url, url)
-    tb.text("\n\n")
+        tb.text(prefix)
+    if label and url:
+        if prefix:
+            tb.text("\n")
+        tb.text("🔗 Quelle: ")
+        tb.link(label, url)
+        etwas_geschrieben = True
+    if etwas_geschrieben:
+        tb.text("\n\n")
 
 
 def zeige_vorschau(bausteine):

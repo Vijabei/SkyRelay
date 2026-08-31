@@ -287,6 +287,9 @@ def zeige_konfiguration(basis_dir):
     print(f"\n{aus_datei} Wert(e) aus der Datei, {aus_vorgabe} aus den Vorgaben "
           f"der Programme.")
     if aus_vorgabe:
+        print("Achtung: Eine auskommentierte Zeile zählt als fehlend - dann gilt\n"
+              "die Vorgabe, die Einstellung ist also NICHT abgeschaltet. Wer etwas\n"
+              "abschalten will, lässt den Wert leer (z.B. \"source_label =\").")
         print("Die Vorgaben lassen sich mit ihren Erklärungen nachtragen:\n"
               "    venv/bin/python skyrelay-setup.py --nachziehen")
     return 0

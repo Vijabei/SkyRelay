@@ -79,8 +79,14 @@ timezone = Europe/Berlin
 [post]
 # Kopfzeile jedes Hauptbeitrags. Kennzeichnet den Bot als inoffiziell -
 # bitte drin lassen, das erspart Missverständnisse.
+# Leer lassen, um ganz auf die Kopfzeile zu verzichten.
 prefix = ⚽ [Inoffizieller Bot]
 # Beschriftung des Quell-Links (verweist auf den Kanal aus [source]).
+# Leer lassen, um die Quellenangabe wegzulassen.
+# ACHTUNG: Leer lassen heißt "source_label =" ohne Wert. Die Zeile
+# AUSZUKOMMENTIEREN bewirkt etwas anderes - dann greift die Vorgabe aus dem
+# Programm, und die Quelle steht weiterhin im Beitrag. Was gerade gilt, zeigt
+#   venv/bin/python skyrelay-matchday.py --show-config
 source_label = WhatsApp-Kanal des Vereins
 # Hashtag, der unter jedem Beitrag steht (ohne #). Leer lassen für keinen.
 standing_hashtag = arminia
@@ -151,8 +157,8 @@ instagram_profile = arminiaofficial
 #   venv/bin/instaloader -l <zweitkonto>
 instagram_session_user = dein_zweitkonto
 # Beschriftung des Quell-Links unter jedem Beitrag. Eigener Wert, weil
-# [post] source_label den WhatsApp-Kanal des Tickers beschreibt. Leer lassen,
-# um wie früher die nackte Instagram-Adresse anzuzeigen.
+# [post] source_label den WhatsApp-Kanal des Tickers beschreibt.
+# Leer lassen, um die Quellenangabe wegzulassen (siehe Hinweis bei [post]).
 source_label = Beitrag auf Instagram
 # Wie viele der letzten Beiträge je Lauf geprüft werden. Mehr als 5, damit
 # angeheftete Beiträge keine neuen verdrängen.

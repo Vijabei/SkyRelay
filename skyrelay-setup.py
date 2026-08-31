@@ -895,21 +895,25 @@ def m_texte(zeilen):
             if wert is not None:
                 setze_wert(zeilen, "post", "standing_hashtag", wert.lstrip("#"))
         elif wahl == "kopf":
-            wert = tui.frage("Kopfzeile", "Erste Zeile jedes Hauptbeitrags:",
+            wert = tui.frage("Kopfzeile",
+                             "Erste Zeile jedes Hauptbeitrags\n"
+                             "(leer = keine Kopfzeile):",
                              lies_wert(zeilen, "post", "prefix"))
-            if wert:
+            if wert is not None:
                 setze_wert(zeilen, "post", "prefix", wert)
         elif wahl == "quelle":
             wert = tui.frage("Quell-Beschriftung (Ticker)",
-                             "Text des Links zum WhatsApp-Kanal:",
+                             "Text des Links zum WhatsApp-Kanal\n"
+                             "(leer = keine Quellenangabe im Beitrag):",
                              lies_wert(zeilen, "post", "source_label"))
-            if wert:
+            if wert is not None:
                 setze_wert(zeilen, "post", "source_label", wert)
         elif wahl == "quelle_feed":
             wert = tui.frage("Quell-Beschriftung (Feed)",
-                             "Text des Links zum Instagram-Beitrag:",
+                             "Text des Links zum Instagram-Beitrag\n"
+                             "(leer = keine Quellenangabe im Beitrag):",
                              lies_wert(zeilen, "feed", "source_label"))
-            if wert:
+            if wert is not None:
                 setze_wert(zeilen, "feed", "source_label", wert)
         elif wahl == "profil":
             if tui.ja_nein("Profil-Statuszeile",
