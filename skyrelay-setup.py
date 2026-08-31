@@ -1,16 +1,16 @@
 """
-SkyRelay - Einrichtungsassistent
+SkyRelay - setup assistant
 
-Fragt die nötigen Angaben ab und schreibt daraus eine fertige "skyrelay.conf".
-Den Verein sucht er dabei direkt bei OpenLigaDB und füllt die Kürzeltabelle
-für die Hashtags automatisch vor - das ist die mühsamste Handarbeit.
+Asks for what is needed and writes a finished "skyrelay.conf" from it. It looks
+the club up at OpenLigaDB directly and pre-fills the table of team codes for the
+hashtags - which is the most tedious handwork.
 
-Aufruf:
+Run it with:
     venv/bin/python skyrelay-setup.py
 
-Ein zweiter Aufruf lässt sich auch zum Ändern nutzen: Vorhandene Werte werden
-als Vorgabe angeboten, [Enter] übernimmt sie. Passwörter landen NIE in der
-Konfiguration - sie gehören in die Umgebungsvariable BLUESKY_APP_PASSWORD.
+A second run doubles as the way to change things: existing values are offered as
+defaults, [Enter] keeps them. Passwords NEVER end up in the configuration - they
+belong in the environment variable BLUESKY_APP_PASSWORD.
 """
 
 import os
@@ -24,24 +24,26 @@ import skyrelay_config as config
 try:
     import requests
 except ImportError:
-    print("Fehler: Das Paket 'requests' fehlt. Zuerst ./install.sh ausführen.", file=sys.stderr)
+    print("Error: the package 'requests' is missing. Run ./install.sh first.",
+          file=sys.stderr)
     sys.exit(1)
 
-# Auf Konsolen ohne UTF-8 (etwa der Windows-Eingabeaufforderung) soll der
-# Assistent nicht am ersten Sonderzeichen abbrechen.
-for _strom in (sys.stdout, sys.stderr):
+# On consoles without UTF-8 (the Windows command prompt, say) the assistant
+# should not give up at the first special character.
+for _stream in (sys.stdout, sys.stderr):
     try:
-        _strom.reconfigure(encoding="utf-8", errors="replace")
+        _stream.reconfigure(encoding="utf-8", errors="replace")
     except Exception:
         pass
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-VORLAGE = os.path.join(BASE_DIR, "skyrelay.conf.example")
-ZIEL = os.environ.get("SKYRELAY_CONFIG") or os.path.join(BASE_DIR, "skyrelay.conf")
+TEMPLATE = os.path.join(BASE_DIR, "skyrelay.conf.example")
+TARGET = os.environ.get("SKYRELAY_CONFIG") or os.path.join(BASE_DIR, "skyrelay.conf")
 
-# Häufig gebrauchte Ligen zuerst - alles Weitere über "andere Liga suchen".
-# (leagueShortcut, Saison-Startjahr, Beschriftung)
-EMPFOHLENE_LIGEN = [
+# The leagues asked for most often come first - everything else through
+# "search for another league".
+# (leagueShortcut, season start year, label)
+SUGGESTED_LEAGUES = [
     ("bl1", "2026", "Fußball · 1. Bundesliga"),
     ("bl2", "2026", "Fußball · 2. Bundesliga"),
     ("bl3", "2026", "Fußball · 3. Liga"),
@@ -51,18 +53,18 @@ EMPFOHLENE_LIGEN = [
     ("del2", "2026", "Eishockey · DEL2"),
 ]
 
-# Gebräuchliche Kürzel je OpenLigaDB-Team-Nummer, wie sie in Ergebnisdiensten
-# und Fernsehgrafiken verwendet werden. Es gibt dafür keinen offiziellen
-# Standard - und OpenLigaDB liefert selbst keine Kürzel (nur den Kurznamen,
-# also "Bielefeld" statt "DSC"). Deshalb diese Tabelle.
-# Für Mannschaften ohne Eintrag schlägt der Assistent eine Ableitung aus dem
-# Namen vor, die im Dialog erkennbar als Vorschlag markiert ist ("?").
+# The codes in common use per OpenLigaDB team number, as they appear in
+# results services and on television graphics. There is no official standard
+# for them - and OpenLigaDB itself supplies none (only the short name, so
+# "Bielefeld" rather than "DSC"). Hence this table.
+# For teams without an entry the assistant proposes something derived from
+# the name, marked in the dialog as a proposal ("?").
 #
-# Sortiert nach Vereinsnamen, nicht nach Liga: So bleiben Einträge bei Auf-
-# und Abstieg an derselben Stelle stehen.
-# Ergänzen: Team-Nummer über getavailableteams/<liga>/<saison> ermitteln.
-# Stand: Saison 2026/27.
-BEKANNTE_KUERZEL = {
+# Sorted by club name rather than by league: that way entries stay put when
+# clubs are promoted or relegated.
+# To add one: look the team number up via getavailableteams/<league>/<season>.
+# As of season 2026/27.
+KNOWN_TEAM_CODES = {
     199: "FCH",       # 1. FC Heidenheim 1846
     76: "FCK",        # 1. FC Kaiserslautern
     65: "KOE",        # 1. FC Köln
@@ -120,618 +122,618 @@ BEKANNTE_KUERZEL = {
     2199: "VIK",      # Viktoria Köln
     398: "FWK",       # Würzburger Kickers
 }
-# Hinweis: SVW tragen sowohl Werder Bremen (1. Liga) als auch Waldhof Mannheim
-# (3. Liga). Innerhalb einer Liga stört das nicht; treffen beide im Pokal
-# aufeinander, entstünde "#SVWSVW" - dann eines der beiden hier anpassen.
+# Note: SVW is carried by both Werder Bremen (1st division) and Waldhof
+# Mannheim (3rd division). Within one league that does no harm; should the
+# two meet in the cup, "#SVWSVW" would come out - then change one of them.
 
 
-# --------------------------------------------------------------- Darstellung
-def titel(text):
+# ------------------------------------------------------------- presentation
+def heading(text):
     print(f"\n\033[1m{text}\033[0m")
     print("─" * len(text))
 
 
-def programm_banner(teil, name, fluss, zusatz=""):
-    """Deutlich sichtbare Trennung zwischen den beiden Programmen - sonst ist beim
-    Einrichten nicht klar, für welchen Bot eine Angabe gerade gilt."""
-    breite = 74
-    print("\n\033[1m" + "═" * breite)
-    print(f"  {teil}{name}")
-    print(f"  {fluss}" + (f"   ({zusatz})" if zusatz else ""))
-    print("═" * breite + "\033[0m")
+def program_banner(part, name, flow, extra=""):
+    """A clearly visible divide between the two programs - without it, it is
+    not obvious during setup which bot a given answer applies to."""
+    width = 74
+    print("\n\033[1m" + "═" * width)
+    print(f"  {part}{name}")
+    print(f"  {flow}" + (f"   ({extra})" if extra else ""))
+    print("═" * width + "\033[0m")
 
 
-def hinweis(text):
+def note(text):
     print(f"  \033[2m{text}\033[0m")
 
 
-def frage(text, vorgabe="", pflicht=False, pruefung=None):
-    """Fragt einen Wert ab. [Enter] übernimmt die Vorgabe."""
+def ask(text, default="", required=False, validator=None):
+    """Asks for a value. [Enter] keeps the default."""
     while True:
-        anzeige = f" [{vorgabe}]" if vorgabe else ""
+        shown = f" [{default}]" if default else ""
         try:
-            eingabe = input(f"  {text}{anzeige}: ").strip()
+            entry = input(f"  {text}{shown}: ").strip()
         except EOFError:
             raise KeyboardInterrupt
-        wert = eingabe or vorgabe
-        if pflicht and not wert:
+        value = entry or default
+        if required and not value:
             print("    Bitte etwas eingeben.")
             continue
-        if wert and pruefung:
-            fehler = pruefung(wert)
-            if fehler:
-                print(f"    {fehler}")
+        if value and validator:
+            error = validator(value)
+            if error:
+                print(f"    {error}")
                 continue
-        return wert
+        return value
 
 
-def ja_nein(text, vorgabe=True):
-    standard = "J/n" if vorgabe else "j/N"
+def confirm(text, default=True):
+    hint = "J/n" if default else "j/N"
     while True:
         try:
-            eingabe = input(f"  {text} [{standard}]: ").strip().lower()
+            entry = input(f"  {text} [{hint}]: ").strip().lower()
         except EOFError:
             raise KeyboardInterrupt
-        if not eingabe:
-            return vorgabe
-        if eingabe in ("j", "ja", "y", "yes"):
+        if not entry:
+            return default
+        if entry in ("j", "ja", "y", "yes"):
             return True
-        if eingabe in ("n", "nein", "no"):
+        if entry in ("n", "nein", "no"):
             return False
 
 
-def auswahl(eintraege, text, vorgabe_index=None):
-    """Zeigt eine nummerierte Liste und liefert den gewählten Eintrag."""
-    for nummer, (_, beschriftung) in enumerate(eintraege, 1):
-        markierung = " ←" if vorgabe_index == nummer - 1 else ""
-        print(f"    {nummer:2}) {beschriftung}{markierung}")
-    vorgabe = str(vorgabe_index + 1) if vorgabe_index is not None else ""
+def choose(entries, text, default_index=None):
+    """Shows a numbered list and returns the entry that was picked."""
+    for number, (_, label) in enumerate(entries, 1):
+        marker = " ←" if default_index == number - 1 else ""
+        print(f"    {number:2}) {label}{marker}")
+    default = str(default_index + 1) if default_index is not None else ""
     while True:
-        eingabe = frage(text, vorgabe, pflicht=True)
-        if eingabe.isdigit() and 1 <= int(eingabe) <= len(eintraege):
-            return eintraege[int(eingabe) - 1][0]
-        print(f"    Bitte eine Zahl zwischen 1 und {len(eintraege)} eingeben.")
+        entry = ask(text, default, required=True)
+        if entry.isdigit() and 1 <= int(entry) <= len(entries):
+            return entries[int(entry) - 1][0]
+        print(f"    Bitte eine Zahl zwischen 1 und {len(entries)} eingeben.")
 
 
-# ------------------------------------------------------------ Konfiguration
-def lies_wert(zeilen, abschnitt, schluessel):
-    """Liest einen Wert aus den Zeilen einer Konfigurationsdatei."""
-    aktuell = None
-    for zeile in zeilen:
-        if zeile.startswith("["):
-            aktuell = zeile.strip().strip("[]")
-        elif aktuell == abschnitt and re.match(rf"\s*{re.escape(schluessel)}\s*=", zeile):
-            return zeile.split("=", 1)[1].strip()
+# ----------------------------------------------------------- configuration
+def read_value(lines, section, key):
+    """Reads a value from the lines of a configuration file."""
+    current = None
+    for line in lines:
+        if line.startswith("["):
+            current = line.strip().strip("[]")
+        elif current == section and re.match(rf"\s*{re.escape(key)}\s*=", line):
+            return line.split("=", 1)[1].strip()
     return ""
 
 
-def setze_wert(zeilen, abschnitt, schluessel, wert):
-    """Setzt einen Wert und lässt alle Kommentare unangetastet.
+def set_value(lines, section, key, value):
+    """Sets a value and leaves every comment untouched.
 
-    Fehlt der Schlüssel, wird er am Ende seines Abschnitts ergänzt; fehlt auch
-    der Abschnitt, entsteht er am Dateiende. Früher geschah in diesen Fällen
-    schlicht nichts: Wer eine Konfiguration aus einer älteren Fassung
-    weiterbenutzte, gab im Assistenten Werte ein, die stillschweigend verfielen -
-    das Menü meldete "gespeichert", geändert hatte sich nichts."""
-    aktuell = None
-    abschnitt_start = None
-    abschnitt_ende = None
-    for i, zeile in enumerate(zeilen):
-        if zeile.startswith("["):
-            if aktuell == abschnitt and abschnitt_ende is None:
-                abschnitt_ende = i
-            aktuell = zeile.strip().strip("[]")
-            if aktuell == abschnitt:
-                abschnitt_start = i
-        elif aktuell == abschnitt and re.match(rf"\s*{re.escape(schluessel)}\s*=", zeile):
-            zeilen[i] = f"{schluessel} = {wert}\n"
+    If the key is missing it is appended at the end of its section; if the
+    section is missing too, it is created at the end of the file. Previously
+    nothing at all happened in those cases: anyone carrying a configuration
+    over from an older version typed values into the assistant that quietly
+    fell away - the menu said "saved" and nothing had changed."""
+    current = None
+    section_start = None
+    section_end = None
+    for i, line in enumerate(lines):
+        if line.startswith("["):
+            if current == section and section_end is None:
+                section_end = i
+            current = line.strip().strip("[]")
+            if current == section:
+                section_start = i
+        elif current == section and re.match(rf"\s*{re.escape(key)}\s*=", line):
+            lines[i] = f"{key} = {value}\n"
             return True
 
-    if abschnitt_start is None:
-        if zeilen and zeilen[-1].strip():
-            zeilen.append("\n")
-        zeilen.extend([f"[{abschnitt}]\n", f"{schluessel} = {wert}\n"])
+    if section_start is None:
+        if lines and lines[-1].strip():
+            lines.append("\n")
+        lines.extend([f"[{section}]\n", f"{key} = {value}\n"])
         return True
 
-    # Hinter die letzte inhaltliche Zeile des Abschnitts, noch vor die
-    # Leerzeilen zum nächsten Abschnitt.
-    einfuegen = abschnitt_ende if abschnitt_ende is not None else len(zeilen)
-    while einfuegen > abschnitt_start + 1 and not zeilen[einfuegen - 1].strip():
-        einfuegen -= 1
-    zeilen.insert(einfuegen, f"{schluessel} = {wert}\n")
+    # After the last line with content in the section, still before the blank
+    # lines leading to the next one.
+    insert_at = section_end if section_end is not None else len(lines)
+    while insert_at > section_start + 1 and not lines[insert_at - 1].strip():
+        insert_at -= 1
+    lines.insert(insert_at, f"{key} = {value}\n")
     return True
 
 
-def setze_team_codes(zeilen, codes):
-    """Ersetzt den Inhalt von [team_codes] durch die neue Tabelle."""
-    start = ende = None
-    for i, zeile in enumerate(zeilen):
-        if zeile.strip() == "[team_codes]":
+def set_team_codes(lines, codes):
+    """Replaces the contents of [team_codes] with the new table."""
+    start = end = None
+    for i, line in enumerate(lines):
+        if line.strip() == "[team_codes]":
             start = i
-        elif start is not None and zeile.startswith("[") and i > start:
-            ende = i
+        elif start is not None and line.startswith("[") and i > start:
+            end = i
             break
     if start is None:
         return False
-    ende = ende if ende is not None else len(zeilen)
+    end = end if end is not None else len(lines)
 
-    kopf = [z for z in zeilen[start:ende] if z.startswith("#") or z.strip() == "[team_codes]"]
-    neu = kopf + [f"{team_id} = {code}\n" for team_id, code in sorted(codes.items())] + ["\n"]
-    zeilen[start:ende] = neu
+    header = [z for z in lines[start:end] if z.startswith("#") or z.strip() == "[team_codes]"]
+    new = header + [f"{team_id} = {code}\n" for team_id, code in sorted(codes.items())] + ["\n"]
+    lines[start:end] = new
     return True
 
 
-# ------------------------------------------------------------------ Fachlich
-def kuerzel_vorschlag(team):
-    """Liefert das gebräuchliche Kürzel, sonst eine Ableitung aus dem Namen.
-    Der zweite Rückgabewert sagt, ob es sich um ein belegtes Kürzel handelt."""
-    bekannt = BEKANNTE_KUERZEL.get(team.get("teamId"))
-    if bekannt:
-        return bekannt, True
+# ----------------------------------------------------------------- subject
+def suggest_code(team):
+    """Returns the code in common use, otherwise one derived from the name.
+    The second return value says whether it is an established code."""
+    known = KNOWN_TEAM_CODES.get(team.get("teamId"))
+    if known:
+        return known, True
 
     name = (team.get("shortName") or team.get("teamName") or "").strip()
-    # Manche Ligen (z.B. die DEL) führen im Kurznamen bereits das offizielle
-    # Kürzel - dann unverändert übernehmen statt es zu beschneiden.
+    # Some leagues (the DEL, for instance) already carry the official code in
+    # the short name - then take it as it is instead of trimming it.
     if 2 <= len(name) <= 5 and name.isupper() and name.isalpha():
         return name, True
 
-    normal = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
-    buchstaben = re.sub(r"[^A-Za-z]", "", normal)
-    return (buchstaben[:3] or "XXX").upper(), False
+    normalised = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
+    letters = re.sub(r"[^A-Za-z]", "", normalised)
+    return (letters[:3] or "XXX").upper(), False
 
 
-def hole_teams(liga, saison):
-    antwort = requests.get(
-        f"https://api.openligadb.de/getavailableteams/{liga}/{saison}", timeout=20
+def fetch_teams(league, season):
+    answer = requests.get(
+        f"https://api.openligadb.de/getavailableteams/{league}/{season}", timeout=20
     )
-    antwort.raise_for_status()
-    return antwort.json()
+    answer.raise_for_status()
+    return answer.json()
 
 
-def hole_aktuelle_ligen():
-    """Alle Ligen mit laufender oder kommender Saison, nach Sportart gruppiert."""
-    antwort = requests.get("https://api.openligadb.de/getavailableleagues", timeout=30)
-    antwort.raise_for_status()
-    aktuell = [l for l in antwort.json() if str(l.get("leagueSeason", "")) in ("2025", "2026")]
+def fetch_current_leagues():
+    """Every league with a running or upcoming season, grouped by sport."""
+    answer = requests.get("https://api.openligadb.de/getavailableleagues", timeout=30)
+    answer.raise_for_status()
+    current = [l for l in answer.json() if str(l.get("leagueSeason", "")) in ("2025", "2026")]
     return sorted(
-        aktuell,
+        current,
         key=lambda l: ((l.get("sport") or {}).get("sportName", ""), l.get("leagueName", "")),
     )
 
 
-def pruefe_kanal_link(wert):
-    if "whatsapp.com/channel/" not in wert:
+def check_channel_link(value):
+    if "whatsapp.com/channel/" not in value:
         return "Das sieht nicht nach einem Kanal-Link aus (erwartet: https://whatsapp.com/channel/…)."
-    if "HIER-DEN" in wert:
+    if "HIER-DEN" in value:
         return "Das ist noch der Platzhalter."
     return None
 
 
-def pruefe_handle(wert):
-    if wert.startswith("@"):
+def check_handle(value):
+    if value.startswith("@"):
         return "Bitte ohne führendes @ angeben."
-    if "." not in wert:
+    if "." not in value:
         return "Erwartet wird ein vollständiges Handle, z.B. mein-bot.bsky.social"
     return None
 
 
-def teste_bluesky(handle, passwort_variable="BLUESKY_APP_PASSWORD"):
-    """Prüft die Anmeldung, ohne etwas zu veröffentlichen."""
-    passwort = os.environ.get(passwort_variable)
-    if not passwort:
-        hinweis(f"{passwort_variable} ist nicht gesetzt - Anmeldung wird nicht geprüft.")
-        hinweis(f'Später setzen mit:  export {passwort_variable}="xxxx-xxxx-xxxx-xxxx"')
+def test_bluesky(handle, password_variable="BLUESKY_APP_PASSWORD"):
+    """Checks the login without publishing anything."""
+    password = os.environ.get(password_variable)
+    if not password:
+        note(f"{password_variable} ist nicht gesetzt - Anmeldung wird nicht geprüft.")
+        note(f'Später setzen mit:  export {password_variable}="xxxx-xxxx-xxxx-xxxx"')
         return
-    if not ja_nein(f"Anmeldung bei Bluesky als {handle} jetzt prüfen?", True):
+    if not confirm(f"Anmeldung bei Bluesky als {handle} jetzt prüfen?", True):
         return
     try:
         from atproto import Client
-        Client().login(handle, passwort)
+        Client().login(handle, password)
         print(f"  ✓ Anmeldung erfolgreich: {handle}")
     except ImportError:
-        hinweis("Paket 'atproto' fehlt - Prüfung übersprungen (./install.sh ausführen).")
-    except Exception as fehler:
-        print(f"  ✗ Anmeldung fehlgeschlagen: {fehler}")
-        hinweis("Handle und App-Passwort prüfen. Die Einrichtung läuft trotzdem weiter.")
+        note("Paket 'atproto' fehlt - Prüfung übersprungen (./install.sh ausführen).")
+    except Exception as error:
+        print(f"  ✗ Anmeldung fehlgeschlagen: {error}")
+        note("Handle und App-Passwort prüfen. Die Einrichtung läuft trotzdem weiter.")
 
 
-# --------------------------------------------------------------------- Ablauf
+# ------------------------------------------------------------------- flow
 def main():
     print("\n\033[1mSkyRelay - Einrichtung\033[0m")
     print("Mit [Enter] wird jeweils der Wert in eckigen Klammern übernommen.")
     print("Abbruch jederzeit mit Strg+C - dann wird nichts geschrieben.")
 
-    if not os.path.exists(VORLAGE):
-        print(f"\nFehler: Vorlage fehlt: {VORLAGE}", file=sys.stderr)
+    if not os.path.exists(TEMPLATE):
+        print(f"\nError: the template is missing: {TEMPLATE}", file=sys.stderr)
         sys.exit(1)
 
-    with open(VORLAGE, encoding="utf-8") as datei:
-        zeilen = datei.readlines()
+    with open(TEMPLATE, encoding="utf-8") as handle:
+        lines = handle.readlines()
 
-    # Vorhandene Konfiguration als Vorgabe verwenden
-    alt = []
-    if os.path.exists(ZIEL):
-        with open(ZIEL, encoding="utf-8") as datei:
-            alt = datei.readlines()
-        print(f"\nVorhandene Konfiguration gefunden: {os.path.basename(ZIEL)}")
-        hinweis("Die bisherigen Werte stehen als Vorgabe bereit.")
+    # Use an existing configuration as the default
+    old_lines = []
+    if os.path.exists(TARGET):
+        with open(TARGET, encoding="utf-8") as handle:
+            old_lines = handle.readlines()
+        print(f"\nVorhandene Konfiguration gefunden: {os.path.basename(TARGET)}")
+        note("Die bisherigen Werte stehen als Vorgabe bereit.")
 
-    def bisher(abschnitt, schluessel):
-        return lies_wert(alt, abschnitt, schluessel) if alt else ""
+    def current_value(section, key):
+        return read_value(old_lines, section, key) if old_lines else ""
 
-    # ------------------------------------------------------ Welche Programme?
-    titel("Welche Programme möchtest du einrichten?")
-    hinweis("SkyRelay besteht aus zwei getrennten Bots, die auch getrennte")
-    hinweis("Bluesky-Konten benutzen können:")
+    # ------------------------------------------------- which programs?
+    heading("Welche Programme möchtest du einrichten?")
+    note("SkyRelay besteht aus zwei getrennten Bots, die auch getrennte")
+    note("Bluesky-Konten benutzen können:")
     print("     · Spieltags-Ticker: WhatsApp-Kanal → Bluesky, nur an Spieltagen")
     print("     · Instagram-Feed:   Instagram → Bluesky, im Dauerbetrieb")
-    was = auswahl(
-        [("beide", "Beide"),
+    picked_programs = choose(
+        [("both", "Beide"),
          ("matchday", "Nur den Spieltags-Ticker (WhatsApp-Kanal)"),
          ("feed", "Nur die Instagram-Spiegelung")],
         "Auswahl", 0,
     )
-    macht_matchday = was in ("beide", "matchday")
-    macht_feed = was in ("beide", "feed")
-    teile = "1 von 2: " if was == "beide" else ""
+    does_matchday = picked_programs in ("both", "matchday")
+    does_feed = picked_programs in ("both", "feed")
+    parts = "1 von 2: " if picked_programs == "both" else ""
     ticker_handle = feed_handle = ""
 
-    if macht_matchday:
-        programm_banner(teile, "SPIELTAGS-TICKER",
-                        "WhatsApp-Kanal  ──►  Bluesky", "läuft nur an Spieltagen")
+    if does_matchday:
+        program_banner(parts, "SPIELTAGS-TICKER",
+                       "WhatsApp-Kanal  ──►  Bluesky", "läuft nur an Spieltagen")
 
-    # ------------------------------------------------------------ Einsatzzweck
-    zweck = "sport_plan"
-    if macht_matchday:
-        titel("Wofür wird der Ticker eingesetzt?")
-        hinweis("Davon hängt ab, ob Spieltage automatisch erkannt werden können")
-        hinweis("und wie die vorgeschlagenen Texte formuliert sind.")
-        zweck = auswahl(
+    # ------------------------------------------------------ what it is for
+    purpose = "sport_plan"
+    if does_matchday:
+        heading("Wofür wird der Ticker eingesetzt?")
+        note("Davon hängt ab, ob Spieltage automatisch erkannt werden können")
+        note("und wie die vorgeschlagenen Texte formuliert sind.")
+        purpose = choose(
             [("sport_plan", "Sport mit Spielplan bei OpenLigaDB (Fußball, Eishockey …)"),
-             ("sport_ohne", "Sport ohne Spielplan-Daten (z.B. Basketball, Handball-Liga)"),
-             ("individuell", "anderer Zweck (Verein, Veranstaltung, Projekt …)")],
+             ("sport_no_schedule", "Sport ohne Spielplan-Daten (z.B. Basketball, Handball-Liga)"),
+             ("custom", "anderer Zweck (Verein, Veranstaltung, Projekt …)")],
             "Auswahl", 0,
         )
-    neutral = zweck == "individuell"
-    # Wortwahl der Vorgaben an den Zweck anpassen
+    generic = purpose == "custom"
+    # Match the wording of the defaults to the purpose
     W = {
-        "ereignis": "Ereignis" if neutral else "Spiel",
-        "prefix": "📡 [Inoffizieller Bot]" if neutral else "⚽ [Inoffizieller Bot]",
-        "quelle": "WhatsApp-Kanal" if neutral else "WhatsApp-Kanal des Vereins",
-        "an": ("🟢 Bot ist an {hashtag}" if neutral
+        "event": "Ereignis" if generic else "Spiel",
+        "prefix": "📡 [Inoffizieller Bot]" if generic else "⚽ [Inoffizieller Bot]",
+        "source": "WhatsApp-Kanal" if generic else "WhatsApp-Kanal des Vereins",
+        "line_on": ("🟢 Bot ist an {hashtag}" if generic
                else "🟢 Bot ist an - {info} {hashtag} ⚫⚪🔵"),
-        "aus": ("🔴 Bot ist aus" if neutral
+        "line_off": ("🔴 Bot ist aus" if generic
                 else "🔴 Bot ist aus - nächstes Spiel {hashtag} ⚫⚪🔵"),
-        "aus_leer": "🔴 Bot ist aus" if neutral else "🔴 Bot ist aus ⚫⚪🔵",
-        "fallback": "aktiv" if neutral else "Testspiel",
+        "line_off_empty": "🔴 Bot ist aus" if generic else "🔴 Bot ist aus ⚫⚪🔵",
+        "fallback": "aktiv" if generic else "Testspiel",
     }
 
-    # ------------------------------------------------------------ Matchday
-    if macht_matchday:
-        titel("Bluesky-Konto FÜR DEN TICKER")
-        hinweis("Auf dieses Konto werden die Beiträge aus dem WhatsApp-Kanal")
-        hinweis("veröffentlicht - ohne führendes @.")
-        ticker_handle = frage("Handle", bisher("bluesky", "handle") or "mein-ticker.bsky.social",
-                              pflicht=True, pruefung=pruefe_handle)
-        setze_wert(zeilen, "bluesky", "handle", ticker_handle)
+    # ---------------------------------------------------------- matchday
+    if does_matchday:
+        heading("Bluesky-Konto FÜR DEN TICKER")
+        note("Auf dieses Konto werden die Beiträge aus dem WhatsApp-Kanal")
+        note("veröffentlicht - ohne führendes @.")
+        ticker_handle = ask("Handle", current_value("bluesky", "handle") or "mein-ticker.bsky.social",
+                            required=True, validator=check_handle)
+        set_value(lines, "bluesky", "handle", ticker_handle)
 
-        titel("WhatsApp-Kanal (Quelle des Tickers)")
-        hinweis("Im Handy: Kanal öffnen → Kanalnamen antippen → Teilen → Link kopieren.")
-        link = frage("Einladungslink", bisher("source", "channel_invite_link"),
-                     pflicht=True, pruefung=pruefe_kanal_link)
-        setze_wert(zeilen, "source", "channel_invite_link", link)
+        heading("WhatsApp-Kanal (Quelle des Tickers)")
+        note("Im Handy: Kanal öffnen → Kanalnamen antippen → Teilen → Link kopieren.")
+        link = ask("Einladungslink", current_value("source", "channel_invite_link"),
+                   required=True, validator=check_channel_link)
+        set_value(lines, "source", "channel_invite_link", link)
 
-        liga = saison = None
-        wahl = "ohne"
-        if zweck == "sport_plan":
-            titel("Liga und Verein")
-            hinweis("Daraus erkennt der Ticker, an welchen Tagen er überhaupt laufen muss,")
-            hinweis("und bildet den Spiel-Hashtag. Grundlage ist OpenLigaDB.")
-            wahl = auswahl(
-                [(k, b) for k, _, b in EMPFOHLENE_LIGEN]
+        league = season = None
+        choice = "ohne"
+        if purpose == "sport_plan":
+            heading("Liga und Verein")
+            note("Daraus erkennt der Ticker, an welchen Tagen er überhaupt laufen muss,")
+            note("und bildet den Spiel-Hashtag. Grundlage ist OpenLigaDB.")
+            choice = choose(
+                [(k, b) for k, _, b in SUGGESTED_LEAGUES]
                 + [("suchen", "andere Liga aus OpenLigaDB wählen …"),
                    ("ohne", "doch kein Spielplan – Ticker läuft an jedem Starttag")],
                 "Liga", 1,
             )
 
-        if wahl == "ohne":
-            titel("Ohne Spielplan")
-            hinweis("Es findet keine automatische Prüfung statt, ob heute etwas ansteht:")
-            hinweis("Der Ticker läuft an jedem Tag, an dem er gestartet wird.")
-            hinweis(f"Ein wechselnder {W['ereignis']}-Hashtag lässt sich beim Start über")
-            hinweis("SKYRELAY_HASHTAG mitgeben. Den cron-Eintrag also nur für die Tage")
-            hinweis("einrichten, an denen etwas läuft - oder von Hand starten.")
-            setze_wert(zeilen, "team", "openligadb_filter", "")
-            setze_wert(zeilen, "team", "openligadb_team_id", "0")
-        elif wahl == "suchen":
+        if choice == "ohne":
+            heading("Ohne Spielplan")
+            note("Es findet keine automatische Prüfung statt, ob heute etwas ansteht:")
+            note("Der Ticker läuft an jedem Tag, an dem er gestartet wird.")
+            note(f"Ein wechselnder {W['event']}-Hashtag lässt sich beim Start über")
+            note("SKYRELAY_HASHTAG mitgeben. Den cron-Eintrag also nur für die Tage")
+            note("einrichten, an denen etwas läuft - oder von Hand starten.")
+            set_value(lines, "team", "openligadb_filter", "")
+            set_value(lines, "team", "openligadb_team_id", "0")
+        elif choice == "suchen":
             try:
-                ligen = hole_aktuelle_ligen()
-            except Exception as fehler:
-                print(f"  ✗ Abruf fehlgeschlagen: {fehler}")
-                ligen = []
-            if ligen:
-                hinweis(f"{len(ligen)} Ligen mit laufender Saison:")
-                gewaehlte = auswahl(
+                leagues = fetch_current_leagues()
+            except Exception as error:
+                print(f"  ✗ Abruf fehlgeschlagen: {error}")
+                leagues = []
+            if leagues:
+                note(f"{len(leagues)} Ligen mit laufender Saison:")
+                picked = choose(
                     [(l, f'{(l.get("sport") or {}).get("sportName", "?")} · '
                          f'{l["leagueName"]} ({l["leagueShortcut"]}/{l["leagueSeason"]})')
-                     for l in ligen],
+                     for l in leagues],
                     "Liga",
                 )
-                liga, saison = gewaehlte["leagueShortcut"], str(gewaehlte["leagueSeason"])
+                league, season = picked["leagueShortcut"], str(picked["leagueSeason"])
             else:
-                liga = frage("Ligakürzel", "bl2", pflicht=True)
-                saison = frage("Saison (Startjahr)", "2026", pflicht=True)
+                league = ask("Ligakürzel", "bl2", required=True)
+                season = ask("Saison (Startjahr)", "2026", required=True)
         else:
-            liga = wahl
-            saison = next(s for k, s, _ in EMPFOHLENE_LIGEN if k == wahl)
-            saison = frage("Saison (Startjahr)", saison, pflicht=True)
+            league = choice
+            season = next(s for k, s, _ in SUGGESTED_LEAGUES if k == choice)
+            season = ask("Saison (Startjahr)", season, required=True)
 
         teams = []
-        if liga:
+        if league:
             try:
-                teams = hole_teams(liga, saison)
-            except Exception as fehler:
-                print(f"  ✗ Abruf fehlgeschlagen: {fehler}")
+                teams = fetch_teams(league, season)
+            except Exception as error:
+                print(f"  ✗ Abruf fehlgeschlagen: {error}")
 
         if teams:
-            print(f"\n  {len(teams)} Mannschaften in {liga}/{saison}:")
-            sortiert = sorted(teams, key=lambda t: t.get("shortName") or "")
-            alt_id = bisher("team", "openligadb_team_id")
-            vorgabe = next((i for i, t in enumerate(sortiert) if str(t["teamId"]) == alt_id), None)
-            gewaehlt = auswahl(
-                [(t, f'{t.get("shortName") or t["teamName"]}  ({t["teamName"]})') for t in sortiert],
-                "Dein Verein", vorgabe,
+            print(f"\n  {len(teams)} Mannschaften in {league}/{season}:")
+            by_name = sorted(teams, key=lambda t: t.get("shortName") or "")
+            old_id = current_value("team", "openligadb_team_id")
+            default = next((i for i, t in enumerate(by_name) if str(t["teamId"]) == old_id), None)
+            chosen = choose(
+                [(t, f'{t.get("shortName") or t["teamName"]}  ({t["teamName"]})') for t in by_name],
+                "Dein Verein", default,
             )
-            setze_wert(zeilen, "team", "openligadb_team_id", gewaehlt["teamId"])
-            such = (gewaehlt.get("shortName") or gewaehlt["teamName"]).split()[-1].lower()
-            such = frage("Suchbegriff für OpenLigaDB", bisher("team", "openligadb_filter") or such,
-                         pflicht=True)
-            setze_wert(zeilen, "team", "openligadb_filter", such)
+            set_value(lines, "team", "openligadb_team_id", chosen["teamId"])
+            search_term = (chosen.get("shortName") or chosen["teamName"]).split()[-1].lower()
+            search_term = ask("Suchbegriff für OpenLigaDB", current_value("team", "openligadb_filter") or search_term,
+                              required=True)
+            set_value(lines, "team", "openligadb_filter", search_term)
 
-            # ------------------------------------------------ Kürzeltabelle
-            titel("Kürzel für die Hashtags")
-            hinweis("Aus Heim- und Auswärtskürzel entsteht der Spiel-Hashtag, z.B. #KSCDSC.")
-            codes, belegt = {}, {}
+            # ------------------------------------------- table of codes
+            heading("Kürzel für die Hashtags")
+            note("Aus Heim- und Auswärtskürzel entsteht der Spiel-Hashtag, z.B. #KSCDSC.")
+            codes, taken = {}, {}
             for team in teams:
-                codes[team["teamId"]], belegt[team["teamId"]] = kuerzel_vorschlag(team)
-            # Bereits gepflegte Kürzel haben immer Vorrang - und bleiben auch dann
-            # erhalten, wenn die Mannschaft nicht in der gewählten Liga spielt
-            # (Ligawechsel, Pokalgegner aus anderen Ligen).
-            for zeile in alt:
-                if re.match(r"^\d+\s*=", zeile):
-                    team_id, code = zeile.split("=", 1)
+                codes[team["teamId"]], taken[team["teamId"]] = suggest_code(team)
+            # Codes already maintained always take precedence - and they stay
+            # even when the team does not play in the chosen league (a move
+            # between divisions, a cup opponent from elsewhere).
+            for line in old_lines:
+                if re.match(r"^\d+\s*=", line):
+                    team_id, code = line.split("=", 1)
                     codes[int(team_id.strip())] = code.strip()
-                    belegt[int(team_id.strip())] = True
+                    taken[int(team_id.strip())] = True
 
-            anzahl_abgeleitet = sum(1 for t in teams if not belegt[t["teamId"]])
-            if anzahl_abgeleitet:
-                hinweis(f"{len(teams) - anzahl_abgeleitet} Kürzel sind hinterlegt, "
-                        f"{anzahl_abgeleitet} aus dem Namen abgeleitet (mit ? markiert).")
-                hinweis("Abgeleitete entsprechen oft nicht dem üblichen Kürzel - bitte prüfen.")
+            derived_count = sum(1 for t in teams if not taken[t["teamId"]])
+            if derived_count:
+                note(f"{len(teams) - derived_count} Kürzel sind hinterlegt, "
+                     f"{derived_count} aus dem Namen abgeleitet (mit ? markiert).")
+                note("Abgeleitete entsprechen oft nicht dem üblichen Kürzel - bitte prüfen.")
             else:
-                hinweis("Für alle Mannschaften dieser Liga sind Kürzel hinterlegt.")
+                note("Für alle Mannschaften dieser Liga sind Kürzel hinterlegt.")
 
-            eigenes = codes.get(gewaehlt["teamId"], "XXX")
-            print(f"\n  Kürzel deines Vereins ({gewaehlt['teamName']}): {eigenes}")
-            hinweis("Es steht in jedem Spiel-Hashtag - bitte genau prüfen.")
-            codes[gewaehlt["teamId"]] = frage("Kürzel", eigenes, pflicht=True).upper()
+            own = codes.get(chosen["teamId"], "XXX")
+            print(f"\n  Kürzel deines Vereins ({chosen['teamName']}): {own}")
+            note("Es steht in jedem Spiel-Hashtag - bitte genau prüfen.")
+            codes[chosen["teamId"]] = ask("Kürzel", own, required=True).upper()
 
             print("\n  Übrige Mannschaften (? = abgeleitet, ungeprüft):")
             for team in sorted(teams, key=lambda t: t.get("shortName") or ""):
-                if team["teamId"] != gewaehlt["teamId"]:
-                    marke = " " if belegt[team["teamId"]] else "?"
-                    print(f"   {marke} {codes[team['teamId']]:5} {team['teamName']}")
-            if ja_nein("\n  Diese Kürzel einzeln anpassen?", bool(anzahl_abgeleitet)):
+                if team["teamId"] != chosen["teamId"]:
+                    mark = " " if taken[team["teamId"]] else "?"
+                    print(f"   {mark} {codes[team['teamId']]:5} {team['teamName']}")
+            if confirm("\n  Diese Kürzel einzeln anpassen?", bool(derived_count)):
                 for team in sorted(teams, key=lambda t: t.get("shortName") or ""):
-                    if team["teamId"] == gewaehlt["teamId"]:
+                    if team["teamId"] == chosen["teamId"]:
                         continue
-                    codes[team["teamId"]] = frage(
-                        team["teamName"], codes[team["teamId"]], pflicht=True).upper()
+                    codes[team["teamId"]] = ask(
+                        team["teamName"], codes[team["teamId"]], required=True).upper()
             else:
-                hinweis("Später jederzeit im Abschnitt [team_codes] änderbar.")
-            setze_team_codes(zeilen, codes)
+                note("Später jederzeit im Abschnitt [team_codes] änderbar.")
+            set_team_codes(lines, codes)
 
-        titel("Beiträge des Tickers")
-        hinweis("Es gibt zwei Sorten Hashtags:")
-        hinweis(f"  · Dauer-Hashtag - steht unter JEDEM Beitrag (z.B. der Vereinsname)")
-        hinweis(f"  · {W['ereignis']}-Hashtag - wechselt je Termin"
-                + (" und wird aus dem Spielplan gebildet" if wahl != "ohne"
+        heading("Beiträge des Tickers")
+        note("Es gibt zwei Sorten Hashtags:")
+        note(f"  · Dauer-Hashtag - steht unter JEDEM Beitrag (z.B. der Vereinsname)")
+        note(f"  · {W['event']}-Hashtag - wechselt je Termin"
+             + (" und wird aus dem Spielplan gebildet" if choice != "ohne"
                    else ", kommt aus SKYRELAY_HASHTAG"))
-        marke = frage("Dauer-Hashtag (ohne #, leer = keiner)",
-                      bisher("post", "standing_hashtag"))
-        setze_wert(zeilen, "post", "standing_hashtag", marke)
-        setze_wert(zeilen, "post", "prefix", bisher("post", "prefix") or W["prefix"])
-        beschriftung = frage("Beschriftung des Quell-Links",
-                             bisher("post", "source_label") or W["quelle"])
-        setze_wert(zeilen, "post", "source_label", beschriftung)
+        mark = ask("Dauer-Hashtag (ohne #, leer = keiner)",
+                   current_value("post", "standing_hashtag"))
+        set_value(lines, "post", "standing_hashtag", mark)
+        set_value(lines, "post", "prefix", current_value("post", "prefix") or W["prefix"])
+        label = ask("Beschriftung des Quell-Links",
+                    current_value("post", "source_label") or W["source"])
+        set_value(lines, "post", "source_label", label)
 
-        # ------------------------------------------------------ Profil & Zeit
-        titel("Profil-Statuszeile des Ticker-Kontos")
-        hinweis(f"Die erste Zeile der Biografie von @{ticker_handle} kann anzeigen,")
-        hinweis("ob der Bot gerade läuft - beim Beenden wird sie zurückgestellt.")
-        vorher_an = bisher("profile", "enabled")
-        if ja_nein("Statuszeile verwenden?", vorher_an.lower() != "false" if vorher_an else True):
-            setze_wert(zeilen, "profile", "enabled", "true")
-            hinweis("Platzhalter: {hashtag}" + (", {info} (z.B. '1. Spieltag'), {date}, {time}"
-                                                if wahl != "ohne" else ""))
-            zeile_an = frage("Text während des Betriebs",
-                             bisher("profile", "line_on") or W["an"], pflicht=True)
-            zeile_aus = frage("Text nach dem Beenden",
-                              bisher("profile", "line_off") or W["aus"], pflicht=True)
-            setze_wert(zeilen, "profile", "line_on", zeile_an)
-            setze_wert(zeilen, "profile", "line_off", zeile_aus)
-            setze_wert(zeilen, "profile", "line_off_no_match",
-                       bisher("profile", "line_off_no_match") or W["aus_leer"])
-            hinweis("Erkannt wird eine vorhandene Statuszeile am Text 'Bot ist'.")
-            hinweis("Wer andere Formulierungen nutzt, passt [profile] marker an.")
+        # ------------------------------------------------ profile and time
+        heading("Profil-Statuszeile des Ticker-Kontos")
+        note(f"Die erste Zeile der Biografie von @{ticker_handle} kann anzeigen,")
+        note("ob der Bot gerade läuft - beim Beenden wird sie zurückgestellt.")
+        was_on = current_value("profile", "enabled")
+        if confirm("Statuszeile verwenden?", was_on.lower() != "false" if was_on else True):
+            set_value(lines, "profile", "enabled", "true")
+            note("Platzhalter: {hashtag}" + (", {info} (z.B. '1. Spieltag'), {date}, {time}"
+                                             if choice != "ohne" else ""))
+            line_on = ask("Text während des Betriebs",
+                          current_value("profile", "line_on") or W["line_on"], required=True)
+            line_off = ask("Text nach dem Beenden",
+                           current_value("profile", "line_off") or W["line_off"], required=True)
+            set_value(lines, "profile", "line_on", line_on)
+            set_value(lines, "profile", "line_off", line_off)
+            set_value(lines, "profile", "line_off_no_match",
+                      current_value("profile", "line_off_no_match") or W["line_off_empty"])
+            note("Erkannt wird eine vorhandene Statuszeile am Text 'Bot ist'.")
+            note("Wer andere Formulierungen nutzt, passt [profile] marker an.")
         else:
-            setze_wert(zeilen, "profile", "enabled", "false")
-        setze_wert(zeilen, "profile", "fallback_match_info",
-                   bisher("profile", "fallback_match_info") or W["fallback"])
+            set_value(lines, "profile", "enabled", "false")
+        set_value(lines, "profile", "fallback_match_info",
+                  current_value("profile", "fallback_match_info") or W["fallback"])
 
-        titel("Zeitfenster")
-        hinweis("Bis zu dieser Uhrzeit lauscht der Ticker, danach beendet er sich selbst.")
-        setze_wert(zeilen, "schedule", "day_end",
-                   frage("Betriebsende (HH:MM)", bisher("schedule", "day_end") or "23:59",
-                         pflicht=True))
+        heading("Zeitfenster")
+        note("Bis zu dieser Uhrzeit lauscht der Ticker, danach beendet er sich selbst.")
+        set_value(lines, "schedule", "day_end",
+                  ask("Betriebsende (HH:MM)", current_value("schedule", "day_end") or "23:59",
+                       required=True))
 
-    # ---------------------------------------------------------------- Feed
-    if macht_feed:
-        programm_banner("2 von 2: " if was == "beide" else "", "INSTAGRAM-SPIEGELUNG",
-                        "Instagram  ──►  Bluesky", "läuft im Dauerbetrieb")
+    # ------------------------------------------------------------- feed
+    if does_feed:
+        program_banner("2 von 2: " if picked_programs == "both" else "", "INSTAGRAM-SPIEGELUNG",
+                       "Instagram  ──►  Bluesky", "läuft im Dauerbetrieb")
 
-        titel("Instagram-Profil (Quelle des Feeds)")
-        profil = frage("Profil, das gespiegelt wird (ohne @)",
-                       bisher("feed", "instagram_profile"), pflicht=True)
-        setze_wert(zeilen, "feed", "instagram_profile", profil)
+        heading("Instagram-Profil (Quelle des Feeds)")
+        profile_key = ask("Profil, das gespiegelt wird (ohne @)",
+                          current_value("feed", "instagram_profile"), required=True)
+        set_value(lines, "feed", "instagram_profile", profile_key)
 
-        hinweis("Zweitkonto für den Abruf - NICHT das gespiegelte Profil.")
-        hinweis("Sitzung anlegen mit: venv/bin/instaloader -l <name>")
-        zweitkonto = frage("Instagram-Zweitkonto", bisher("feed", "instagram_session_user"),
-                           pflicht=True)
-        setze_wert(zeilen, "feed", "instagram_session_user", zweitkonto)
+        note("Zweitkonto für den Abruf - NICHT das gespiegelte Profil.")
+        note("Sitzung anlegen mit: venv/bin/instaloader -l <name>")
+        secondary_account = ask("Instagram-Zweitkonto", current_value("feed", "instagram_session_user"),
+                                required=True)
+        set_value(lines, "feed", "instagram_session_user", secondary_account)
 
-        titel("Bluesky-Konto FÜR DEN FEED")
-        eigenes_konto = bisher("feed", "bluesky_handle")
-        if macht_matchday:
-            hinweis(f"Der Ticker veröffentlicht auf @{ticker_handle}.")
-            eigenes = ja_nein("Soll die Instagram-Spiegelung ein ANDERES Konto verwenden?",
-                              bool(eigenes_konto))
+        heading("Bluesky-Konto FÜR DEN FEED")
+        own_account = current_value("feed", "bluesky_handle")
+        if does_matchday:
+            note(f"Der Ticker veröffentlicht auf @{ticker_handle}.")
+            own = confirm("Soll die Instagram-Spiegelung ein ANDERES Konto verwenden?",
+                          bool(own_account))
         else:
-            eigenes = True
-        if eigenes:
-            hinweis("Auf dieses Konto werden die Instagram-Beiträge veröffentlicht.")
-            feed_handle = frage("Handle", eigenes_konto or bisher("bluesky", "handle")
-                                or "mein-feed.bsky.social", pflicht=True, pruefung=pruefe_handle)
-            if macht_matchday:
-                setze_wert(zeilen, "feed", "bluesky_handle", feed_handle)
-                hinweis("Dessen App-Passwort gehört in SKYRELAY_FEED_APP_PASSWORD,")
-                hinweis("nicht in BLUESKY_APP_PASSWORD (das gilt für den Ticker).")
+            own = True
+        if own:
+            note("Auf dieses Konto werden die Instagram-Beiträge veröffentlicht.")
+            feed_handle = ask("Handle", own_account or current_value("bluesky", "handle")
+                              or "mein-feed.bsky.social", required=True, validator=check_handle)
+            if does_matchday:
+                set_value(lines, "feed", "bluesky_handle", feed_handle)
+                note("Dessen App-Passwort gehört in SKYRELAY_FEED_APP_PASSWORD,")
+                note("nicht in BLUESKY_APP_PASSWORD (das gilt für den Ticker).")
             else:
-                # Ohne Ticker ist das allgemeine Konto zugleich das des Feeds.
-                setze_wert(zeilen, "bluesky", "handle", feed_handle)
-                setze_wert(zeilen, "feed", "bluesky_handle", "")
+                # Without the ticker the general account is the feed's as well.
+                set_value(lines, "bluesky", "handle", feed_handle)
+                set_value(lines, "feed", "bluesky_handle", "")
         else:
             feed_handle = ticker_handle
-            setze_wert(zeilen, "feed", "bluesky_handle", "")
+            set_value(lines, "feed", "bluesky_handle", "")
 
-    # ------------------------------------------------------- Zusammenfassung
-    titel("Zusammenfassung")
-    hinweis("Bitte prüfen, ob Quellen und Konten richtig zugeordnet sind:")
-    if macht_matchday:
+    # ---------------------------------------------------------- summary
+    heading("Zusammenfassung")
+    note("Bitte prüfen, ob Quellen und Konten richtig zugeordnet sind:")
+    if does_matchday:
         print(f"  Spieltags-Ticker:  WhatsApp-Kanal  ──►  @{ticker_handle}")
-    if macht_feed:
-        print(f"  Instagram-Feed:    @{profil}  ──►  @{feed_handle}")
-    if macht_matchday and macht_feed and ticker_handle == feed_handle:
-        hinweis("Beide veröffentlichen auf demselben Konto - das ist zulässig,")
-        hinweis("führt aber dazu, dass Ticker und Feed sich vermischen.")
-    if not ja_nein("\n  Stimmt das so?", True):
+    if does_feed:
+        print(f"  Instagram-Feed:    @{profile_key}  ──►  @{feed_handle}")
+    if does_matchday and does_feed and ticker_handle == feed_handle:
+        note("Beide veröffentlichen auf demselben Konto - das ist zulässig,")
+        note("führt aber dazu, dass Ticker und Feed sich vermischen.")
+    if not confirm("\n  Stimmt das so?", True):
         print("\nAbgebrochen - es wurde nichts geändert. Starte den Assistenten erneut.")
         return
 
-    # ------------------------------------------------------------- Schreiben
-    titel("Speichern")
-    print(f"  Ziel: {ZIEL}")
-    if os.path.exists(ZIEL):
-        if not ja_nein("Vorhandene Konfiguration überschreiben? (Sicherung wird angelegt)", True):
+    # ---------------------------------------------------------- writing
+    heading("Speichern")
+    print(f"  Ziel: {TARGET}")
+    if os.path.exists(TARGET):
+        if not confirm("Vorhandene Konfiguration überschreiben? (Sicherung wird angelegt)", True):
             print("\nAbgebrochen - es wurde nichts geändert.")
             return
-        sicherung = ZIEL + ".bak"
+        backup = TARGET + ".bak"
         try:
-            with open(sicherung, "w", encoding="utf-8") as datei:
-                datei.writelines(alt)
-            print(f"  ✓ Sicherung: {os.path.basename(sicherung)}")
-        except Exception as fehler:
-            print(f"  ⚠️ Sicherung fehlgeschlagen: {fehler}")
+            with open(backup, "w", encoding="utf-8") as handle:
+                handle.writelines(old_lines)
+            print(f"  ✓ Sicherung: {os.path.basename(backup)}")
+        except Exception as error:
+            print(f"  ⚠️ Sicherung fehlgeschlagen: {error}")
 
-    with open(ZIEL, "w", encoding="utf-8") as datei:
-        datei.writelines(zeilen)
-    print(f"  ✓ Geschrieben: {os.path.basename(ZIEL)}")
+    with open(TARGET, "w", encoding="utf-8") as handle:
+        handle.writelines(lines)
+    print(f"  ✓ Geschrieben: {os.path.basename(TARGET)}")
 
-    # Jedes Konto mit der Passwort-Variablen prüfen, die im Betrieb auch gilt.
-    if macht_matchday:
-        teste_bluesky(ticker_handle, "BLUESKY_APP_PASSWORD")
-    if macht_feed:
-        if not macht_matchday:
-            teste_bluesky(feed_handle, "BLUESKY_APP_PASSWORD")
+    # Check each account with the password variable that applies in operation.
+    if does_matchday:
+        test_bluesky(ticker_handle, "BLUESKY_APP_PASSWORD")
+    if does_feed:
+        if not does_matchday:
+            test_bluesky(feed_handle, "BLUESKY_APP_PASSWORD")
         elif feed_handle != ticker_handle:
-            teste_bluesky(feed_handle, "SKYRELAY_FEED_APP_PASSWORD")
+            test_bluesky(feed_handle, "SKYRELAY_FEED_APP_PASSWORD")
 
     print("\n\033[1mFertig.\033[0m Nächste Schritte:\n")
-    if macht_matchday:
+    if does_matchday:
         print(f"  SPIELTAGS-TICKER (postet auf @{ticker_handle})")
         print("    Erste WhatsApp-Kopplung, interaktiv im Terminal:")
         print("      SKYRELAY_FORCE=1 SKYRELAY_DRY_RUN=1 venv/bin/python skyrelay-matchday.py")
-    if macht_feed:
+    if does_feed:
         print(f"\n  INSTAGRAM-FEED (postet auf @{feed_handle})")
         print("    Instagram-Sitzung einmalig anlegen:")
-        print(f"      venv/bin/instaloader -l {zweitkonto}")
+        print(f"      venv/bin/instaloader -l {secondary_account}")
     print("\n  Danach den Dauerbetrieb per cron einrichten - siehe README.md.\n")
 
 
-# ============================== Menüoberfläche ===============================
-# Fühlt sich an wie raspi-config: ein Hauptmenü, aus dem gezielt einzelne
-# Bereiche geändert werden können - statt fünfzehn Fragen am Stück.
+# ============================= the menu surface ===============================
+# It feels like raspi-config: one main menu from which single areas can be
+# changed on purpose - instead of fifteen questions in a row.
 
-def _zeige(zeilen, abschnitt, schluessel, ersatz="– nicht gesetzt –", kurz=40):
-    wert = lies_wert(zeilen, abschnitt, schluessel)
-    if not wert or wert.startswith("dein") or "HIER-DEN" in wert:
-        return ersatz
-    return wert if len(wert) <= kurz else wert[:kurz - 1] + "…"
+def _show(lines, section, key, fallback="– nicht gesetzt –", short=40):
+    value = read_value(lines, section, key)
+    if not value or value.startswith("dein") or "HIER-DEN" in value:
+        return fallback
+    return value if len(value) <= short else value[:short - 1] + "…"
 
 
-def m_ticker(zeilen):
-    """Alles zum Spieltags-Ticker."""
+def m_ticker(lines):
+    """Everything about the matchday ticker."""
     while True:
-        kanal = lies_wert(zeilen, "source", "channel_invite_link")
-        kanal_text = "– nicht gesetzt –" if not kanal or "HIER-DEN" in kanal else "gesetzt"
-        liga = lies_wert(zeilen, "team", "openligadb_filter") or "ohne Spielplan"
-        wahl = tui.menu(
+        channel = read_value(lines, "source", "channel_invite_link")
+        channel_text = "– nicht gesetzt –" if not channel or "HIER-DEN" in channel else "gesetzt"
+        league = read_value(lines, "team", "openligadb_filter") or "ohne Spielplan"
+        choice = tui.menu(
             "Spieltags-Ticker", "WhatsApp-Kanal → Bluesky, läuft nur an Spieltagen.",
-            [("konto", f"Bluesky-Konto ......  {_zeige(zeilen, 'bluesky', 'handle')}"),
-             ("kanal", f"WhatsApp-Kanal ....  {kanal_text}"),
-             ("liga", f"Liga und Verein ...  {liga}")])
-        if wahl is None:
+            [("konto", f"Bluesky-Konto ......  {_show(lines, 'bluesky', 'handle')}"),
+             ("kanal", f"WhatsApp-Kanal ....  {channel_text}"),
+             ("liga", f"Liga und Verein ...  {league}")])
+        if choice is None:
             return
-        if wahl == "konto":
-            wert = tui.ask("Bluesky-Konto für den TICKER",
+        if choice == "konto":
+            value = tui.ask("Bluesky-Konto für den TICKER",
                              "Konto, auf dem die Kanalbeiträge veröffentlicht werden.\n"
                              "Ohne führendes @, z.B. mein-ticker.bsky.social",
-                             lies_wert(zeilen, "bluesky", "handle"))
-            if wert:
-                fehler = pruefe_handle(wert)
-                if fehler:
-                    tui.message("Ungültig", fehler)
+                             read_value(lines, "bluesky", "handle"))
+            if value:
+                error = check_handle(value)
+                if error:
+                    tui.message("Ungültig", error)
                 else:
-                    setze_wert(zeilen, "bluesky", "handle", wert)
-        elif wahl == "kanal":
-            wert = tui.ask("WhatsApp-Kanal",
+                    set_value(lines, "bluesky", "handle", value)
+        elif choice == "kanal":
+            value = tui.ask("WhatsApp-Kanal",
                              "Einladungslink des Kanals.\n\n"
                              "Im Handy: Kanal öffnen → Kanalnamen antippen →\n"
                              "Teilen → Link kopieren.",
-                             lies_wert(zeilen, "source", "channel_invite_link"))
-            if wert:
-                fehler = pruefe_kanal_link(wert)
-                if fehler:
-                    tui.message("Ungültig", fehler)
+                             read_value(lines, "source", "channel_invite_link"))
+            if value:
+                error = check_channel_link(value)
+                if error:
+                    tui.message("Ungültig", error)
                 else:
-                    setze_wert(zeilen, "source", "channel_invite_link", wert)
-        elif wahl == "liga":
-            m_liga(zeilen)
+                    set_value(lines, "source", "channel_invite_link", value)
+        elif choice == "liga":
+            m_league(lines)
 
 
-def m_liga(zeilen):
-    """Liga und Verein wählen - oder den Spielplan ganz abschalten."""
-    eintraege = [(k, b) for k, _, b in EMPFOHLENE_LIGEN]
-    eintraege += [("suchen", "andere Liga aus OpenLigaDB …"),
-                  ("ohne", "kein Spielplan (läuft an jedem Starttag)")]
-    wahl = tui.menu("Liga", "Grundlage für Spieltags-Erkennung und Hashtag.", eintraege)
-    if wahl is None:
+def m_league(lines):
+    """Pick a league and a club - or switch the fixture list off entirely."""
+    entries = [(k, b) for k, _, b in SUGGESTED_LEAGUES]
+    entries += [("suchen", "andere Liga aus OpenLigaDB …"),
+                ("ohne", "kein Spielplan (läuft an jedem Starttag)")]
+    choice = tui.menu("Liga", "Grundlage für Spieltags-Erkennung und Hashtag.", entries)
+    if choice is None:
         return
 
-    if wahl == "ohne":
-        setze_wert(zeilen, "team", "openligadb_filter", "")
-        setze_wert(zeilen, "team", "openligadb_team_id", "0")
+    if choice == "ohne":
+        set_value(lines, "team", "openligadb_filter", "")
+        set_value(lines, "team", "openligadb_team_id", "0")
         tui.message("Ohne Spielplan",
                     "Die Spieltags-Erkennung ist abgeschaltet.\n\n"
                     "Der Ticker läuft an jedem Tag, an dem er gestartet wird.\n"
@@ -740,320 +742,320 @@ def m_liga(zeilen):
                     "Tage einrichten, an denen etwas läuft.")
         return
 
-    if wahl == "suchen":
+    if choice == "suchen":
         tui.progress("Ligen werden von OpenLigaDB geladen …")
         try:
-            ligen = hole_aktuelle_ligen()
-        except Exception as fehler:
-            tui.message("Abruf fehlgeschlagen", str(fehler))
+            leagues = fetch_current_leagues()
+        except Exception as error:
+            tui.message("Abruf fehlgeschlagen", str(error))
             return
-        gewaehlt = tui.choose(
-            "Liga wählen", f"{len(ligen)} Ligen mit laufender Saison:",
+        chosen = tui.choose(
+            "Liga wählen", f"{len(leagues)} Ligen mit laufender Saison:",
             [(f'{l["leagueShortcut"]}|{l["leagueSeason"]}',
               f'{(l.get("sport") or {}).get("sportName", "?")} · {l["leagueName"]}')
-             for l in ligen])
-        if gewaehlt is None:
+             for l in leagues])
+        if chosen is None:
             return
-        liga, saison = gewaehlt.split("|")
+        league, season = chosen.split("|")
     else:
-        liga = wahl
-        saison = next(s for k, s, _ in EMPFOHLENE_LIGEN if k == wahl)
-        eingabe = tui.ask("Saison", "Startjahr der Saison:", saison)
-        if eingabe is None:
+        league = choice
+        season = next(s for k, s, _ in SUGGESTED_LEAGUES if k == choice)
+        entry = tui.ask("Saison", "Startjahr der Saison:", season)
+        if entry is None:
             return
-        saison = eingabe
+        season = entry
 
-    tui.progress(f"Mannschaften aus {liga}/{saison} werden geladen …")
+    tui.progress(f"Mannschaften aus {league}/{season} werden geladen …")
     try:
-        teams = hole_teams(liga, saison)
-    except Exception as fehler:
-        tui.message("Abruf fehlgeschlagen", str(fehler))
+        teams = fetch_teams(league, season)
+    except Exception as error:
+        tui.message("Abruf fehlgeschlagen", str(error))
         return
     if not teams:
-        tui.message("Nichts gefunden", f"Zu {liga}/{saison} liefert OpenLigaDB keine Mannschaften.")
+        tui.message("Nichts gefunden", f"Zu {league}/{season} liefert OpenLigaDB keine Mannschaften.")
         return
 
-    sortiert = sorted(teams, key=lambda t: t.get("shortName") or "")
-    gewaehlt = tui.choose(
+    by_name = sorted(teams, key=lambda t: t.get("shortName") or "")
+    chosen = tui.choose(
         "Verein wählen", "Für welchen Verein läuft der Ticker?",
         [(t["teamId"], f'{t.get("shortName") or t["teamName"]}  ({t["teamName"]})')
-         for t in sortiert],
-        lies_wert(zeilen, "team", "openligadb_team_id"))
-    if gewaehlt is None:
+         for t in by_name],
+        read_value(lines, "team", "openligadb_team_id"))
+    if chosen is None:
         return
 
-    verein = next(t for t in teams if str(t["teamId"]) == str(gewaehlt))
-    setze_wert(zeilen, "team", "openligadb_team_id", verein["teamId"])
-    such = (verein.get("shortName") or verein["teamName"]).split()[-1].lower()
-    eingabe = tui.ask("Suchbegriff",
-                        "Begriff, mit dem OpenLigaDB nach dem Verein sucht:", such)
-    setze_wert(zeilen, "team", "openligadb_filter", eingabe or such)
+    club = next(t for t in teams if str(t["teamId"]) == str(chosen))
+    set_value(lines, "team", "openligadb_team_id", club["teamId"])
+    search_term = (club.get("shortName") or club["teamName"]).split()[-1].lower()
+    entry = tui.ask("Suchbegriff",
+                        "Begriff, mit dem OpenLigaDB nach dem Verein sucht:", search_term)
+    set_value(lines, "team", "openligadb_filter", entry or search_term)
 
-    # Ligakürzel für den Spieltags-Filter ergänzen, vorhandene behalten: Ein
-    # Verein spielt oft in mehreren Wettbewerben (Liga, Pokal, Frauenliga), und
-    # jeder davon braucht seinen Eintrag.
-    bisher = [s.strip() for s
-              in (lies_wert(zeilen, "team", "league_shortcuts") or "").split(",")
-              if s.strip()]
-    if liga not in bisher:
-        bisher.append(liga)
-    setze_wert(zeilen, "team", "league_shortcuts", ", ".join(bisher))
+    # Add the league shortcut for the matchday filter and keep what is there:
+    # a club often plays in several competitions (league, cup, women's
+    # league), and each of them needs its entry.
+    current_value = [s.strip() for s
+                     in (read_value(lines, "team", "league_shortcuts") or "").split(",")
+                     if s.strip()]
+    if league not in current_value:
+        current_value.append(league)
+    set_value(lines, "team", "league_shortcuts", ", ".join(current_value))
 
-    # Kürzel der Liga ergänzen, vorhandene behalten
-    vorhanden = {int(z.split("=")[0].strip()) for z in zeilen if re.match(r"^\d+\s*=", z)}
-    neu = 0
+    # Add the league's codes, keep the ones already there
+    existing = {int(z.split("=")[0].strip()) for z in lines if re.match(r"^\d+\s*=", z)}
+    new = 0
     codes = {int(z.split("=")[0].strip()): z.split("=", 1)[1].strip()
-             for z in zeilen if re.match(r"^\d+\s*=", z)}
+             for z in lines if re.match(r"^\d+\s*=", z)}
     for team in teams:
-        if team["teamId"] not in vorhanden:
-            codes[team["teamId"]] = kuerzel_vorschlag(team)[0]
-            neu += 1
-    setze_team_codes(zeilen, codes)
+        if team["teamId"] not in existing:
+            codes[team["teamId"]] = suggest_code(team)[0]
+            new += 1
+    set_team_codes(lines, codes)
     tui.message("Verein gesetzt",
-                f'{verein["teamName"]}\n\n'
-                f"Kürzeltabelle: {neu} Mannschaft(en) ergänzt, "
-                f"{len(vorhanden)} bereits vorhanden.\n\n"
+                f'{club["teamName"]}\n\n'
+                f"Kürzeltabelle: {new} Mannschaft(en) ergänzt, "
+                f"{len(existing)} bereits vorhanden.\n\n"
                 f"Unter „Kürzel für Hashtags“ kannst du sie prüfen –\n"
                 f"abgeleitete Vorschläge sind mit ? markiert.")
 
 
-def m_kuerzel(zeilen):
-    """Kürzeltabelle einzeln bearbeiten."""
+def m_codes(lines):
+    """Edit the table of codes one by one."""
     while True:
         codes = {int(z.split("=")[0].strip()): z.split("=", 1)[1].strip()
-                 for z in zeilen if re.match(r"^\d+\s*=", z)}
+                 for z in lines if re.match(r"^\d+\s*=", z)}
         if not codes:
             tui.message("Noch keine Kürzel",
                         "Wähle zuerst unter „Spieltags-Ticker“ eine Liga und einen Verein.")
             return
-        eigenes = lies_wert(zeilen, "team", "openligadb_team_id")
-        eintraege = []
+        own = read_value(lines, "team", "openligadb_team_id")
+        entries = []
         for team_id, code in sorted(codes.items(), key=lambda x: x[1]):
-            marke = " ←  eigener Verein" if str(team_id) == eigenes else ""
-            eintraege.append((team_id, f"{code:6} (Nr. {team_id}){marke}"))
-        wahl = tui.choose("Kürzel für Hashtags",
+            mark = " ←  eigener Verein" if str(team_id) == own else ""
+            entries.append((team_id, f"{code:6} (Nr. {team_id}){mark}"))
+        choice = tui.choose("Kürzel für Hashtags",
                                  "Aus Heim + Auswärts entsteht der Hashtag, z.B. #KSCDSC.\n"
-                                 "Eintrag wählen zum Ändern.", eintraege)
-        if wahl is None:
+                                 "Eintrag wählen zum Ändern.", entries)
+        if choice is None:
             return
-        neu = tui.ask("Kürzel ändern", f"Kürzel für Team-Nummer {wahl}:", codes[int(wahl)])
-        if neu:
-            codes[int(wahl)] = neu.strip().upper()
-            setze_team_codes(zeilen, codes)
+        new = tui.ask("Kürzel ändern", f"Kürzel für Team-Nummer {choice}:", codes[int(choice)])
+        if new:
+            codes[int(choice)] = new.strip().upper()
+            set_team_codes(lines, codes)
 
 
-def m_feed(zeilen):
-    """Alles zur Instagram-Spiegelung."""
+def m_feed(lines):
+    """Everything about mirroring Instagram."""
     while True:
-        konto = lies_wert(zeilen, "feed", "bluesky_handle") or \
-            (lies_wert(zeilen, "bluesky", "handle") + "  (wie Ticker)")
-        wahl = tui.menu(
+        account = read_value(lines, "feed", "bluesky_handle") or \
+            (read_value(lines, "bluesky", "handle") + "  (wie Ticker)")
+        choice = tui.menu(
             "Instagram-Feed", "Instagram → Bluesky, läuft im Dauerbetrieb.",
-            [("profil", f"Instagram-Profil ..  {_zeige(zeilen, 'feed', 'instagram_profile')}"),
-             ("konto2", f"Zweitkonto (Abruf)   {_zeige(zeilen, 'feed', 'instagram_session_user')}"),
-             ("bsky", f"Bluesky-Konto .....  {konto[:40]}")])
-        if wahl is None:
+            [("profil", f"Instagram-Profil ..  {_show(lines, 'feed', 'instagram_profile')}"),
+             ("konto2", f"Zweitkonto (Abruf)   {_show(lines, 'feed', 'instagram_session_user')}"),
+             ("bsky", f"Bluesky-Konto .....  {account[:40]}")])
+        if choice is None:
             return
-        if wahl == "profil":
-            wert = tui.ask("Instagram-Profil",
+        if choice == "profil":
+            value = tui.ask("Instagram-Profil",
                              "Profil, das gespiegelt wird (ohne @):",
-                             lies_wert(zeilen, "feed", "instagram_profile"))
-            if wert:
-                setze_wert(zeilen, "feed", "instagram_profile", wert.lstrip("@"))
-        elif wahl == "konto2":
-            wert = tui.ask("Instagram-Zweitkonto",
+                             read_value(lines, "feed", "instagram_profile"))
+            if value:
+                set_value(lines, "feed", "instagram_profile", value.lstrip("@"))
+        elif choice == "konto2":
+            value = tui.ask("Instagram-Zweitkonto",
                              "Konto, mit dem abgerufen wird – NICHT das gespiegelte Profil.\n\n"
                              "Sitzung anlegen mit:  venv/bin/instaloader -l <name>",
-                             lies_wert(zeilen, "feed", "instagram_session_user"))
-            if wert:
-                setze_wert(zeilen, "feed", "instagram_session_user", wert.lstrip("@"))
-        elif wahl == "bsky":
-            eigenes = lies_wert(zeilen, "feed", "bluesky_handle")
+                             read_value(lines, "feed", "instagram_session_user"))
+            if value:
+                set_value(lines, "feed", "instagram_session_user", value.lstrip("@"))
+        elif choice == "bsky":
+            own = read_value(lines, "feed", "bluesky_handle")
             if tui.confirm("Bluesky-Konto für den Feed",
                            "Soll die Instagram-Spiegelung ein ANDERES Konto\n"
-                           f"verwenden als der Ticker ({lies_wert(zeilen, 'bluesky', 'handle')})?",
-                           bool(eigenes)):
-                wert = tui.ask("Konto für den Feed", "Handle ohne @:",
-                                 eigenes or lies_wert(zeilen, "bluesky", "handle"))
-                if wert:
-                    setze_wert(zeilen, "feed", "bluesky_handle", wert)
+                           f"verwenden als der Ticker ({read_value(lines, 'bluesky', 'handle')})?",
+                           bool(own)):
+                value = tui.ask("Konto für den Feed", "Handle ohne @:",
+                                 own or read_value(lines, "bluesky", "handle"))
+                if value:
+                    set_value(lines, "feed", "bluesky_handle", value)
                     tui.message("Getrennte Konten",
                                 "Beide Bots brauchen dann eigene App-Passwörter:\n\n"
                                 "  Ticker: BLUESKY_TICKER_APP_PASSWORD\n"
                                 "  Feed:   BLUESKY_FEED_APP_PASSWORD")
             else:
-                setze_wert(zeilen, "feed", "bluesky_handle", "")
+                set_value(lines, "feed", "bluesky_handle", "")
 
 
-def m_texte(zeilen):
-    """Beitragstexte und Profil-Statuszeile."""
+def m_posts(lines):
+    """Post texts and the profile status line."""
     while True:
-        an = lies_wert(zeilen, "profile", "enabled")
-        wahl = tui.menu(
+        profile_on = read_value(lines, "profile", "enabled")
+        choice = tui.menu(
             "Beiträge und Profil", "Wie die Beiträge aussehen und was in der Bio steht.",
-            [("tag", f"Dauer-Hashtag .....  {_zeige(zeilen, 'post', 'standing_hashtag', '– keiner –')}"),
-             ("kopf", f"Kopfzeile .........  {_zeige(zeilen, 'post', 'prefix', kurz=30)}"),
-             ("quelle", f"Quelle (Ticker) ...  {_zeige(zeilen, 'post', 'source_label', kurz=30)}"),
-             ("quelle_feed", f"Quelle (Feed) .....  {_zeige(zeilen, 'feed', 'source_label', kurz=30)}"),
-             ("profil", f"Statuszeile .......  {'ein' if an != 'false' else 'aus'}")])
-        if wahl is None:
+            [("tag", f"Dauer-Hashtag .....  {_show(lines, 'post', 'standing_hashtag', '– keiner –')}"),
+             ("kopf", f"Kopfzeile .........  {_show(lines, 'post', 'prefix', short=30)}"),
+             ("quelle", f"Quelle (Ticker) ...  {_show(lines, 'post', 'source_label', short=30)}"),
+             ("quelle_feed", f"Quelle (Feed) .....  {_show(lines, 'feed', 'source_label', short=30)}"),
+             ("profil", f"Statuszeile .......  {'ein' if profile_on != 'false' else 'aus'}")])
+        if choice is None:
             return
-        if wahl == "tag":
-            wert = tui.ask("Dauer-Hashtag",
+        if choice == "tag":
+            value = tui.ask("Dauer-Hashtag",
                              "Steht unter JEDEM Beitrag, ohne # (leer = keiner):",
-                             lies_wert(zeilen, "post", "standing_hashtag"))
-            if wert is not None:
-                setze_wert(zeilen, "post", "standing_hashtag", wert.lstrip("#"))
-        elif wahl == "kopf":
-            wert = tui.ask("Kopfzeile",
+                             read_value(lines, "post", "standing_hashtag"))
+            if value is not None:
+                set_value(lines, "post", "standing_hashtag", value.lstrip("#"))
+        elif choice == "kopf":
+            value = tui.ask("Kopfzeile",
                              "Erste Zeile jedes Hauptbeitrags\n"
                              "(leer = keine Kopfzeile):",
-                             lies_wert(zeilen, "post", "prefix"))
-            if wert is not None:
-                setze_wert(zeilen, "post", "prefix", wert)
-        elif wahl == "quelle":
-            wert = tui.ask("Quell-Beschriftung (Ticker)",
+                             read_value(lines, "post", "prefix"))
+            if value is not None:
+                set_value(lines, "post", "prefix", value)
+        elif choice == "quelle":
+            value = tui.ask("Quell-Beschriftung (Ticker)",
                              "Text des Links zum WhatsApp-Kanal\n"
                              "(leer = keine Quellenangabe im Beitrag):",
-                             lies_wert(zeilen, "post", "source_label"))
-            if wert is not None:
-                setze_wert(zeilen, "post", "source_label", wert)
-        elif wahl == "quelle_feed":
-            wert = tui.ask("Quell-Beschriftung (Feed)",
+                             read_value(lines, "post", "source_label"))
+            if value is not None:
+                set_value(lines, "post", "source_label", value)
+        elif choice == "quelle_feed":
+            value = tui.ask("Quell-Beschriftung (Feed)",
                              "Text des Links zum Instagram-Beitrag\n"
                              "(leer = keine Quellenangabe im Beitrag):",
-                             lies_wert(zeilen, "feed", "source_label"))
-            if wert is not None:
-                setze_wert(zeilen, "feed", "source_label", wert)
-        elif wahl == "profil":
+                             read_value(lines, "feed", "source_label"))
+            if value is not None:
+                set_value(lines, "feed", "source_label", value)
+        elif choice == "profil":
             if tui.confirm("Profil-Statuszeile",
                            "Soll die erste Zeile der Bluesky-Biografie anzeigen,\n"
-                           "ob der Bot gerade läuft?", an != "false"):
-                setze_wert(zeilen, "profile", "enabled", "true")
-                for schluessel, beschriftung in (("line_on", "Text während des Betriebs"),
-                                                 ("line_off", "Text nach dem Beenden")):
-                    wert = tui.ask(beschriftung,
+                           "ob der Bot gerade läuft?", profile_on != "false"):
+                set_value(lines, "profile", "enabled", "true")
+                for key, label in (("line_on", "Text während des Betriebs"),
+                                   ("line_off", "Text nach dem Beenden")):
+                    value = tui.ask(label,
                                      "Platzhalter: {info}, {hashtag}, {date}, {time}",
-                                     lies_wert(zeilen, "profile", schluessel))
-                    if wert:
-                        setze_wert(zeilen, "profile", schluessel, wert)
+                                     read_value(lines, "profile", key))
+                    if value:
+                        set_value(lines, "profile", key, value)
             else:
-                setze_wert(zeilen, "profile", "enabled", "false")
+                set_value(lines, "profile", "enabled", "false")
 
 
-def m_zeiten(zeilen):
-    """Zeitfenster und Zeitzone."""
-    wahl = tui.menu("Zeitfenster", "Wann der Ticker arbeitet.",
-                     [("ende", f"Betriebsende ......  {_zeige(zeilen, 'schedule', 'day_end')}"),
-                      ("zone", f"Zeitzone ..........  {_zeige(zeilen, 'team', 'timezone')}")])
-    if wahl == "ende":
-        wert = tui.ask("Betriebsende",
+def m_times(lines):
+    """Time window and time zone."""
+    choice = tui.menu("Zeitfenster", "Wann der Ticker arbeitet.",
+                     [("ende", f"Betriebsende ......  {_show(lines, 'schedule', 'day_end')}"),
+                      ("zone", f"Zeitzone ..........  {_show(lines, 'team', 'timezone')}")])
+    if choice == "ende":
+        value = tui.ask("Betriebsende",
                          "Bis zu dieser Uhrzeit lauscht der Ticker (HH:MM),\n"
                          "danach beendet er sich selbst:",
-                         lies_wert(zeilen, "schedule", "day_end"))
-        if wert:
-            setze_wert(zeilen, "schedule", "day_end", wert)
-    elif wahl == "zone":
-        wert = tui.ask("Zeitzone", "z.B. Europe/Berlin:",
-                         lies_wert(zeilen, "team", "timezone"))
-        if wert:
-            setze_wert(zeilen, "team", "timezone", wert)
+                         read_value(lines, "schedule", "day_end"))
+        if value:
+            set_value(lines, "schedule", "day_end", value)
+    elif choice == "zone":
+        value = tui.ask("Zeitzone", "z.B. Europe/Berlin:",
+                         read_value(lines, "team", "timezone"))
+        if value:
+            set_value(lines, "team", "timezone", value)
 
 
-def m_pruefen(zeilen):
-    """Anmeldung bei Bluesky prüfen."""
-    ticker = lies_wert(zeilen, "bluesky", "handle")
-    feed = lies_wert(zeilen, "feed", "bluesky_handle")
-    berichte = []
+def m_check_login(lines):
+    """Check the login to Bluesky."""
+    ticker = read_value(lines, "bluesky", "handle")
+    feed = read_value(lines, "feed", "bluesky_handle")
+    reports = []
     for handle, variable in ((ticker, "BLUESKY_TICKER_APP_PASSWORD"),
                              (feed, "BLUESKY_FEED_APP_PASSWORD")):
         if not handle:
             continue
-        passwort = os.environ.get(variable) or os.environ.get("BLUESKY_APP_PASSWORD")
-        if not passwort:
-            berichte.append(f"@{handle}\n   übersprungen – {variable} ist nicht gesetzt")
+        password = os.environ.get(variable) or os.environ.get("BLUESKY_APP_PASSWORD")
+        if not password:
+            reports.append(f"@{handle}\n   übersprungen – {variable} ist nicht gesetzt")
             continue
         try:
             from atproto import Client
-            Client().login(handle, passwort)
-            berichte.append(f"@{handle}\n   Anmeldung erfolgreich")
-        except Exception as fehler:
-            berichte.append(f"@{handle}\n   FEHLER: {str(fehler)[:60]}")
+            Client().login(handle, password)
+            reports.append(f"@{handle}\n   Anmeldung erfolgreich")
+        except Exception as error:
+            reports.append(f"@{handle}\n   FEHLER: {str(error)[:60]}")
     tui.message("Anmeldung geprüft",
-                "\n\n".join(berichte) or "Es ist noch kein Konto eingetragen.")
+                "\n\n".join(reports) or "Es ist noch kein Konto eingetragen.")
 
 
-def m_add_missing(zeilen):
-    """Fehlende Schlüssel aus der Vorlage ergänzen - mit ihren Erklärungen.
+def m_add_missing(lines):
+    """Add missing keys from the template - along with their explanations.
 
-    Arbeitet auf dem Stand im Assistenten, nicht auf der Datei: Gespeichert wird
-    wie sonst auch erst über den Menüpunkt zum Speichern."""
-    probe = list(zeilen)
-    ergaenzt = config.add_missing_keys(probe, BASE_DIR)
-    if not ergaenzt:
+    Works on the state inside the assistant, not on the file: as always,
+    saving happens through the menu entry for it."""
+    draft = list(lines)
+    added = config.add_missing_keys(draft, BASE_DIR)
+    if not added:
         tui.message("Nichts nachzuziehen",
                     "Alle Schlüssel der Vorlage stehen bereits in der "
                     "Konfiguration.")
         return
 
-    liste = "\n".join(f"  [{a}] {s} = {w}" for a, s, w in ergaenzt[:18])
-    if len(ergaenzt) > 18:
-        liste += f"\n  … und {len(ergaenzt) - 18} weitere"
+    items = "\n".join(f"  [{a}] {s} = {w}" for a, s, w in added[:18])
+    if len(added) > 18:
+        items += f"\n  … und {len(added) - 18} weitere"
     if not tui.confirm("Konfiguration nachziehen",
-                       f"{len(ergaenzt)} Schlüssel fehlen. Sie werden mit den "
+                       f"{len(added)} Schlüssel fehlen. Sie werden mit den "
                        f"Erklärungen aus der Vorlage ergänzt; vorhandene Werte "
-                       f"bleiben unverändert.\n\n{liste}\n\nErgänzen?", True):
+                       f"bleiben unverändert.\n\n{items}\n\nErgänzen?", True):
         return
-    zeilen[:] = probe
+    lines[:] = draft
     tui.message("Nachgezogen",
-                f"{len(ergaenzt)} Schlüssel ergänzt.\n\n"
+                f"{len(added)} Schlüssel ergänzt.\n\n"
                 f"Noch nicht gespeichert - das erledigt der Menüpunkt "
                 f"\"Speichern und beenden\".")
 
 
-def m_konfig_pruefen(zeilen):
-    """Konfiguration gegen die Quelltexte und die Vorlage prüfen.
-    Geprüft wird der aktuelle Stand im Assistenten, auch ungespeichert."""
-    befunde = config.collect_findings(BASE_DIR, "".join(zeilen))
-    probleme = [t for schwere, t in befunde if schwere == "problem"]
-    hinweise = [t for schwere, t in befunde if schwere == "hinweis"]
-    if not befunde:
+def m_check_config(lines):
+    """Check the configuration against the sources and the template. What is
+    checked is the current state in the assistant, unsaved changes included."""
+    findings = config.collect_findings(BASE_DIR, "".join(lines))
+    problems = [t for severity, t in findings if severity == "problem"]
+    notes = [t for severity, t in findings if severity == "note"]
+    if not findings:
         tui.message("Konfiguration geprüft", "Keine Auffälligkeiten.")
         return
-    teile = []
-    if probleme:
-        teile.append("Probleme:\n" + "\n".join(f"  ✗ {t}" for t in probleme))
-    if hinweise:
-        teile.append("Hinweise (Vorgaben greifen):\n"
-                     + "\n".join(f"  ℹ {t}" for t in hinweise))
-    tui.message("Konfiguration geprüft", "\n\n".join(teile))
+    parts = []
+    if problems:
+        parts.append("Probleme:\n" + "\n".join(f"  ✗ {t}" for t in problems))
+    if notes:
+        parts.append("Hinweise (Vorgaben greifen):\n"
+                     + "\n".join(f"  ℹ {t}" for t in notes))
+    tui.message("Konfiguration geprüft", "\n\n".join(parts))
 
 
-def menue_modus():
-    """Hauptmenü - Einstiegspunkt der Oberfläche."""
-    if not os.path.exists(VORLAGE):
-        print(f"Fehler: Vorlage fehlt: {VORLAGE}", file=sys.stderr)
+def menu_mode():
+    """The main menu - the way into the surface."""
+    if not os.path.exists(TEMPLATE):
+        print(f"Error: the template is missing: {TEMPLATE}", file=sys.stderr)
         sys.exit(1)
 
-    quelle = ZIEL if os.path.exists(ZIEL) else VORLAGE
-    with open(quelle, encoding="utf-8") as datei:
-        zeilen = datei.readlines()
-    gespeichert = list(zeilen)
+    source = TARGET if os.path.exists(TARGET) else TEMPLATE
+    with open(source, encoding="utf-8") as handle:
+        lines = handle.readlines()
+    saved = list(lines)
 
     while True:
-        offen = []
-        if _zeige(zeilen, "bluesky", "handle") == "– nicht gesetzt –":
-            offen.append("Bluesky-Konto")
-        kanal = lies_wert(zeilen, "source", "channel_invite_link")
-        if not kanal or "HIER-DEN" in kanal:
-            offen.append("WhatsApp-Kanal")
-        hinweis_text = ("Noch offen: " + ", ".join(offen)) if offen else \
+        pending = []
+        if _show(lines, "bluesky", "handle") == "– nicht gesetzt –":
+            pending.append("Bluesky-Konto")
+        channel = read_value(lines, "source", "channel_invite_link")
+        if not channel or "HIER-DEN" in channel:
+            pending.append("WhatsApp-Kanal")
+        note_text = ("Noch offen: " + ", ".join(pending)) if pending else \
             "Alle Pflichtangaben sind gesetzt."
-        stern = " *" if zeilen != gespeichert else ""
+        asterisk = " *" if lines != saved else ""
 
-        wahl = tui.menu(
+        choice = tui.menu(
             "SkyRelay einrichten",
-            f"{hinweis_text}\n\nDatei: {os.path.basename(ZIEL)}{stern}",
+            f"{note_text}\n\nDatei: {os.path.basename(TARGET)}{asterisk}",
             [("1", "Spieltags-Ticker    WhatsApp-Kanal → Bluesky"),
              ("2", "Instagram-Feed      Instagram → Bluesky"),
              ("3", "Kürzel für Hashtags"),
@@ -1065,96 +1067,98 @@ def menue_modus():
              ("9", "Speichern und beenden")],
             abbruch_text="Beenden")
 
-        if wahl == "1":
-            m_ticker(zeilen)
-        elif wahl == "2":
-            m_feed(zeilen)
-        elif wahl == "3":
-            m_kuerzel(zeilen)
-        elif wahl == "4":
-            m_texte(zeilen)
-        elif wahl == "5":
-            m_zeiten(zeilen)
-        elif wahl == "6":
-            m_pruefen(zeilen)
-        elif wahl == "7":
-            m_konfig_pruefen(zeilen)
-        elif wahl == "8":
-            m_add_missing(zeilen)
-        elif wahl == "9":
-            if speichern(zeilen, gespeichert):
+        if choice == "1":
+            m_ticker(lines)
+        elif choice == "2":
+            m_feed(lines)
+        elif choice == "3":
+            m_codes(lines)
+        elif choice == "4":
+            m_posts(lines)
+        elif choice == "5":
+            m_times(lines)
+        elif choice == "6":
+            m_check_login(lines)
+        elif choice == "7":
+            m_check_config(lines)
+        elif choice == "8":
+            m_add_missing(lines)
+        elif choice == "9":
+            if save(lines, saved):
                 return
-        else:  # Beenden oder Escape
-            if zeilen == gespeichert:
+        else:  # quit or escape
+            if lines == saved:
                 return
             if tui.confirm("Ungespeicherte Änderungen",
                            "Es gibt Änderungen, die noch nicht gespeichert sind.\n\n"
                            "Jetzt speichern?", True):
-                if speichern(zeilen, gespeichert):
+                if save(lines, saved):
                     return
             else:
                 return
 
 
-def speichern(zeilen, gespeichert):
-    """Schreibt die Konfiguration; legt vorher eine Sicherung an."""
-    ticker = lies_wert(zeilen, "bluesky", "handle")
-    feed = lies_wert(zeilen, "feed", "bluesky_handle") or ticker
-    profil = lies_wert(zeilen, "feed", "instagram_profile")
-    uebersicht = [f"Ticker:  WhatsApp-Kanal  →  @{ticker}" if ticker else "Ticker:  – kein Konto –"]
-    if profil:
-        uebersicht.append(f"Feed:    @{profil}  →  @{feed}")
+def save(lines, saved):
+    """Writes the configuration; makes a backup first."""
+    ticker = read_value(lines, "bluesky", "handle")
+    feed = read_value(lines, "feed", "bluesky_handle") or ticker
+    profile_key = read_value(lines, "feed", "instagram_profile")
+    summary = [f"Ticker:  WhatsApp-Kanal  →  @{ticker}" if ticker else "Ticker:  – kein Konto –"]
+    if profile_key:
+        summary.append(f"Feed:    @{profile_key}  →  @{feed}")
     if not tui.confirm("Speichern",
-                       "\n".join(uebersicht) + f"\n\nNach {os.path.basename(ZIEL)} schreiben?"):
+                       "\n".join(summary) + f"\n\nNach {os.path.basename(TARGET)} schreiben?"):
         return False
 
-    if os.path.exists(ZIEL):
+    if os.path.exists(TARGET):
         try:
-            with open(ZIEL + ".bak", "w", encoding="utf-8") as datei:
-                datei.writelines(gespeichert)
-        except Exception as fehler:
-            tui.message("Sicherung fehlgeschlagen", str(fehler))
-    with open(ZIEL, "w", encoding="utf-8") as datei:
-        datei.writelines(zeilen)
+            with open(TARGET + ".bak", "w", encoding="utf-8") as handle:
+                handle.writelines(saved)
+        except Exception as error:
+            tui.message("Sicherung fehlgeschlagen", str(error))
+    with open(TARGET, "w", encoding="utf-8") as handle:
+        handle.writelines(lines)
 
-    schritte = ["Gespeichert: " + os.path.basename(ZIEL), ""]
-    if lies_wert(zeilen, "source", "channel_invite_link"):
-        schritte += ["Erste WhatsApp-Kopplung (interaktiv):",
-                     "  SKYRELAY_FORCE=1 SKYRELAY_DRY_RUN=1 \\",
-                     "     venv/bin/python skyrelay-matchday.py", ""]
-    if profil:
-        schritte += ["Instagram-Sitzung anlegen (einmalig):",
-                     f"  venv/bin/instaloader -l {lies_wert(zeilen, 'feed', 'instagram_session_user')}", ""]
-    schritte.append("Danach cron einrichten – siehe README.md")
-    tui.message("Fertig", "\n".join(schritte))
+    steps = ["Gespeichert: " + os.path.basename(TARGET), ""]
+    if read_value(lines, "source", "channel_invite_link"):
+        steps += ["Erste WhatsApp-Kopplung (interaktiv):",
+                  "  SKYRELAY_FORCE=1 SKYRELAY_DRY_RUN=1 \\",
+                  "     venv/bin/python skyrelay-matchday.py", ""]
+    if profile_key:
+        steps += ["Instagram-Sitzung anlegen (einmalig):",
+                  f"  venv/bin/instaloader -l {read_value(lines, 'feed', 'instagram_session_user')}", ""]
+    steps.append("Danach cron einrichten – siehe README.md")
+    tui.message("Fertig", "\n".join(steps))
     return True
 
 
 def add_missing_without_menu():
-    """--nachziehen: Fehlende Schlüssel direkt in der Datei ergänzen.
+    """--add-missing: add missing keys straight into the file.
 
-    Für alle, die den Assistenten gar nicht brauchen - etwa nach einem Update
-    auf einem Server, der ohne whiptail auskommt."""
-    def bestaetigen(ergaenzt):
-        print(f"{len(ergaenzt)} Schlüssel fehlen und werden mit ihren "
-              f"Erklärungen ergänzt:")
-        for abschnitt, schluessel, wert in ergaenzt:
-            print(f"  [{abschnitt}] {schluessel} = {wert}")
-        antwort = input("\nErgänzen? [j/N] ").strip().lower()
-        return antwort in ("j", "ja", "y", "yes")
+    For anyone who does not need the assistant at all - after an update on a
+    server that gets by without whiptail, for instance."""
+    def confirm_callback(added):
+        print(f"{len(added)} key(s) are missing and will be added along with "
+              f"their explanations:")
+        for section, key, value in added:
+            print(f"  [{section}] {key} = {value}")
+        answer = input("\nAdd them? [y/N] ").strip().lower()
+        return answer in ("y", "yes", "j", "ja")
 
-    ergaenzt, fehler = config.add_missing_keys_to_file(BASE_DIR, bestaetigen)
-    if fehler == "abgebrochen":
-        print("Abgebrochen - die Datei bleibt unverändert.")
+    added, error = config.add_missing_keys_to_file(BASE_DIR, confirm_callback)
+    # The wording has to match what the module returns - it used to say
+    # "abgebrochen" and the check was left behind when it was translated.
+    if error == "cancelled":
+        print("Cancelled - the file is unchanged.")
         return 1
-    if fehler:
-        print(f"Fehler: {fehler}", file=sys.stderr)
+    if error:
+        print(f"Error: {error}", file=sys.stderr)
         return 1
-    if not ergaenzt:
-        print("Alle Schlüssel der Vorlage stehen bereits in der Konfiguration.")
+    if not added:
+        print("Every key of the template is already in the configuration.")
         return 0
-    print(f"\n{len(ergaenzt)} Schlüssel ergänzt. "
-          f"Sicherung: {os.path.basename(config.config_path(BASE_DIR))}.bak")
+    print(f"\n{len(added)} key(s) added. "
+          f"Backup: {os.path.basename(config.config_path(BASE_DIR))}.bak")
     return 0
 
 
@@ -1162,11 +1166,11 @@ if __name__ == "__main__":
     if "--add-missing" in sys.argv:
         sys.exit(add_missing_without_menu())
     try:
-        # Menüoberfläche, wenn whiptail vorhanden ist und ein Terminal dranhängt.
-        # SKYRELAY_SETUP_TEXT=1 erzwingt die zeilenweise Abfrage.
+        # The menu surface, when whiptail is there and a terminal is attached.
+        # SKYRELAY_SETUP_TEXT=1 forces the line by line questions.
         if (tui.available() and sys.stdin.isatty()
                 and os.environ.get("SKYRELAY_SETUP_TEXT") != "1"):
-            menue_modus()
+            menu_mode()
         else:
             main()
     except KeyboardInterrupt:

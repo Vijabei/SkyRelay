@@ -358,8 +358,8 @@ es unter `[feed] bluesky_handle` ein und gibst die App-Passwörter getrennt an
   rückwärts an der kaputten Stelle vorbei:
 
   ```
-  venv/bin/python3 skyrelay-testlauf.py --neueste
-  venv/bin/python3 skyrelay-testlauf.py --vor <ServerID> --typ audio,sticker
+  venv/bin/python3 skyrelay-testlauf.py --latest
+  venv/bin/python3 skyrelay-testlauf.py --before <ServerID> --type audio,sticker
   ```
 * **`instaloader` ist auf 4.15.2 festgelegt.** Version 4.15.3 stellte die
   Profilabfrage auf einen Endpunkt um, den Instagram seit Anfang August 2026
