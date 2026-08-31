@@ -88,6 +88,14 @@ timezone = Europe/Berlin
 # bitte drin lassen, das erspart Missverständnisse.
 # Leer lassen, um ganz auf die Kopfzeile zu verzichten.
 prefix = ⚽ [Inoffizieller Bot]
+# Wie die Quellenangabe aussieht und welcher Teil davon der Link ist.
+# Der Teil in [eckigen Klammern] wird zum Link, {label} steht für die
+# Beschriftung darunter. Gilt für Ticker UND Feed - das Wort "Quelle" ist in
+# beiden Fällen dasselbe, verschieden ist nur, worauf es zeigt.
+#   🔗 [Quelle]: {label}   das Wort Quelle ist der Link (Vorgabe)
+#   🔗 [Quelle]            nur das Wort, ohne Beschriftung - spart Zeichen
+#   🔗 Quelle: [{label}]   die Beschriftung ist der Link (bis Version 1.3 so)
+source_template = 🔗 [Quelle]: {label}
 # Beschriftung des Quell-Links (verweist auf den Kanal aus [source]).
 # Leer lassen, um die Quellenangabe wegzulassen.
 # ACHTUNG: Leer lassen heißt "source_label =" ohne Wert. Die Zeile

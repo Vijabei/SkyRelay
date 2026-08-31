@@ -164,6 +164,7 @@ from skyrelay_layout import (  # noqa: F401  (re-exported for the two bots)
     text_block,
     source_block,
     tag_block,
+    DEFAULT_SOURCE_TEMPLATE,
 )
 
 

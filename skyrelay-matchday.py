@@ -96,6 +96,7 @@ from skyrelay_common import (
     load_layout,
     text_block,
     source_block,
+    DEFAULT_SOURCE_TEMPLATE,
     tag_block,
     show_preview,
 )
@@ -159,6 +160,8 @@ if _cfg.has_section("team_codes"):
 
 POST_PREFIX = cfg("post", "prefix", "⚽ [Inoffizieller Bot]")
 POST_SOURCE_LABEL = cfg("post", "source_label", "Original-Kanal")
+# Which part of the source line carries the link - see source_block (#7).
+SOURCE_TEMPLATE = cfg("post", "source_template", DEFAULT_SOURCE_TEMPLATE)
 STANDING_HASHTAG = cfg("post", "standing_hashtag", "").strip().lstrip("#")
 # When several of the club's teams play on the same day, a channel message
 # does not reveal which match it belongs to. Rather than labelling the posts
@@ -584,7 +587,8 @@ def build_post_text(chunk, index, total, match_tag):
     body = chunk if total == 1 else f"{chunk} ({index + 1}/{total})"
     writers = {
         "prefix": text_block(POST_PREFIX),
-        "source": source_block(POST_SOURCE_LABEL, CHANNEL_INVITE_LINK),
+        "source": source_block(SOURCE_TEMPLATE, POST_SOURCE_LABEL,
+                               CHANNEL_INVITE_LINK),
         "match_hashtag": tag_block(match_tag),
         "standing_hashtag": tag_block(STANDING_HASHTAG),
     }

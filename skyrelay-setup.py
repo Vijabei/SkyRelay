@@ -896,6 +896,7 @@ def m_posts(lines):
             "Beiträge und Profil", "Wie die Beiträge aussehen und was in der Bio steht.",
             [("tag", f"Dauer-Hashtag .....  {_show(lines, 'post', 'standing_hashtag', '– keiner –')}"),
              ("kopf", f"Kopfzeile .........  {_show(lines, 'post', 'prefix', short=30)}"),
+             ("vorlage", f"Quellen-Vorlage ...  {_show(lines, 'post', 'source_template', short=30)}"),
              ("quelle", f"Quelle (Ticker) ...  {_show(lines, 'post', 'source_label', short=30)}"),
              ("quelle_feed", f"Quelle (Feed) .....  {_show(lines, 'feed', 'source_label', short=30)}"),
              ("profil", f"Statuszeile .......  {'ein' if profile_on != 'false' else 'aus'}")])
@@ -914,6 +915,18 @@ def m_posts(lines):
                              read_value(lines, "post", "prefix"))
             if value is not None:
                 set_value(lines, "post", "prefix", value)
+        elif choice == "vorlage":
+            value = tui.ask(
+                "Quellen-Vorlage",
+                "Der Teil in [eckigen Klammern] wird zum Link,\n"
+                "{label} steht für die Beschriftung.\n\n"
+                "  🔗 [Quelle]: {label}   das Wort ist der Link\n"
+                "  🔗 [Quelle]            nur das Wort, spart Zeichen\n"
+                "  🔗 Quelle: [{label}]   die Beschriftung ist der Link",
+                read_value(lines, "post", "source_template")
+                or layout.DEFAULT_SOURCE_TEMPLATE)
+            if value is not None:
+                set_value(lines, "post", "source_template", value)
         elif choice == "quelle":
             value = tui.ask("Quell-Beschriftung (Ticker)",
                              "Text des Links zum WhatsApp-Kanal\n"
@@ -1080,6 +1093,8 @@ def _layout_preview(lines, posts=2):
         "prefix": layout.text_block(
             read_value(lines, "post", "prefix") or "⚽ [Inoffizieller Bot]"),
         "source": layout.source_block(
+            read_value(lines, "post", "source_template")
+            or layout.DEFAULT_SOURCE_TEMPLATE,
             read_value(lines, "post", "source_label") or "Original-Kanal",
             "https://whatsapp.com/channel/…"),
         "match_hashtag": layout.tag_block("DSCWOB"),

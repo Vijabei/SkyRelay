@@ -6,6 +6,8 @@ assistant shows a live preview of the layout, and it must be able to do that
 before atproto and Pillow are installed.
 """
 
+import re
+
 
 # Where the parts of a post go used to be fixed: header and source at the top of
 # the first post, hashtags at the bottom of the last. [layout] turns that into a
@@ -122,14 +124,50 @@ def text_block(text):
     return lambda tb: tb.text(text)
 
 
-def source_block(label, url):
-    """A writer for the source block - None when there is nothing to link."""
-    if not (label and url):
+# The part in [square brackets] becomes the link; {label} stands for the
+# configured label.
+_ANCHOR = re.compile(r"\[([^\]]*)\]")
+# What is left dangling when {label} is empty: "🔗 [Quelle]: " -> "🔗 [Quelle]"
+_DANGLING = re.compile(r"[\s:,\-]+$")
+
+DEFAULT_SOURCE_TEMPLATE = "🔗 [Quelle]: {label}"
+
+
+def source_block(template, label, url):
+    """A writer for the source block - None when there is nothing to link.
+
+    The template decides which words carry the link. Everything inside [square
+    brackets] becomes the anchor, the rest stays plain text, and {label} is
+    replaced by the configured label. So "🔗 [Quelle]: {label}" makes the word
+    Quelle itself clickable and leaves the label beside it as text (#7) -
+    before, the anchor was the label and the word in front of it was dead
+    text."""
+    if not url:
         return None
 
+    text = (template or DEFAULT_SOURCE_TEMPLATE).replace("{label}", label or "")
+    if not (label or "").strip():
+        text = _DANGLING.sub("", text)
+    text = text.strip()
+    if not text:
+        return None
+
+    found = _ANCHOR.search(text)
+    anchor = found.group(1).strip() if found else ""
+    if anchor:
+        before, after = text[:found.start()], text[found.end():]
+    else:
+        # No brackets, or empty ones: link the whole line rather than writing a
+        # source that cannot be clicked.
+        anchor = _ANCHOR.sub("", text).strip() or text
+        before = after = ""
+
     def write(tb):
-        tb.text("🔗 Quelle: ")
-        tb.link(label, url)
+        if before:
+            tb.text(before)
+        tb.link(anchor, url)
+        if after:
+            tb.text(after)
 
     return write
 

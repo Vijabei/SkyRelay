@@ -47,6 +47,7 @@ from skyrelay_common import (
     load_layout,
     text_block,
     source_block,
+    DEFAULT_SOURCE_TEMPLATE,
     tag_block,
     show_preview,
 )
@@ -103,6 +104,9 @@ POST_PREFIX = cfg("post", "prefix", "⚽ [Inoffizieller Bot]")
 # A label of its own for the source link: [post] source_label describes the
 # ticker's WhatsApp channel and does not fit an Instagram post.
 FEED_SOURCE_LABEL = cfg("feed", "source_label", "Beitrag auf Instagram")
+# Shared with the ticker: the word "Quelle" is the same either way, only
+# what it points at differs (#7).
+SOURCE_TEMPLATE = cfg("post", "source_template", DEFAULT_SOURCE_TEMPLATE)
 STANDING_HASHTAG = cfg("post", "standing_hashtag", "").strip().lstrip("#")
 
 # Where header, source and the standing hashtag go (#6). The feed knows no
@@ -276,7 +280,7 @@ def build_post_text(body, index, total, source_url):
     text = body if total == 1 else f"{body} ({index + 1}/{total})"
     writers = {
         "prefix": text_block(POST_PREFIX),
-        "source": source_block(FEED_SOURCE_LABEL, source_url),
+        "source": source_block(SOURCE_TEMPLATE, FEED_SOURCE_LABEL, source_url),
         "match_hashtag": None,
         "standing_hashtag": tag_block(STANDING_HASHTAG),
     }
