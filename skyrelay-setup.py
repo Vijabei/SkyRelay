@@ -789,6 +789,16 @@ def m_liga(zeilen):
                         "Begriff, mit dem OpenLigaDB nach dem Verein sucht:", such)
     setze_wert(zeilen, "team", "openligadb_filter", eingabe or such)
 
+    # Ligakürzel für den Spieltags-Filter ergänzen, vorhandene behalten: Ein
+    # Verein spielt oft in mehreren Wettbewerben (Liga, Pokal, Frauenliga), und
+    # jeder davon braucht seinen Eintrag.
+    bisher = [s.strip() for s
+              in (lies_wert(zeilen, "team", "league_shortcuts") or "").split(",")
+              if s.strip()]
+    if liga not in bisher:
+        bisher.append(liga)
+    setze_wert(zeilen, "team", "league_shortcuts", ", ".join(bisher))
+
     # Kürzel der Liga ergänzen, vorhandene behalten
     vorhanden = {int(z.split("=")[0].strip()) for z in zeilen if re.match(r"^\d+\s*=", z)}
     neu = 0

@@ -124,8 +124,18 @@ CHANNEL_INVITE_LINK = cfg("source", "channel_invite_link", "")
 
 OPENLIGADB_TEAM_FILTER = cfg("team", "openligadb_filter", "")
 OPENLIGADB_TEAM_ID = cfg_int("team", "openligadb_team_id", 0)
-LEAGUE_PREFIXES = tuple(
-    p.strip().lower() for p in cfg("team", "league_prefixes", "bl, dfb").split(",") if p.strip()
+# Which leagues count. EXACT shortcuts, comma separated - "bl2, dfb" and not
+# "bl": OpenLigaDB also carries variants of a real league (bl2h next to bl2),
+# and a prefix comparison let those through. The same fixture then appeared on
+# a second, wrong day and the ticker would have started up for it (#19).
+LEAGUE_SHORTCUTS = tuple(
+    s.strip().lower() for s in cfg("team", "league_shortcuts", "").split(",") if s.strip()
+)
+# The predecessor. Still read, so that a configuration nobody has touched keeps
+# behaving as before - and so --check-config does not report it as orphaned.
+# See the note in fetch_team_matches.
+LEGACY_LEAGUE_PREFIXES = tuple(
+    p.strip().lower() for p in cfg("team", "league_prefixes", "").split(",") if p.strip()
 )
 LOCAL_TZ = ZoneInfo(cfg("team", "timezone", "Europe/Berlin"))
 
@@ -317,6 +327,19 @@ def _last_updated(match):
         return datetime.min
 
 
+_legacy_league_note_shown = False
+
+
+def _league_wanted(shortcut):
+    """Does a match from this league count? Exact comparison; without any
+    configuration every league counts."""
+    if LEAGUE_SHORTCUTS:
+        return shortcut in LEAGUE_SHORTCUTS
+    if LEGACY_LEAGUE_PREFIXES:
+        return shortcut.startswith(LEGACY_LEAGUE_PREFIXES)
+    return True
+
+
 def fetch_team_matches(weeks_back=1, weeks_forward=1):
     """Fetches our own team's matches from OpenLigaDB and returns them as a
     list of (kickoff_local, match) - sorted ascending, duplicates removed.
@@ -334,13 +357,15 @@ def fetch_team_matches(weeks_back=1, weeks_forward=1):
 
     best = {}
     skipped_leagues = set()
+    accepted_leagues = set()
     for match in resp.json():
         if OPENLIGADB_TEAM_ID not in (match["team1"]["teamId"], match["team2"]["teamId"]):
             continue
         shortcut = (match.get("leagueShortcut") or "").lower()
-        if not shortcut.startswith(LEAGUE_PREFIXES):
+        if not _league_wanted(shortcut):
             skipped_leagues.add(f'{match.get("leagueShortcut")} ({match.get("leagueName")})')
             continue
+        accepted_leagues.add(shortcut)
         kickoff_local = datetime.fromisoformat(
             match["matchDateTimeUTC"].replace("Z", "+00:00")
         ).astimezone(LOCAL_TZ)
@@ -358,7 +383,23 @@ def fetch_team_matches(weeks_back=1, weeks_forward=1):
             best[key] = (kickoff_local, match)
 
     if skipped_leagues:
-        log(f"(OpenLigaDB: Spiele aus unbekannten Ligen ignoriert: {', '.join(sorted(skipped_leagues))})")
+        log(f"(OpenLigaDB: matches from other leagues ignored: "
+            f"{', '.join(sorted(skipped_leagues))})")
+
+    global _legacy_league_note_shown
+    if LEGACY_LEAGUE_PREFIXES and not LEAGUE_SHORTCUTS and not _legacy_league_note_shown:
+        _legacy_league_note_shown = True
+        log("⚠️ [team] league_prefixes is deprecated: it compares prefixes, so a "
+            "variant of a real league (bl2h next to bl2) passes the check. The "
+            "same fixture can then show up on a second, wrong day.")
+        log("   Please switch to exact shortcuts. These leagues turned up in the")
+        log("   current data - enter the ones you actually want, and leave out any")
+        log("   variant of a league you already have (bl2h beside bl2):")
+        log(f"     {', '.join(sorted(accepted_leagues)) or '(none)'}")
+    elif not LEAGUE_SHORTCUTS and not LEGACY_LEAGUE_PREFIXES:
+        log("ℹ️ No league filter configured ([team] league_shortcuts is empty) - "
+            "every league OpenLigaDB returns counts, made up ones included.")
+
     return sorted(best.values(), key=lambda item: item[0])
 
 
