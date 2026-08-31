@@ -1,276 +1,279 @@
 # SkyRelay
 
-Zwei kleine Bots, die Inhalte automatisch nach **Bluesky** weiterleiten — entstanden für
-ein Fanprojekt, das Vereinsnachrichten dort verfügbar machen wollte, wo sie sonst fehlen.
-Sport ist dabei kein Muss: Der Ticker lässt sich ebenso für Veranstaltungen, Vereine
-oder andere Kanäle einrichten, dann ohne Spielplan-Anbindung.
+***English** · [Deutsch](README.de.md)*
 
-Das Ziel ist bewusst fest auf Bluesky gelegt. Die **Quelle** ist austauschbar: Aktuell
-gibt es einen WhatsApp-Kanal- und einen Instagram-Anschluss.
+Two small bots that forward content to **Bluesky** automatically — written for a
+supporters' project that wanted club news available where it was otherwise
+missing. Sport is not a requirement: the ticker works just as well for events,
+clubs or other channels, then without the fixture lookup.
 
-> **Inoffiziell.** Dieses Projekt steht in keiner Verbindung zu Meta, Bluesky oder
-> irgendeinem Verein. Es greift auf inoffizielle Schnittstellen zu — bitte lies den
-> Abschnitt [Risiken & Rechtliches](#risiken--rechtliches), bevor du es einsetzt.
+The destination is deliberately fixed to Bluesky. The **source** is
+interchangeable: right now there is a WhatsApp channel connector and an
+Instagram one.
 
----
-
-## Die zwei Programme
-
-| Programm | Betriebsart | Quelle (aktuell) |
-|---|---|---|
-| **`skyrelay-matchday.py`** | Spieltagsgebunden: läuft nur an Spieltagen, lauscht auf Live-Ereignisse und postet sofort | WhatsApp-Kanal |
-| **`skyrelay-feed.py`** | Dauerbetrieb: prüft regelmäßig auf neue Beiträge | Instagram-Profil |
-
-Benannt sind sie nach der **Betriebsart**, nicht nach der Quelle — damit ein
-Quellenwechsel später keine Umbenennung erzwingt.
-
-### Welche Quelle passt zu welcher Betriebsart?
-
-Die Quelle ist derzeit fest mit dem jeweiligen Programm verbunden. Ob eine
-Kombination überhaupt sinnvoll ist, entscheidet eine einzige Frage: **Meldet die
-Quelle neue Beiträge von sich aus (Push), oder muss man sie regelmäßig abfragen?**
-
-| Quelle | Ticker (ereignisgetrieben, Zeitfenster) | Feed (Dauerbetrieb, Abfrage) |
-|---|---|---|
-| **WhatsApp-Kanal** | ✅ umgesetzt — Beiträge erscheinen binnen Sekunden | ⚙️ möglich: Ticker ohne Spielplan mit weitem Zeitfenster (siehe unten) |
-| **Instagram** | ❌ nicht sinnvoll — Instagram kennt kein Push; für Ticker-Tempo müsste man im Minutentakt abfragen, was zuverlässig zur Kontosperre führt | ✅ umgesetzt |
-| **weitere Quellen** | nur mit Push-Unterstützung | wenn regelmäßiges Abfragen erlaubt ist |
-
-**WhatsApp im Dauerbetrieb** braucht keinen Umbau: In der Konfiguration den
-Spielplan leer lassen (`[team] openligadb_filter =`), `day_end` auf `23:59`
-setzen und den Cron-Eintrag täglich statt nur an Spieltagen starten. Einzige
-Einschränkung: Über Mitternacht entsteht eine kurze Lücke, weil sich das
-Programm beendet und nach dem Neustart nur Beiträge des laufenden Tages annimmt.
-
-**Neue Quellen** sind willkommen, aber vor dem Programmieren lohnt die Prüfung:
-Gibt es eine brauchbare Bibliothek? Erlaubt der Dienst automatisierten Zugriff?
-Und vor allem — kann er Ereignisse melden, oder verträgt er zumindest häufiges
-Abfragen ohne Sperre? Erst wenn das geklärt ist, lohnt sich die Trennung von
-Quelle und Ablaufsteuerung. Sprich uns über ein Issue an.
-
-### Was `skyrelay-matchday.py` besonders macht
-
-* **Spieltagserkennung** über [OpenLigaDB](https://www.openligadb.de): An spielfreien
-  Tagen beendet sich das Programm sofort und baut gar keine Verbindung auf.
-  Nicht auf Fußball beschränkt — gut gepflegt sind dort Fußball (1.–3. Liga,
-  DFB-Pokal, Frauen-Bundesliga) und Eishockey (DEL, DEL2). Für Sportarten ohne
-  Daten (etwa Basketball oder der Handball-Ligabetrieb) lässt sich die Erkennung
-  abschalten; der Ticker läuft dann an jedem Tag, an dem er gestartet wird.
-* **Spiel-Hashtag** wird automatisch erzeugt (`#KSCDSC` heim/auswärts korrekt herum),
-  inklusive DFB-Pokal-Runden, und an jeden Beitrag gehängt.
-* **Mehrere Mannschaften eines Vereins** lassen sich abdecken, sofern sie bei
-  OpenLigaDB dieselbe Team-Nummer tragen — dann genügt es, ihre Liga in
-  `league_prefixes` zu ergänzen. Spielen an einem Tag beide, kann eine
-  Kanal-Nachricht keiner Partie zugeordnet werden: die Beiträge bekommen dann
-  statt der Spiel-Hashtags den `overlap_hashtag`, während die Profil-Statuszeile
-  beide Partien nennt.
-* **Profil-Statuszeile:** Die erste Zeile der Bluesky-Biografie schaltet zwischen
-  „Bot ist an – 1. Spieltag …" und „Bot ist aus – nächstes Spiel …" um.
-* **Bearbeitungen** im Kanal werden erkannt: Der alte Bluesky-Beitrag wird gelöscht
-  und durch die korrigierte Fassung ersetzt.
-* Überträgt Text, Bilder, Videos und erzeugt Link-Vorschaukarten.
-* **Sprachnachrichten und Sticker** aus dem WhatsApp-Kanal werden übernommen.
-  Bluesky kennt beides nicht: Aus einer Sprachnachricht wird ein Video mit
-  animierter Wellenform (der Ton bleibt erhalten), aus einem Sticker ein Bild.
-* **Videos werden nachgereicht:** Scheitert der Upload zur Video-API von
-  Bluesky, geht der Beitrag sofort mit dem Vorschaubild raus — beim Ticker
-  zählt die Zeit. Das Video bleibt liegen und wird in späteren Läufen erneut
-  versucht; klappt es, hängt der Bot es als Antwort an den Beitrag. So wird
-  aus einer vorübergehenden Störung bei Bluesky kein dauerhaft bebilderter
-  Beitrag. Einstellungen dazu: `video_retry_*` in `skyrelay.conf`.
-
-## Projektstatus
-
-Beide Programme laufen produktiv und sind vollständig über `skyrelay.conf`
-konfigurierbar — Verein, Kanäle, Konten, Texte und Dateinamen stecken alle dort,
-im Code steht nichts Vereinsspezifisches mehr.
+> **Unofficial.** This project has no connection to Meta, Bluesky or any club. It
+> uses unofficial interfaces — please read [Risks and legal
+> matters](#risks-and-legal-matters) before running it.
 
 ---
 
-## Voraussetzungen
+## The two programs
 
-* **Linux, 64 Bit** (`x86_64` oder `aarch64`). Ein Raspberry Pi 3B+ genügt, aber das
-  System muss 64-Bit sein — für 32-Bit (`armv7l`) gibt es keine passenden Pakete.
-* **Python 3.10** oder neuer, dazu `python3-venv` und `tzdata`.
-* **`ffmpeg`** (`sudo apt install ffmpeg`) — nur für Sprachnachrichten aus dem
-  WhatsApp-Kanal. Fehlt es, werden Sprachnachrichten übersprungen, alles andere
-  läuft unverändert weiter.
-* Ein **Bluesky-Konto** für den Bot samt App-Passwort
-  (Einstellungen → Datenschutz und Sicherheit → App-Passwörter).
-* Für `skyrelay-matchday.py`: eine **separate WhatsApp-Nummer**, deren Verlust
-  verschmerzbar wäre (siehe Risiken). Das Konto muss den Kanal abonniert haben.
-* Für `skyrelay-feed.py`: ein **Instagram-Zweitkonto** für den Abruf.
+| Program | How it runs | Source (today) |
+|---|---|---|
+| **`skyrelay-matchday.py`** | Tied to matchdays: runs only on matchdays, listens for live events and posts at once | WhatsApp channel |
+| **`skyrelay-feed.py`** | All year round: checks for new posts at regular intervals | Instagram profile |
+
+They are named after **how they run**, not after the source — so that changing
+the source later does not force a rename.
+
+### Which source fits which mode?
+
+A source is currently tied to its program. Whether a combination makes sense at
+all comes down to a single question: **does the source announce new posts by
+itself (push), or does it have to be asked at intervals?**
+
+| Source | Ticker (event driven, time window) | Feed (all year round, polling) |
+|---|---|---|
+| **WhatsApp channel** | ✅ built — posts appear within seconds | ⚙️ possible: ticker without fixtures and a wide time window (see below) |
+| **Instagram** | ❌ not sensible — Instagram has no push; ticker speed would mean polling every minute, which reliably gets the account locked | ✅ built |
+| **other sources** | only where push exists | where regular polling is allowed |
+
+**WhatsApp all year round** needs no rebuilding: leave the fixture lookup empty
+in the configuration (`[team] openligadb_filter =`), set `day_end` to `23:59`,
+and let cron start it daily rather than on matchdays only. The one limitation:
+a short gap appears around midnight, because the program stops and, after the
+restart, accepts only posts from the day it is currently in.
+
+**New sources** are welcome, but it pays to check before writing code: is there a
+usable library? Does the service allow automated access? And above all — can it
+announce events, or does it at least tolerate frequent polling without locking
+the account? Only once that is settled is it worth separating source from
+scheduling. Get in touch through an issue.
+
+### What makes `skyrelay-matchday.py` particular
+
+* **Matchday detection** through [OpenLigaDB](https://www.openligadb.de): on days
+  without a match the program stops immediately and opens no connection at all.
+  Not limited to football — what is well maintained there is football (divisions
+  1–3, the DFB cup, the women's Bundesliga) and ice hockey (DEL, DEL2). For
+  sports without data (basketball, or handball league play) the detection can be
+  switched off; the ticker then runs on every day it is started.
+* **The match hashtag** is generated automatically (`#KSCDSC`, home and away the
+  right way round), cup rounds included, and attached to every post.
+* **Several teams of one club** can be covered, as long as OpenLigaDB gives them
+  the same team number — then it is enough to add their league shortcut to
+  `league_shortcuts`. When both play on the same day, a channel message cannot be
+  attributed to either match: the posts then carry `overlap_hashtag` instead of
+  the match hashtags, while the profile status line names both fixtures.
+* **Profile status line:** the first line of the Bluesky bio switches between
+  "Bot ist an – 1. Spieltag …" and "Bot ist aus – nächstes Spiel …".
+* **Edits** in the channel are noticed: the old Bluesky post is deleted and
+  replaced by the corrected version.
+* Carries over text, images and video, and builds link preview cards.
+* **Voice messages and stickers** from the WhatsApp channel are carried over.
+  Bluesky knows neither: a voice message becomes a video with an animated
+  waveform (the sound is kept), a sticker becomes an image.
+* **Videos are handed in later:** if the upload to Bluesky's video API fails, the
+  post goes out immediately with its thumbnail — on a ticker, time is what
+  counts. The video stays behind and is retried in later runs; when it succeeds,
+  the bot attaches it as a reply to the post. That way a temporary glitch at
+  Bluesky does not leave a permanently picture-only post behind. The settings for
+  it are the `video_retry_*` keys in `skyrelay.conf`.
+
+## Project status
+
+Both programs run in production and are configurable in full through
+`skyrelay.conf` — club, channels, accounts, texts and file names all live there,
+and nothing club specific is left in the code.
+
+---
+
+## Requirements
+
+* **Linux, 64 bit** (`x86_64` or `aarch64`). A Raspberry Pi 3B+ is enough, but the
+  system has to be 64 bit — there are no packages for 32 bit (`armv7l`).
+* **Python 3.10** or newer, plus `python3-venv` and `tzdata`.
+* **`libmagic1`** (`sudo apt install libmagic1`) — neonize will not import without
+  it.
+* **`ffmpeg`** (`sudo apt install ffmpeg`) — only for voice messages from the
+  WhatsApp channel. Without it voice messages are skipped and everything else
+  carries on unchanged.
+* A **Bluesky account** for the bot, with an app password
+  (Settings → Privacy and Security → App Passwords).
+* For `skyrelay-matchday.py`: a **separate WhatsApp number** whose loss you could
+  live with (see the risks). That account has to follow the channel.
+* For `skyrelay-feed.py`: a **secondary Instagram account** to fetch with.
 
 ## Installation
 
-Aus dem Nichts, in einer Zeile:
+From nothing, in one line:
 
 ```bash
 git clone https://github.com/Vijabei/SkyRelay.git && cd SkyRelay && ./install.sh
 ```
 
-`install.sh` prüft System, Architektur und Python-Version, holt den neuesten
-Stand, legt ein virtuelles Umfeld unter `venv/` an, installiert die
-Abhängigkeiten — und startet danach die Einrichtung. Es ändert **nichts** am
-System: Fehlende Systempakete werden nur gemeldet, nicht automatisch
-nachinstalliert (kein `sudo`, keine Überraschungen auf fremden Rechnern).
+`install.sh` checks the system, the architecture and the Python version, fetches
+the newest state, creates a virtual environment under `venv/`, installs the
+dependencies — and then starts the setup. It changes **nothing** about the
+system: missing system packages are only reported, never installed for you (no
+`sudo`, no surprises on someone else's machine).
 
-### Die drei Skripte
+### The three scripts
 
-| Skript | Wofür |
+| Script | What for |
 |---|---|
-| `./install.sh` | einmalig: System prüfen, venv anlegen, Abhängigkeiten holen |
-| `./config.sh` | einrichten und später ändern — startet den Assistenten |
-| `./update.sh` | neuen Stand holen, Abhängigkeiten nachziehen, Konfiguration ergänzen |
+| `./install.sh` | once: check the system, build the venv, fetch the dependencies |
+| `./config.sh` | set up, and change things later — starts the assistant |
+| `./update.sh` | fetch the new state, pull the dependencies along, top up the configuration |
 
-`config.sh` kennt zwei Abkürzungen:
+`config.sh` knows two shortcuts:
 
 ```bash
-./config.sh --check          # Konfiguration prüfen, nichts ändern
-./config.sh --add-missing    # fehlende Schlüssel mit Erklärung nachtragen
+./config.sh --check          # check the configuration, change nothing
+./config.sh --add-missing    # add missing keys along with their explanations
 ```
 
-### Aktualisieren
+### Updating
 
 ```bash
 ./update.sh
 ```
 
-Holt den neuen Stand (und bricht ab, statt lokale Änderungen zu überfahren),
-zieht `requirements.txt` nach und fragt die Schlüssel ab, die seither
-dazugekommen sind. **Laufende Dienste werden nicht angefasst** — der nächste
-cron-Lauf nimmt den neuen Stand von selbst. Ein Ticker, der gerade an einem
-Spieltag lauscht, läuft mit dem alten weiter, bis er sich abends beendet.
+Fetches the new state (and stops rather than overwriting local changes), pulls
+`requirements.txt` along and asks about the keys that have appeared since.
+**Running services are left alone** — the next cron run picks the new state up on
+its own. A ticker listening through a matchday keeps going with the old one until
+it stops in the evening.
 
-## Konfiguration
+## Configuration
 
-Am einfachsten mit dem Einrichtungsassistenten:
+The easiest way is the setup assistant:
 
 ```bash
-venv/bin/python skyrelay-setup.py
+./config.sh
 ```
 
-Er öffnet ein **Menü im Stil von `raspi-config`** — mit Pfeiltasten bedienbar, auch
-über SSH. Aus dem Hauptmenü lassen sich die Bereiche einzeln ansteuern, statt sich
-durch alle Fragen am Stück zu arbeiten:
+It opens a **menu in the style of `raspi-config`** — arrow keys, works over SSH.
+From the main menu the areas can be reached one at a time, instead of working
+through every question in a row:
 
 ```
-  1  Spieltags-Ticker    WhatsApp-Kanal → Bluesky
-  2  Instagram-Feed      Instagram → Bluesky
-  3  Kürzel für Hashtags
-  4  Beiträge und Profil
-  5  Aufbau der Beiträge (Kopfzeile, Quelle, Hashtags)
-  6  Zeitfenster
-  7  Anmeldung bei Bluesky prüfen
-  8  Konfiguration prüfen
-  9  Konfiguration nachziehen
-  0  Speichern und beenden
+  1  Matchday ticker     WhatsApp channel → Bluesky
+  2  Instagram feed      Instagram → Bluesky
+  3  Codes for hashtags
+  4  Posts and profile
+  5  How the posts are built (header, source, hashtags)
+  6  Time window
+  7  Check the login to Bluesky
+  8  Check the configuration
+  9  Top up the configuration
+  s  Language / Sprache
+  0  Save and quit
 ```
 
-Das ist auch der bequeme Weg für spätere Änderungen: Ein einzelnes Kürzel
-korrigieren oder das Zeitfenster verschieben dauert damit Sekunden. Oben zeigt das
-Menü an, welche Pflichtangaben noch fehlen.
+That is also the comfortable way to change things later: correcting a single code
+or shifting the time window takes seconds. At the top the menu shows what
+required entries are still missing.
 
-Fehlt `whiptail` auf dem System, fällt der Assistent automatisch auf eine
-zeilenweise Abfrage zurück; erzwingen lässt sie sich mit `SKYRELAY_SETUP_TEXT=1`.
+If `whiptail` is missing, the assistant falls back to asking line by line;
+`SKYRELAY_SETUP_TEXT=1` forces that mode.
 
-### Sprache der Bedienoberfläche
+### The language of the interface
 
 ```ini
 [general]
-language = de     # de oder en; leer = wie das System eingestellt ist
+language = en     # de or en; empty = whatever the system says
 ```
 
-Betrifft **nur den Einrichtungsassistenten**. Protokoll und Konsolenausgabe der
-Bots sind immer englisch — so ist dieselbe Meldung überall dieselbe, egal wer
-sie liest oder wohin sie kopiert wird.
+This affects **only the setup assistant**. The log and the console output of the
+bots are always English — so that the same message reads the same wherever it
+turns up, whoever reads it and wherever it gets pasted.
 
-Im Assistenten steht die Sprachwahl unter Punkt `s`. Angeboten wird, wofür ein
-Katalog gebaut wurde; die Kataloge entstehen bei `./install.sh` und `./update.sh`
-von selbst. Fehlen sie, spricht die Oberfläche Deutsch — die Sprache, in der sie
-geschrieben ist.
+In the assistant the language sits under item `s`. What is offered is whatever a
+catalogue has been built for; the catalogues are built by `./install.sh` and
+`./update.sh` on their own. Without them the interface speaks German — the
+language it is written in.
 
-Eine weitere Sprache beisteuern: siehe [CONTRIBUTING.md](CONTRIBUTING.md).
+Contributing another language: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-### Was gilt eigentlich gerade?
+### What is actually in effect?
 
-Eine Konfiguration wird über die Jahre undurchsichtig: Fehlt ein Schlüssel, gilt
-still die Vorgabe aus dem Programm — man sieht der Datei nicht an, was tatsächlich
-wirkt. Deshalb gibt jeder Bot darüber Auskunft:
+A configuration goes opaque over the years: a missing key means the program's
+own default quietly applies — the file does not show you what is really at work.
+So each bot answers that question:
 
 ```bash
 venv/bin/python skyrelay-feed.py --show-config
 ```
 
-Das listet jeden Wert, den die Programme lesen, mit seiner Herkunft:
+It lists every value the programs read, together with where it comes from:
 
 ```
 [post]
-  prefix                        (Datei)      ⚽ [Inoffizieller Bot]
-  source_label                  (Datei)      WhatsApp-Kanal des Vereins
+  prefix                        (file)       ⚽ [Inoffizieller Bot]
+  source_label                  (file)       WhatsApp-Kanal des Vereins
 [feed]
-  source_label                  (Vorgabe)    Beitrag auf Instagram
+  source_label                  (default)    Beitrag auf Instagram
 ```
 
-**Auskommentieren schaltet nichts ab.** Eine Zeile mit `#` davor zählt als
-fehlend, und dann greift die Vorgabe aus dem Programm — die Einstellung wirkt
-also weiter, nur eben mit einem anderen Wert. Wer etwas *weglassen* will, lässt
-den Wert leer:
+**Commenting a line out switches nothing off.** A line with a `#` in front counts
+as missing, and then the program's default applies — the setting still works,
+only with a different value. To *leave something out*, make the value empty:
 
 ```ini
-# keine Quellenangabe im Beitrag:
+# no source line in the post:
 source_label =
-# keine Kopfzeile:
+# no header:
 prefix =
 ```
 
-Dasselbe gilt für `standing_hashtag`. In der Übersicht oben ist der Unterschied
-an der Herkunft ablesbar: `(Datei)` heißt „so steht es bei dir", `(Vorgabe)`
-heißt „das Programm hat entschieden".
+The same goes for `standing_hashtag`. In the listing above the difference is
+readable from the origin: `(file)` means "this is what you wrote", `(default)`
+means "the program decided".
 
-### Wie SkyRelay die Zeichengrenze einhält
+### How SkyRelay keeps to the character limit
 
-Bluesky begrenzt einen Beitrag doppelt — die Lexikon-Definition von
-`app.bsky.feed.post` sagt es genau:
+Bluesky limits a post twice — the lexicon definition of `app.bsky.feed.post`
+says it exactly:
 
 ```json
 { "type": "string", "maxLength": 3000, "maxGraphemes": 300 }
 ```
 
-Also **300 Graphemes und 3000 Bytes**. Ein Graphem ist, was ein Mensch als ein
-Zeichen sieht: `👨‍👩‍👧‍👦` besteht aus sieben Codepoints und 25 Bytes und zählt
-trotzdem als **eines**. Eine API zum Nachfragen gibt es nicht — der Zähler in
-der Bluesky-App läuft im Browser, und der Server sagt erst am fertigen Beitrag
-Nein.
+So **300 graphemes and 3000 bytes**. A grapheme is what a person sees as one
+character: `👨‍👩‍👧‍👦` is seven code points and 25 bytes and still counts as
+**one**. There is no API to ask — the counter in the Bluesky app runs in the
+browser, and the server only says no once the post is finished.
 
-SkyRelay zählt deshalb selbst, nach derselben Regel (UAX #29), und rechnet vor
-dem Aufteilen aus, **was dieser eine Beitrag tatsächlich trägt**: die Bausteine,
-die das Layout auf ihn legt, deren Leerzeilen und den `(2/3)`-Zähler. Weil die
-Anzahl der Beiträge wiederum die Breite des Zählers bestimmt, wird das in
-Runden ermittelt, bis es sich einpendelt.
+SkyRelay therefore counts for itself, by the same rule (UAX #29), and works out
+before splitting **what this very post actually carries**: the blocks the layout
+puts on it, the blank lines between them, and the `(2/3)` counter. Since the
+number of posts in turn decides the width of that counter, this is settled in
+rounds until it comes to rest.
 
-Was das ausmacht, zeigt derselbe Text mit verschiedenen Quellenzeilen:
+What that is worth shows in the same text with different source lines:
 
-| Quellenzeile | Rahmen | Beiträge |
+| Source line | Frame | Posts |
 |---|---|---|
-| `🔗 [Quelle]: {label}` mit Beschriftung | 66 Zeichen | 2 |
-| `🔗 [Quelle]` | 50 Zeichen | **1** |
+| `🔗 [Quelle]: {label}` with a label | 66 characters | 2 |
+| `🔗 [Quelle]` | 50 characters | **1** |
 
-Getrennt wird in dieser Vorliebe: Absatz, Satz, Wort, notfalls hart — **nie**
-mitten in einer URL (Bluesky kürzt Links nicht, ein halber ist wertlos) und nie
-mitten in einem Graphem-Cluster.
+Breaks are taken in this order of preference: paragraph, sentence, word, and only
+then hard — **never** inside a URL (Bluesky does not shorten links, and half of
+one is worthless) and never inside a grapheme cluster.
 
-Für die Zählung ist das Paket `regex` empfohlen, das UAX #29 vollständig kann.
-Fehlt es, rechnet SkyRelay mit einer eingebauten Näherung weiter, die alles
-abdeckt, was real vorkommt — Umlaute, Emoji mit Hautfarbe, ZWJ-Folgen, Flaggen.
-**Ein `git pull` ohne `pip install` bleibt damit gefahrlos**; der Bot sagt beim
-Start nur, mit welcher Zählweise er arbeitet.
+For the counting the package `regex` is recommended, which implements UAX #29 in
+full. Without it SkyRelay carries on with a built-in approximation that covers
+what actually turns up — umlauts, emoji with skin tones, ZWJ sequences, flags.
+**A `git pull` without `pip install` therefore stays harmless**; the bot only
+says at startup which way of counting it is using.
 
-### Muss der Bot-Hinweis in jedem Beitrag stehen?
+### Does the bot notice have to be in every post?
 
-Wenn die Bluesky-Biografie schon deutlich sagt, dass hier ein Bot schreibt, ist
-`⚽ [Inoffizieller Bot]` über jedem Beitrag verschenkter Platz — rund 22 Zeichen
-von 300:
+Where the Bluesky bio already says plainly that a bot is writing,
+`⚽ [Inoffizieller Bot]` above every post is wasted space — about 22 characters
+of 300:
 
 ```ini
 [post]
@@ -278,342 +281,350 @@ bot_notice = auto
 bot_notice_marker = Bot
 ```
 
-| Wert | Bedeutung |
+| Value | Meaning |
 |---|---|
-| `always` | immer (Vorgabe — so hat SkyRelay es immer gemacht) |
-| `never` | nie |
-| `auto` | nur, solange die Profilbeschreibung den Hinweis nicht selbst trägt |
+| `always` | always (the default — what SkyRelay always did) |
+| `never` | never |
+| `auto` | only while the profile description does not carry the notice itself |
 
-Bei `auto` wird die Beschreibung **einmal je Lauf** geprüft und das Ergebnis ins
-Protokoll geschrieben. Dabei übergeht SkyRelay die eigene Statuszeile: Die lautet
-„🟢 **Bot** ist an", und eine Suche nach „Bot" fände sonst immer das selbst
-Geschriebene statt dessen, was du in die Bio getippt hast.
+With `auto` the description is checked **once per run** and the outcome written
+to the log. SkyRelay skips its own status line while doing so: that line reads
+"🟢 **Bot** ist an", and a search for "Bot" would otherwise always find what the
+bot itself wrote rather than what you typed into the bio.
 
-Lässt sich das Profil nicht lesen, bleibt der Hinweis stehen. Dasselbe gilt im
-Trockenlauf, der sich absichtlich nicht anmeldet — einen Haftungshinweis auf
-Verdacht wegzulassen wäre der schlimmere der beiden Fehler.
+If the profile cannot be read, the notice stays. The same goes for a dry run,
+which deliberately does not log in — leaving out a disclaimer on a guess would be
+the worse of the two mistakes.
 
-### Wie die Quellenangabe aussieht
+### What the source line looks like
 
-Welcher Teil der Zeile den Link trägt, entscheidet eine Vorlage. Was in
-**[eckigen Klammern]** steht, wird zum Link; `{label}` ist die Beschriftung aus
-`[post] source_label` bzw. `[feed] source_label`:
+Which part of the line carries the link is decided by a template. What stands in
+**[square brackets]** becomes the link; `{label}` is the label from
+`[post] source_label` or `[feed] source_label`:
 
 ```ini
 [post]
 source_template = 🔗 [Quelle]: {label}
 ```
 
-| Vorlage | Ergebnis (fett = anklickbar) |
+| Template | Result (bold = clickable) |
 |---|---|
 | `🔗 [Quelle]: {label}` | 🔗 **Quelle**: WhatsApp-Kanal des Vereins |
 | `🔗 [Quelle]` | 🔗 **Quelle** |
 | `🔗 Quelle: [{label}]` | 🔗 Quelle: **WhatsApp-Kanal des Vereins** |
 
-Die erste Zeile ist die Vorgabe. Bis Version 1.3 galt die dritte: Der Link hing
-an der Beschriftung, und das Wort davor war toter Text. Die zweite Variante
-spart rund 28 Zeichen — bei Blueskys Grenze von 300 durchaus spürbar.
+The first line is the default. Up to version 1.3 the third one applied: the link
+hung on the label, and the word in front of it was dead text. The second variant
+saves about 28 characters — which tells against Bluesky's limit of 300.
 
-Fehlt die Beschriftung, fällt der Doppelpunkt mit weg. Fehlen die eckigen
-Klammern ganz, wird die ganze Zeile zum Link — eine Quellenangabe ohne Link wäre
-sinnlos.
+Without a label the colon disappears with it. Without any square brackets the
+whole line becomes the link — a source line that cannot be clicked would be
+pointless.
 
-### Wo Kopfzeile, Quelle und Hashtags stehen
+### Where the header, the source and the hashtags go
 
-Bis dahin war das festgelegt: Kopfzeile und Quelle oben im ersten Beitrag, die
-Hashtags unten im letzten. Der Abschnitt `[layout]` macht daraus eine
-Entscheidung — eine Zeile je Baustein:
+Until now that was fixed: header and source at the top of the first post, the
+hashtags at the bottom of the last. The `[layout]` section turns it into a
+decision — one line per block:
 
 ```ini
 [layout]
-#                  Beiträge ; Stelle ; Reihenfolge
+#                  posts ; spot ; order
 prefix           = first ; top    ; 1
 source           = first ; top    ; 2
 match_hashtag    = last  ; bottom ; 1
 standing_hashtag = last  ; bottom ; 2
 ```
 
-| Spalte | Werte | Bedeutung |
+| Column | Values | Meaning |
 |---|---|---|
-| Beiträge | `first`, `last`, `all`, `none` | an welchen Beiträgen des Threads |
-| Stelle | `top`, `bottom` | über oder unter dem Text |
-| Reihenfolge | Zahl | wer zuerst kommt, wenn zwei an derselben Stelle landen |
+| posts | `first`, `last`, `all`, `none` | on which posts of the thread |
+| spot | `top`, `bottom` | above or below the text |
+| order | a number | which comes first when two land in the same spot |
 
-Die Werte oben sind die Vorgaben und erzeugen genau das Aussehen, das SkyRelay
-immer hatte. Einen Baustein ganz weglassen geht auf zwei Wegen: `none`
-eintragen, oder seinen Inhalt leer lassen (`source_label =`).
+The values above are the defaults and produce exactly the look SkyRelay always
+had. Leaving a block out entirely can be done two ways: enter `none`, or make its
+content empty (`source_label =`).
 
-Am bequemsten ist der Assistent unter Punkt 5 — er zeigt die Matrix und auf
-Wunsch eine **Vorschau des fertigen Beitrags**, bevor irgendetwas gepostet wird:
+The most comfortable way is item 5 of the assistant — it shows the matrix and, on
+request, a **preview of the finished post**, before anything is published:
 
 ```
-── Beitrag 1 von 2 ──────────────────────────────
+── post 1 of 2 ──────────────────────────────
 ⚽ [Inoffizieller Bot]
 🔗 Quelle: WhatsApp-Kanal des Vereins
 
 Beispieltext, Teil 1. (1/2)
 
-── Beitrag 2 von 2 ──────────────────────────────
+── post 2 of 2 ──────────────────────────────
 Beispieltext, Teil 2. (2/2)
 
 #DSCWOB #arminia
 ```
 
-### Konfiguration prüfen
+### Checking the configuration
 
-Ein falsch geschriebener Schlüssel wirkt einfach nicht — ohne Fehlermeldung, weil
-das Programm dann still seine Vorgabe nimmt. Deshalb prüfen beide Bots die
-Konfiguration auf Zuruf:
+A misspelt key simply has no effect — with no error message, because the program
+quietly takes its default instead. So both bots check the configuration on
+request:
 
 ```bash
 venv/bin/python skyrelay-feed.py --check-config
 ```
 
-Gemeldet wird, was kein Programm liest (Tippfehler oder veraltet), was fehlt und
-deshalb auf die Vorgabe zurückfällt, und was in `skyrelay.conf.example`
-undokumentiert geblieben ist. Der Aufruf verbindet sich mit nichts, verändert
-nichts und postet nichts; der Rückgabewert ist 0, solange es keine Probleme gibt.
-Denselben Bericht zeigt der Assistent unter Punkt 7 — dort auch für Änderungen,
-die noch nicht gespeichert sind.
+It reports what no program reads (a typo, or something left over), what is
+missing and therefore falls back to a default, and what has stayed undocumented
+in `skyrelay.conf.example`. The call connects to nothing, changes nothing and
+posts nothing; the exit status is 0 as long as there are no problems. The
+assistant shows the same report under item 8 — there including changes that have
+not been saved yet.
 
-### Fehlende Schlüssel nachziehen
+### Topping up missing keys
 
-Nach einem Update kennt die Vorlage Schlüssel, die in der eigenen Datei fehlen.
-Sie lassen sich mitsamt ihren Erklärungen ergänzen — vorhandene Werte, Reihenfolge
-und Kommentare bleiben unangetastet, es wird ausschließlich hinzugefügt:
+After an update the template knows keys that the own file does not. They can be
+added along with their explanations — existing values, order and comments stay
+untouched, this only ever adds:
 
 ```bash
 ./config.sh --add-missing
 ```
 
-Der Aufruf zeigt zuerst, was ergänzt würde, und fragt nach. Vorher entsteht eine
-Sicherung als `skyrelay.conf.bak`. Im Menü steht dasselbe unter Punkt 8.
+The call first shows what would be added and asks. A backup is written as
+`skyrelay.conf.bak` beforehand. The same sits under item 9 of the menu.
 
-Beim ersten Einrichten führt der Assistent durch dieselben Punkte wie zuvor:
+For a first setup the assistant walks through the same points as before:
 
-| Zweck | Ablauf |
+| Purpose | How it goes |
 |---|---|
-| **Sport mit Spielplan** | Liga und Verein werden **live bei OpenLigaDB gesucht** (kein Nachschlagen von Team-Nummern), die **Kürzeltabelle für die Hashtags wird vorbefüllt** — für die Fußball-Ligen 1–3 mit den gebräuchlichen Kürzeln, sonst mit klar als Vorschlag markierten Ableitungen (`?`). Neben Fußball stehen die weiteren gepflegten Ligen zur Wahl, etwa die DEL. |
-| **Sport ohne Spielplan** | Für Sportarten, die OpenLigaDB nicht führt (Basketball, Handball-Liga): keine Spieltags-Erkennung, wechselnder Hashtag über `SKYRELAY_HASHTAG`. |
-| **Anderer Zweck** | Für Vereine, Veranstaltungen, Projekte: wie oben, zusätzlich mit **neutral formulierten Vorgabetexten** statt Fußballsprache. |
+| **A sport with fixtures** | League and club are **looked up live at OpenLigaDB** (no hunting for team numbers), and the **table of codes for the hashtags is pre-filled** — for football divisions 1–3 with the codes in common use, otherwise with derivations clearly marked as proposals (`?`). Besides football the other maintained leagues can be picked, the DEL for instance. |
+| **A sport without fixtures** | For sports OpenLigaDB does not carry (basketball, handball league play): no matchday detection, a changing hashtag through `SKYRELAY_HASHTAG`. |
+| **Something else** | For clubs, events, projects: as above, and additionally with **neutrally worded default texts** instead of football language. |
 
-In allen Fällen werden Beitragstexte, Profil-Statuszeile und Zeitfenster abgefragt,
-auf Wunsch die Bluesky-Anmeldung geprüft und daraus die fertige `skyrelay.conf`
-geschrieben. Einmal gepflegte Kürzel bleiben dabei erhalten — auch nach einem
-Ligawechsel, damit Pokalgegner aus anderen Ligen weiterhin korrekt benannt werden. Ein erneuter Aufruf dient zum Ändern: Vorhandene Werte
-werden als Vorgabe angeboten, und von der alten Datei wird eine Sicherung angelegt.
+In every case the post texts, the profile status line and the time window are
+asked for, the Bluesky login is checked on request, and the finished
+`skyrelay.conf` is written from all of it. Codes once maintained are kept — even
+after a move between divisions, so that cup opponents from other leagues are
+still named correctly. Calling it again is the way to change things: existing
+values are offered as defaults, and a backup of the old file is written.
 
-Wer lieber von Hand arbeitet, kopiert die kommentierte Vorlage:
+Anyone who would rather work by hand copies the commented template:
 
 ```bash
 cp skyrelay.conf.example skyrelay.conf
 ```
 
-Für den Spieltags-Ticker sind mindestens `[bluesky] handle` und
-`[source] channel_invite_link` nötig; für einen anderen Verein zusätzlich
-`[team]` (OpenLigaDB-Suchbegriff und Team-Nummer) sowie die Kürzel unter
-`[team_codes]`. Für die Instagram-Spiegelung genügt der Abschnitt `[feed]`
-(Profil, Zweitkonto und optional ein eigenes Bluesky-Konto). Alle Abschnitte sind
-in der Vorlage kommentiert, eine Übersicht steht im
-[CheatSheet](CHEATSHEET-matchday.md).
+For the matchday ticker at least `[bluesky] handle` and
+`[source] channel_invite_link` are needed; for a different club also `[team]`
+(the OpenLigaDB search term and team number) and the codes under `[team_codes]`.
+For the Instagram mirror the `[feed]` section is enough (profile, secondary
+account and optionally a Bluesky account of its own). Every section is commented
+in the template, and an overview lives in the
+[cheat sheet](CHEATSHEET-matchday.md).
 
-Die eigene `skyrelay.conf` steht in `.gitignore` und gehört nicht ins Repository.
-Mehrere Vereine parallel betreibst du über `SKYRELAY_CONFIG=/pfad/zur/datei.conf`.
+Your own `skyrelay.conf` is in `.gitignore` and does not belong in the
+repository. Several clubs run side by side through
+`SKYRELAY_CONFIG=/path/to/file.conf`.
 
-Wer von einer älteren Fassung umsteigt, muss **nichts neu koppeln**: vorhandene
-`dsc_ticker_*`-Dateien werden beim ersten Start automatisch übernommen.
+Anyone moving over from an older version needs **no fresh pairing**: existing
+`dsc_ticker_*` files are adopted on the first start.
 
-Das **App-Passwort gehört niemals in eine Datei**, sondern in eine Umgebungsvariable —
-je eine pro Bot, damit die Zuordnung eindeutig bleibt:
+The **app password never belongs in a file**, but in an environment variable —
+one per bot, so that the attribution stays unambiguous:
 
 ```bash
 export BLUESKY_TICKER_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"; export BLUESKY_FEED_APP_PASSWORD="yyyy-yyyy-yyyy-yyyy"
 ```
 
-Nutzen beide Bots dasselbe Konto, steht in beiden Variablen einfach dasselbe Passwort.
+If both bots use the same account, both variables simply hold the same password.
 
-⚠️ **cron liest weder `~/.bashrc` noch `~/.profile`.** Für den automatischen Betrieb
-gehören die Variablen **oben in die crontab** (`crontab -e`) — dort ohne
-Anführungszeichen, sonst würden sie Teil des Werts:
+⚠️ **cron reads neither `~/.bashrc` nor `~/.profile`.** For automatic operation
+the variables belong **at the top of the crontab** (`crontab -e`) — there without
+quotation marks, or they would become part of the value:
 
 ```cron
 BLUESKY_TICKER_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx
 BLUESKY_FEED_APP_PASSWORD=yyyy-yyyy-yyyy-yyyy
 ```
 
-## Erste Kopplung mit WhatsApp
+## The first pairing with WhatsApp
 
-Einmalig und **interaktiv im Terminal** (nicht per cron):
+Once, and **interactively in a terminal** (not from cron):
 
 ```bash
 SKYRELAY_FORCE=1 SKYRELAY_DRY_RUN=1 venv/bin/python skyrelay-matchday.py
 ```
 
-Es erscheint ein QR-Code, den du im Handy unter *WhatsApp → Einstellungen →
-Verknüpfte Geräte → Gerät hinzufügen* scannst. Praxistipp: Bildschirm hell stellen und
-das Terminal stark vergrößern, sonst findet die Kamera zu wenig Kontrast. Alternativ
-per Zahlencode koppeln — dazu `SKYRELAY_PAIR_PHONE=49xxxxxxxxx` ergänzen.
+A QR code appears, which you scan on the phone under *WhatsApp → Settings →
+Linked devices → Link a device*. From experience: turn the screen brightness up
+and enlarge the terminal a lot, or the camera finds too little contrast. As an
+alternative, pair by numeric code — add `SKYRELAY_PAIR_PHONE=49xxxxxxxxx` for
+that.
 
-Ein Login über `web.whatsapp.com` im Browser hilft **nicht**: Das Programm ist ein
-eigenes verknüpftes Gerät mit eigener Sitzung. Diese liegt danach in
-`*_session.sqlite3` und wird bei allen weiteren Läufen wiederverwendet.
+Signing in through `web.whatsapp.com` in a browser does **not** help: the program
+is a linked device of its own with a session of its own. That session then lives
+in `*_session.sqlite3` and is reused by every later run.
 
-## Betrieb
+## Running it
 
-Im Regelbetrieb genügt ein täglicher cron-Eintrag — ob heute überhaupt gespielt wird,
-entscheidet das Programm selbst:
+In normal operation a daily cron entry is enough — whether there is a match today
+is something the program decides for itself:
 
 ```cron
-0 6 * * * BLUESKY_TICKER_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx" /pfad/zu/SkyRelay/venv/bin/python3 /pfad/zu/SkyRelay/skyrelay-matchday.py >/dev/null 2>&1
+0 6 * * * BLUESKY_TICKER_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx" /path/to/SkyRelay/venv/bin/python3 /path/to/SkyRelay/skyrelay-matchday.py >/dev/null 2>&1
 ```
 
-Zwei häufige Stolpersteine: Pfade sind **groß-/kleinschreibungsabhängig**, und eine
-Ausgabeumleitung (`>> skyrelay.log`) ist **nicht** nötig — das Programm schreibt sein
-Protokoll selbst, sonst steht jede Zeile doppelt darin.
+Two common stumbling blocks: paths are **case sensitive**, and redirecting the
+output (`>> skyrelay.log`) is **not** necessary — the program writes its own log,
+and otherwise every line would appear in it twice.
 
-Läuft der Bot gerade?
+Is the bot running?
 
 ```bash
 pgrep -af skyrelay-matchday
 ```
 
-Alle weiteren Betriebsarten (Testläufe, Nachholen verpasster Beiträge, Einzeltests)
-stehen in **[CHEATSHEET-matchday.md](CHEATSHEET-matchday.md)**.
+Every other mode (test runs, catching up on missed posts, single tests) lives in
+**[CHEATSHEET-matchday.md](CHEATSHEET-matchday.md)**.
 
-### Instagram-Spiegelung (`skyrelay-feed.py`)
+### The Instagram mirror (`skyrelay-feed.py`)
 
-Einmalig die Instagram-Sitzung des Zweitkontos anlegen:
+Create the Instagram session of the secondary account once:
 
 ```bash
-venv/bin/instaloader -l dein_zweitkonto
+venv/bin/instaloader -l your_secondary_account
 ```
 
-Danach regelmäßig per cron aufrufen — das Programm überträgt, was seit dem
-letzten Lauf neu ist:
+After that call it regularly from cron — the program carries over whatever is new
+since the last run:
 
 ```cron
-*/15 * * * * BLUESKY_FEED_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx" /pfad/zu/SkyRelay/venv/bin/python3 /pfad/zu/SkyRelay/skyrelay-feed.py >/dev/null 2>&1
+*/15 * * * * BLUESKY_FEED_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx" /path/to/SkyRelay/venv/bin/python3 /path/to/SkyRelay/skyrelay-feed.py >/dev/null 2>&1
 ```
 
-Nutzt du für Instagram ein **anderes** Bluesky-Konto als für den Ticker, trägst du
-es unter `[feed] bluesky_handle` ein und gibst die App-Passwörter getrennt an
-(siehe unten).
+If you use a **different** Bluesky account for Instagram than for the ticker,
+enter it under `[feed] bluesky_handle` and give the app passwords separately
+(see above).
 
 ---
 
-## Dokumentation
+## Documentation
 
-| Datei | Inhalt |
+| File | Contents |
 |---|---|
-| `README.md` | dieses Dokument |
-| `skyrelay-setup.py` | Einrichtungsassistent (erzeugt und ändert `skyrelay.conf`) |
-| `skyrelay.conf.example` | kommentierte Vorlage aller Einstellungen |
-| `skyrelay_common.py` | gemeinsame Bausteine beider Programme (Protokoll, Konfiguration, Bilder, Video-Upload) |
-| `skyrelay-testlauf.py` | spielt echte Kanal-Nachrichten durch die Ticker-Pipeline, ohne zu veröffentlichen |
-| `CHEATSHEET-matchday.md` | alle Umgebungsvariablen, Betriebsarten, Dateien, Fehlerbehebung |
-| `ISSUE-DRAFT-neonize-newsletter-panic.md` | vorbereiteter Fehlerbericht an **neonize**: Absturz beim Verlaufsabruf |
-| `ISSUE-DRAFT-whatsmeow-newsletter-audio-hmac.md` | vorbereiteter Fehlerbericht an **whatsmeow**: Sprachnachrichten nicht ladbar |
+| `README.md` | this document (German: `README.de.md`) |
+| `skyrelay-setup.py` | the setup assistant (creates and changes `skyrelay.conf`) |
+| `skyrelay.conf.example` | the commented template of every setting |
+| `skyrelay_common.py` | shared building blocks of both programs (log, images, video upload) |
+| `skyrelay_config.py` | checking, showing and topping up the configuration |
+| `skyrelay_layout.py` | how posts are built, character counting, splitting |
+| `skyrelay_i18n.py` | translations of the interface |
+| `tools/i18n.sh` | creating, aligning and compiling the catalogues |
+| `skyrelay-testlauf.py` | plays real channel messages through the ticker pipeline without publishing |
+| `CHEATSHEET-matchday.md` | every environment variable, mode, file and remedy (German: `CHEATSHEET-matchday.de.md`) |
+| `ISSUE-DRAFT-neonize-newsletter-panic.md` | a prepared bug report for **neonize**: the crash while fetching history |
+| `ISSUE-DRAFT-whatsmeow-newsletter-audio-hmac.md` | a prepared bug report for **whatsmeow**: voice messages cannot be downloaded |
 
-## Bekannte Einschränkungen
+## Known limitations
 
-* **`neonize` ist auf `0.4.3.post0` festgelegt** und wurde am 08.08.2026
-  vollständig geprüft (siehe [UPGRADE-TEST.md](UPGRADE-TEST.md)). Vor einem
-  Wechsel die Sitzungsdatei sichern — das Datenbankschema ändert sich.
-* **Strg+C kann gelegentlich vom Go-Anteil abgefangen werden** (ab 0.4.x): Dann
-  endet das Programm mit `Quit`, ohne aufzuräumen, und die Profil-Statuszeile
-  bleibt auf „Bot ist an" stehen. Beobachtet wurde das einmal; im Regelfall läuft
-  das Aufräumen normal. Zurücksetzen notfalls mit `SKYRELAY_PROFILE=off`. Im
-  cron-Betrieb ohne Bedeutung — dort endet der Ticker regulär zum Tagesende.
-* **Absturz bei inhaltslosen Kanalbeiträgen:** Löscht der Kanal einen Beitrag, bleibt
-  eine leere Nachricht zurück, an der der zugrundeliegende Go-Programmteil abstürzt.
-  Betrifft **nur** die Nachhol-Betriebsarten, nicht den Dauerbetrieb — dieser lauscht
-  auf Ereignisse und ist davon nicht betroffen.
-  Wie sehr dich das trifft, hängt vom Kanal ab: Liegt so eine Nachricht weit
-  hinten, genügt ein kleinerer Wert. Liegt sie **direkt hinter dem neuesten
-  Beitrag**, ist `SKYRELAY_REPLAY` unbrauchbar — dann stürzt schon der Abruf von
-  zwei Nachrichten ab und nur `1` läuft durch. (Im hier gespiegelten Kanal war
-  das am 19.08.2026 der Fall.) Zum Prüfen an echtem Material dient dann
-  `skyrelay-testlauf.py`; es blättert mit einem ausdrücklichen Startpunkt
-  rückwärts an der kaputten Stelle vorbei:
+* **`neonize` is pinned to `0.4.3.post0`** and was checked in full on 08.08.2026
+  (see [UPGRADE-TEST.md](UPGRADE-TEST.md)). Back the session file up before
+  switching — the database schema changes.
+* **Ctrl+C can occasionally be caught by the Go part** (from 0.4.x on): the
+  program then ends with `Quit` without cleaning up, and the profile status line
+  is left saying "Bot ist an". This was seen once; normally the cleanup runs
+  properly. Reset it with `SKYRELAY_PROFILE=off` if need be. Of no consequence
+  under cron — there the ticker ends properly at the end of the day.
+* **A crash on channel posts without content:** when the channel deletes a post,
+  an empty message is left behind, and the underlying Go part crashes on it. This
+  affects **only** the catch-up modes, not normal operation — that one listens
+  for events and is not touched by it.
+  How much it affects you depends on the channel: if such a message lies far
+  back, a smaller value is enough. If it lies **directly behind the newest
+  post**, `SKYRELAY_REPLAY` is unusable — fetching two messages already crashes
+  and only `1` gets through. (In the channel mirrored here that was the case on
+  19.08.2026.) To check against real material, `skyrelay-testlauf.py` pages
+  backwards past the broken spot from an explicit starting point:
 
   ```
   venv/bin/python3 skyrelay-testlauf.py --latest
-  venv/bin/python3 skyrelay-testlauf.py --before <ServerID> --type audio,sticker
+  venv/bin/python3 skyrelay-testlauf.py --before <serverID> --type audio,sticker
   ```
-* **`instaloader` ist auf 4.15.2 festgelegt.** Version 4.15.3 stellte die
-  Profilabfrage auf einen Endpunkt um, den Instagram seit Anfang August 2026
-  drosselt — schon die erste Anfrage endet mit „429 Too Many Requests"
+* **`instaloader` is pinned to 4.15.2.** Version 4.15.3 moved the profile lookup
+  to an endpoint Instagram has been throttling since early August 2026 — the very
+  first request ends in a "429 Too Many Requests"
   ([instaloader#2726](https://github.com/instaloader/instaloader/issues/2726),
-  offen). Erst nach dessen Lösung aktualisieren.
-* **Umfragen** werden übersprungen: Bluesky kennt dieses Format nicht.
-* **Sprachnachrichten brauchen einen Umweg beim Download.** Kanalmedien liegen
-  unverschlüsselt hinter `directPath` — Bilder und Videos bringen deshalb gar
-  keinen `mediaKey` mit. Sprachnachrichten schleppen einen mit, woraufhin
-  whatsmeow zu entschlüsseln versucht und mit `invalid media hmac` scheitert.
-  SkyRelay lädt bei genau diesem Fehler ein zweites Mal ohne den Schlüssel.
-  Nachgemessen am 19.08.2026: regulär lud **keine** von 5 Sprachnachrichten,
-  ohne Schlüssel **alle fünf** byte-genau.
-* **Animierte Sticker** verlieren ihre Bewegung — übertragen wird das erste
-  Einzelbild, weil Bluesky keine Animationen abspielt.
-* **Sprachnachrichten** erscheinen als Video und haben damit keine sinnvolle
-  Bildbeschreibung. Wer auf Barrierefreiheit Wert legt, sollte das bedenken.
-* **Wellenform-Farbe:** `waveform_color` in `[audio]` nimmt ausschließlich
-  ffmpeg-*Farbnamen* (`White`, `DodgerBlue`, …). Hex-Angaben wie `0x38BDF8`
-  verwirft ffmpeg stillschweigend und zeichnet grün; SkyRelay warnt dann im
-  Protokoll.
-* **Videos** bis rund 100 MB; größere werden nicht übertragen (Bluesky-Grenze).
-* **Nachgereichte Videos** landen als Antwort unter dem Beitrag, nicht im
-  Beitrag selbst — Bluesky kennt kein nachträgliches Ändern von Beiträgen.
-  Wird der Beitrag zwischenzeitlich gelöscht (etwa durch eine Bearbeitung im
-  WhatsApp-Kanal), scheitert das Nachreichen und der Vorgang wird nach
-  `video_retry_max_attempts` Versuchen verworfen.
-* Mehrere Bilder in einem Beitrag: Bluesky nimmt höchstens vier.
+  open). Only update once that is solved.
+* **Polls** are skipped: Bluesky has no such format.
+* **Voice messages need a detour to download.** Channel media sit unencrypted
+  behind `directPath` — images and videos therefore carry no `mediaKey` at all.
+  Voice messages drag one along, whereupon whatsmeow tries to decrypt and fails
+  with `invalid media hmac`. On exactly that error SkyRelay downloads a second
+  time without the key. Measured on 19.08.2026: **none** of 5 voice messages
+  downloaded the regular way, **all five** did without the key, byte for byte.
+* **Animated stickers** lose their movement — the first frame is carried over,
+  because Bluesky plays no animations.
+* **Voice messages** appear as video and therefore have no sensible image
+  description. Anyone who cares about accessibility should bear that in mind.
+* **The waveform colour:** `waveform_color` in `[audio]` takes ffmpeg *colour
+  names* only (`White`, `DodgerBlue`, …). Hex values such as `0x38BDF8` are
+  discarded silently by ffmpeg, which then draws green; SkyRelay warns about it
+  in the log.
+* **Videos** up to roughly 100 MB; larger ones are not carried over (Bluesky's
+  limit).
+* **Videos handed in later** end up as a reply below the post rather than in the
+  post itself — Bluesky has no way of changing a post after the fact. If the post
+  is deleted in the meantime (through an edit in the WhatsApp channel, say),
+  handing in fails and the job is dropped after `video_retry_max_attempts`
+  attempts.
+* Several images in one post: Bluesky takes at most four.
 
-## Risiken & Rechtliches
+## Risks and legal matters
 
-* **WhatsApp:** Der Zugriff erfolgt über einen inoffiziellen Client. Das verstößt
-  gegen die Nutzungsbedingungen und kann zur **Sperrung der Nummer** führen. Nutze
-  ausschließlich eine Nummer, deren Verlust dich nicht trifft — und niemals deine
-  private. Dasselbe gilt sinngemäß für das Instagram-Zweitkonto.
-* **Urheberrecht:** Du überträgst fremde Inhalte. Kläre für dich, ob du das darfst,
-  und kennzeichne den Bot als inoffiziell (die Beiträge tragen dafür einen Hinweis
-  samt Quellenangabe).
-* **Keine Verbindung** zu Meta, Bluesky oder einem Verein. Marken und Namen werden
-  ausschließlich beschreibend verwendet.
-* **Ohne Gewähr:** Die Schnittstellen sind inoffiziell und können sich jederzeit
-  ändern. Nutzung auf eigenes Risiko.
+* **WhatsApp:** access happens through an unofficial client. That breaches the
+  terms of service and can get the **number banned**. Use only a number whose
+  loss would not hurt you — and never your private one. The same applies to the
+  secondary Instagram account.
+* **Copyright:** you are carrying over someone else's content. Work out for
+  yourself whether you may, and mark the bot as unofficial (the posts carry a
+  notice and a source line for that).
+* **No connection** to Meta, Bluesky or any club. Trademarks and names are used
+  descriptively only.
+* **No warranty:** the interfaces are unofficial and can change at any time. Use
+  at your own risk.
 
-## Verwendete Projekte
+## Projects used
 
-SkyRelay ist im Wesentlichen Verdrahtung — die eigentliche Arbeit leisten diese
-Projekte, denen der Dank gebührt:
+SkyRelay is mostly wiring — the actual work is done by these projects, and the
+thanks belong to them:
 
-| Projekt | Wofür | Lizenz |
+| Project | What for | Licence |
 |---|---|---|
-| [neonize](https://github.com/krypton-byte/neonize) | Zugriff auf WhatsApp aus Python | Apache-2.0 |
-| [whatsmeow](https://github.com/tulir/whatsmeow) | die WhatsApp-Umsetzung, auf der neonize aufbaut | MPL-2.0 |
-| [atproto (Python SDK)](https://github.com/MarshalX/atproto) | Anbindung an Bluesky | MIT |
-| [Instaloader](https://github.com/instaloader/instaloader) | Abruf von Instagram-Beiträgen | MIT |
-| [Pillow](https://github.com/python-pillow/Pillow) | Bildbearbeitung und Komprimierung | HPND |
-| [Requests](https://github.com/psf/requests) | HTTP-Aufrufe | Apache-2.0 |
-| [Segno](https://github.com/heuer/segno) | QR-Code im Terminal für die Kopplung | BSD-3-Clause |
-| [OpenLigaDB](https://www.openligadb.de) | freie Spielplandaten (Spieltag, Anstoß, Gegner) | Community-Projekt |
+| [neonize](https://github.com/krypton-byte/neonize) | reaching WhatsApp from Python | Apache-2.0 |
+| [whatsmeow](https://github.com/tulir/whatsmeow) | the WhatsApp implementation neonize builds on | MPL-2.0 |
+| [atproto (Python SDK)](https://github.com/MarshalX/atproto) | talking to Bluesky | MIT |
+| [Instaloader](https://github.com/instaloader/instaloader) | fetching Instagram posts | MIT |
+| [Pillow](https://github.com/python-pillow/Pillow) | image processing and compression | HPND |
+| [Requests](https://github.com/psf/requests) | HTTP calls | Apache-2.0 |
+| [Segno](https://github.com/heuer/segno) | the QR code in the terminal for pairing | BSD-3-Clause |
+| [Babel](https://github.com/python-babel/babel) | building the translation catalogues | BSD-3-Clause |
+| [regex](https://github.com/mrabarnett/mrab-regex) | counting graphemes to UAX #29 | Apache-2.0 |
+| [OpenLigaDB](https://www.openligadb.de) | free fixture data (matchday, kickoff, opponent) | a community project |
 
-## Mitmachen
+## Contributing
 
-Verbesserungen sind willkommen — vor allem **Vereinskürzel**, die noch fehlen oder
-unüblich sind. Dafür muss man nicht programmieren können: Ein Issue mit Team-Nummer
-und Kürzel genügt. Wie das geht, steht in [CONTRIBUTING.md](CONTRIBUTING.md).
+Improvements are welcome — above all **club codes** that are missing or unusual.
+That takes no programming: an issue with the team number and the code is enough.
+How to go about it is in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Lizenz
+## Licence
 
-[PolyForm Noncommercial License 1.0.0](LICENSE) — nichtkommerzielle Nutzung ist
-frei, einschließlich Fanprojekten, gemeinnütziger Organisationen und
-Bildungseinrichtungen. Der Copyright-Hinweis muss dabei erhalten bleiben.
+[PolyForm Noncommercial License 1.0.0](LICENSE) — non-commercial use is free,
+including supporters' projects, non-profit organisations and educational
+institutions. The copyright notice has to be kept.
 
-**Kommerzielle Nutzung** — etwa durch Vereine als Wirtschaftsunternehmen,
-Medienhäuser oder werbefinanzierte Angebote — erfordert eine gesonderte Lizenz.
-Anfragen bitte über ein Issue in diesem Repository.
+**Commercial use** — by clubs as businesses, by media houses, or by
+advertising-funded offerings — requires a separate licence. Please ask through an
+issue in this repository.
 
-Hinweis: Das ist eine „source available"-Lizenz, keine Open-Source-Lizenz im Sinne
-der OSI — die Einschränkung auf nichtkommerzielle Nutzung ist damit unvereinbar.
+A note: this is a "source available" licence, not an open source licence in the
+OSI sense — the restriction to non-commercial use is incompatible with that.
