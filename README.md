@@ -181,6 +181,33 @@ Dasselbe gilt für `standing_hashtag`. In der Übersicht oben ist der Unterschie
 an der Herkunft ablesbar: `(Datei)` heißt „so steht es bei dir", `(Vorgabe)`
 heißt „das Programm hat entschieden".
 
+### Muss der Bot-Hinweis in jedem Beitrag stehen?
+
+Wenn die Bluesky-Biografie schon deutlich sagt, dass hier ein Bot schreibt, ist
+`⚽ [Inoffizieller Bot]` über jedem Beitrag verschenkter Platz — rund 22 Zeichen
+von 300:
+
+```ini
+[post]
+bot_notice = auto
+bot_notice_marker = Bot
+```
+
+| Wert | Bedeutung |
+|---|---|
+| `always` | immer (Vorgabe — so hat SkyRelay es immer gemacht) |
+| `never` | nie |
+| `auto` | nur, solange die Profilbeschreibung den Hinweis nicht selbst trägt |
+
+Bei `auto` wird die Beschreibung **einmal je Lauf** geprüft und das Ergebnis ins
+Protokoll geschrieben. Dabei übergeht SkyRelay die eigene Statuszeile: Die lautet
+„🟢 **Bot** ist an", und eine Suche nach „Bot" fände sonst immer das selbst
+Geschriebene statt dessen, was du in die Bio getippt hast.
+
+Lässt sich das Profil nicht lesen, bleibt der Hinweis stehen. Dasselbe gilt im
+Trockenlauf, der sich absichtlich nicht anmeldet — einen Haftungshinweis auf
+Verdacht wegzulassen wäre der schlimmere der beiden Fehler.
+
 ### Wie die Quellenangabe aussieht
 
 Welcher Teil der Zeile den Link trägt, entscheidet eine Vorlage. Was in

@@ -896,6 +896,8 @@ def m_posts(lines):
             "Beiträge und Profil", "Wie die Beiträge aussehen und was in der Bio steht.",
             [("tag", f"Dauer-Hashtag .....  {_show(lines, 'post', 'standing_hashtag', '– keiner –')}"),
              ("kopf", f"Kopfzeile .........  {_show(lines, 'post', 'prefix', short=30)}"),
+             ("hinweis", f"Kopfzeile zeigen ..  "
+                         f"{NOTICE_LABELS.get(read_value(lines, 'post', 'bot_notice'), 'immer')}"),
              ("vorlage", f"Quellen-Vorlage ...  {_show(lines, 'post', 'source_template', short=30)}"),
              ("quelle", f"Quelle (Ticker) ...  {_show(lines, 'post', 'source_label', short=30)}"),
              ("quelle_feed", f"Quelle (Feed) .....  {_show(lines, 'feed', 'source_label', short=30)}"),
@@ -915,6 +917,25 @@ def m_posts(lines):
                              read_value(lines, "post", "prefix"))
             if value is not None:
                 set_value(lines, "post", "prefix", value)
+        elif choice == "hinweis":
+            gewaehlt = tui.menu(
+                "Kopfzeile zeigen",
+                "Steht in der Bluesky-Biografie schon deutlich, dass hier ein\n"
+                "Bot schreibt, ist der Hinweis in jedem Beitrag verschenkter\n"
+                "Platz - bei 300 Zeichen zählt das.",
+                [(k, NOTICE_LABELS[k]) for k in ("always", "auto", "never")],
+                read_value(lines, "post", "bot_notice") or "always")
+            if gewaehlt is not None:
+                set_value(lines, "post", "bot_notice", gewaehlt)
+                if gewaehlt == "auto":
+                    value = tui.ask(
+                        "Wonach in der Biografie suchen?",
+                        "Die eigene Statuszeile wird dabei übergangen -\n"
+                        "sonst fände sich \"Bot\" immer im eigenen\n"
+                        "\"Bot ist an\".",
+                        read_value(lines, "post", "bot_notice_marker") or "Bot")
+                    if value:
+                        set_value(lines, "post", "bot_notice_marker", value)
         elif choice == "vorlage":
             value = tui.ask(
                 "Quellen-Vorlage",
@@ -1053,6 +1074,8 @@ BLOCK_LABELS = {
     "standing_hashtag": "Dauer-Hashtag",
 }
 POST_LABELS = {"first": "erster", "last": "letzter", "all": "jeder", "none": "gar nicht"}
+NOTICE_LABELS = {"always": "immer", "never": "nie",
+                 "auto": "nur wenn die Bio ihn nicht nennt"}
 SPOT_LABELS = {"top": "oben", "bottom": "unten"}
 
 
