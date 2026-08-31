@@ -171,6 +171,9 @@ mixed_placeholder = 📸🎥 Neuer Beitrag
 image_placeholder = 📸 Neues Bild
 # Ersatz für die Bildbeschreibung (Barrierefreiheit), wenn kein Text da ist.
 alt_text_fallback = News
+# Text der Folgebeiträge, wenn ein Instagram-Beitrag mehr Medien als Text hat
+# (z.B. ein Karussell mit mehreren Videos, aber nur einer kurzen Bildunterschrift).
+continuation_text = Weitere Inhalte...
 # Merkliste bereits übernommener Beiträge und eigene Protokolldatei.
 state = skyrelay_feed_posted.txt
 log = skyrelay-feed.log
