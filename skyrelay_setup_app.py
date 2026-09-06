@@ -310,13 +310,19 @@ Screen { layout: vertical; background: $surface; }
 
 #inhalt {
     width: 1fr;
-    padding: 1 3 2 3;
+    padding: 1 2 2 2;
+    align-horizontal: center;
 }
 
 /* Eine Zeile ist ab etwa 90 Zeichen schwer zu lesen - das Auge findet den
-   Anfang der naechsten nicht mehr. Auf einem breiten Terminal waechst
-   deshalb der Rand, nicht der Satz. */
-#bereichsname, #einleitung, .feld { max-width: 92; }
+   Anfang der naechsten nicht mehr. Der Satz waechst deshalb nicht mit dem
+   Fenster; die Spalte steht stattdessen in der Mitte, sonst klafft auf einem
+   breiten Terminal rechts ein Loch von hundert Spalten. */
+#spalte {
+    width: 1fr;
+    max-width: 96;
+    height: auto;
+}
 
 #bereichsname {
     height: auto;
@@ -346,7 +352,14 @@ Screen { layout: vertical; background: $surface; }
     padding-left: 1;
 }
 
-.feld Input, .feld Select { width: 64; }
+.feld Input, .feld Select {
+    /* Mitwachsen, aber nicht ueber die Spalte hinaus: bei 96 Spalten ist die
+       Spalte schmaler als ein festes Feld und das Feld liefe heraus. */
+    width: 1fr;
+    max-width: 68;
+    border: round $panel;
+}
+.feld Input:focus, .feld Select:focus { border: round $accent; }
 
 .feld Button { min-width: 34; }
 
@@ -605,9 +618,12 @@ class Assistent(App):
         self.aktueller = bereich
         inhalt = self.query_one("#inhalt", VerticalScroll)
         await inhalt.remove_children()
-        await inhalt.mount(Label(bereich.name, id="bereichsname"),
-                           Static(bereich.einleitung, id="einleitung"),
-                           *[self._feld_bauen(feld) for feld in bereich.felder])
+        spalte = _Gefuellt(
+            [Label(bereich.name, id="bereichsname"),
+             Static(bereich.einleitung, id="einleitung")]
+            + [self._feld_bauen(feld) for feld in bereich.felder],
+            id="spalte")
+        await inhalt.mount(spalte)
         inhalt.scroll_home(animate=False)
 
     def _feld_bauen(self, feld):
