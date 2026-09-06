@@ -46,6 +46,12 @@ in_git_repo() {
     git -C "$SCRIPT_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1
 }
 
+# Nur verfolgte Dateien zaehlen. Unverfolgte - Zustandsdateien, Logs, eigene
+# Sicherungskopien - stehen einem "pull --ff-only" nicht im Weg, und wer sie
+# hier mitzaehlt, blockiert jede Aktualisierung auf einer Maschine, die
+# tatsaechlich laeuft. Den seltenen Fall, dass ein neuer Commit eine Datei
+# mitbringt, die hier schon unverfolgt herumliegt, meldet git beim Holen
+# selbst und mit Namen - dafuer ist Schritt 2 da.
 local_changes() {
-    [ -n "$(git -C "$SCRIPT_DIR" status --porcelain 2>/dev/null)" ]
+    [ -n "$(git -C "$SCRIPT_DIR" status --porcelain --untracked-files=no 2>/dev/null)" ]
 }

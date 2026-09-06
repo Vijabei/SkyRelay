@@ -7,7 +7,13 @@
 # Instagram-Session (instaloader)
 session-*
 
-# Zustandsdateien des Tickers / Reposters
+# Zustandsdateien des Tickers / Reposters. Die Namen stehen in der
+# Konfiguration und lassen sich aendern - deshalb ein Muster und nicht drei
+# feste Namen. Die alten Namen bleiben stehen, damit eine Installation, die
+# noch nicht umgezogen ist, sie weiterhin ignoriert.
+skyrelay_state*
+skyrelay_posts*
+skyrelay_feed_posted*
 dsc_ticker_state.txt
 dsc_ticker_posts.json
 posted_shortcodes.txt
@@ -26,6 +32,11 @@ skyrelay_nachreichen/
 # === Lokale Konfiguration (enthält Kanal-Link und Kontodaten) ===
 # Die Vorlage skyrelay.conf.example bleibt im Repository, die eigene nicht.
 skyrelay.conf
+# Eigene Sicherungskopien davor (skyrelay.conf.vor-sgs, .bak, ...). Sie
+# enthalten dieselben Kontodaten wie das Original und gehoeren genauso wenig
+# ins Repository - die Vorlage dagegen schon, daher die Ausnahme.
+skyrelay.conf.*
+!skyrelay.conf.example
 *.local.conf
 config.ini
 .env

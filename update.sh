@@ -26,13 +26,14 @@ in_git_repo || abort "Das hier ist keine git-Arbeitskopie." \
 
 if local_changes; then
     fail "Es gibt lokale Änderungen - sie würden beim Holen im Weg stehen."
-    git -C "$SCRIPT_DIR" status --short | sed 's/^/    /'
+    git -C "$SCRIPT_DIR" status --short --untracked-files=no | sed 's/^/    /'
     printf '\n    Entweder sichern und zurücknehmen:\n'
     printf '      git stash\n'
     printf '    oder behalten und selbst zusammenführen:\n'
     printf '      git pull --rebase\n'
-    printf '\n    Die eigene skyrelay.conf ist nicht gemeint - die steht in\n'
-    printf '    .gitignore und taucht hier gar nicht auf.\n'
+    printf '\n    Die eigene skyrelay.conf ist nicht gemeint, ebenso wenig\n'
+    printf '    Zustandsdateien, Logs und eigene Sicherungskopien - die\n'
+    printf '    stehen in .gitignore und tauchen hier gar nicht auf.\n'
     exit 1
 fi
 ok "keine lokalen Änderungen"
