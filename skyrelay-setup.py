@@ -267,6 +267,77 @@ def set_team_codes(lines, codes):
     return True
 
 
+def read_league_hashtags(lines):
+    """The [league_hashtags] table as {shortcut: tag}."""
+    table = {}
+    section = None
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("[") and stripped.endswith("]"):
+            section = stripped.strip("[]")
+        elif section == "league_hashtags" and "=" in stripped \
+                and not stripped.startswith("#"):
+            league, tag = stripped.split("=", 1)
+            if league.strip():
+                table[league.strip().lower()] = tag.strip().lstrip("#")
+    return table
+
+
+# A commented out entry, as the template carries two of them by way of
+# example: "# bl2 = arminia". Prose that happens to contain an equals sign is
+# not one - the part in front of it has to look like a key.
+_EXAMPLE = re.compile(r"^#\s*[A-Za-z0-9_-]+\s*=")
+
+
+def _is_example(line):
+    """Is this a commented out entry rather than an explanation?
+
+    Once real entries stand below them, the examples only confuse - two lines
+    saying bl2, one of them without effect."""
+    return bool(_EXAMPLE.match(line.strip()))
+
+
+def set_league_hashtags(lines, table):
+    """Replaces the contents of [league_hashtags], keeping its comments.
+
+    Creates the section where there is none: it is younger than most
+    configurations, and topping up does not reach free tables."""
+    start = end = None
+    for i, line in enumerate(lines):
+        if line.strip() == "[league_hashtags]":
+            start = i
+        elif start is not None and line.startswith("[") and i > start:
+            end = i
+            break
+
+    entries = [f"{league} = {tag}\n"
+               for league, tag in sorted(table.items()) if tag]
+
+    if start is None:
+        # In front of [team_codes], where the template has it - both are
+        # tables about the same fixture data and belong side by side.
+        where = next((i for i, line in enumerate(lines)
+                      if line.strip() == "[team_codes]"), len(lines))
+        # German, like the rest of the file: this is a comment in the
+        # configuration, not something the interface says.
+        lines[where:where] = [
+            "[league_hashtags]\n",
+            "# Ein eigener Dauer-Hashtag je Liga - für Vereine, die ihre\n",
+            "# Mannschaften unterschiedlich kennzeichnen (#arminia für die\n",
+            "# Männer, #arminiafrauen für die Frauen).\n",
+            "# Format:  <Ligakürzel> = <Hashtag ohne #>\n",
+            "# Ohne passenden Eintrag gilt [post] standing_hashtag.\n",
+        ] + entries + ["\n"]
+        return True
+
+    end = end if end is not None else len(lines)
+    header = [z for z in lines[start:end]
+              if (z.startswith("#") or z.strip() == "[league_hashtags]")
+              and not (entries and _is_example(z))]
+    lines[start:end] = header + entries + ["\n"]
+    return True
+
+
 # ----------------------------------------------------------------- subject
 def suggest_code(team):
     """Returns the code in common use, otherwise one derived from the name.
@@ -553,6 +624,8 @@ def main():
         mark = ask(_("Dauer-Hashtag (ohne #, leer = keiner)"),
                    current_value("post", "standing_hashtag"))
         set_value(lines, "post", "standing_hashtag", mark)
+        note(_("Mehrere Mannschaften mit eigenen Hashtags? Später im Menü "
+               "unter „Beiträge und Profil“ → „Hashtag je Liga“."))
         set_value(lines, "post", "prefix", current_value("post", "prefix") or W["prefix"])
         label = ask("Beschriftung des Quell-Links",
                     current_value("post", "source_label") or W["source"])
@@ -911,6 +984,62 @@ def m_feed(lines):
                 set_value(lines, "feed", "bluesky_handle", "")
 
 
+def _league_summary(lines):
+    """What the menu line shows: which league carries which tag."""
+    table = {league: tag for league, tag in read_league_hashtags(lines).items() if tag}
+    if not table:
+        return _("– keiner –")
+    return ", ".join(f"{league}→#{tag}" for league, tag in sorted(table.items()))
+
+
+def m_league_hashtags(lines):
+    """A standing hashtag per league.
+
+    Clubs that run several teams through one channel label them differently -
+    #arminia for the men, #arminiafrauen for the women. Which team is playing
+    is exactly what the league says, so that is what the tag hangs on."""
+    while True:
+        leagues = [s.strip().lower() for s
+                   in (read_value(lines, "team", "league_shortcuts") or "").split(",")
+                   if s.strip()]
+        if not leagues:
+            tui.message(_("Noch keine Ligen"),
+                        _("Trage zuerst unter „Spieltags-Ticker“ die Ligen ein,\n"
+                          "in denen deine Mannschaften spielen."))
+            return
+
+        table = read_league_hashtags(lines)
+        standing = read_value(lines, "post", "standing_hashtag")
+        entries = []
+        for league in leagues:
+            if table.get(league):
+                entries.append((league, f"{league:14} #{table[league]}"))
+            elif standing:
+                entries.append((league, _f("{league} (Dauer-Hashtag: #{tag})",
+                                           league=f"{league:14}", tag=standing)))
+            else:
+                entries.append((league, _f("{league} – keiner –",
+                                           league=f"{league:14}")))
+
+        choice = tui.choose(
+            _("Hashtag je Liga"),
+            _("Wer seine Mannschaften unterschiedlich kennzeichnet, hinterlegt\n"
+              "hier je Liga einen Hashtag. Ohne Eintrag gilt der Dauer-Hashtag.\n"
+              "Spielen mehrere am selben Tag, stehen alle zugehörigen im Beitrag.\n"
+              "Liga wählen zum Ändern."),
+            entries)
+        if choice is None:
+            return
+
+        value = tui.ask(_("Hashtag der Liga"),
+                        _f("Hashtag für „{league}“, ohne #\n"
+                           "(leer = es gilt der Dauer-Hashtag):", league=choice),
+                        table.get(choice, ""))
+        if value is not None:
+            table[choice] = value.strip().lstrip("#")
+            set_league_hashtags(lines, table)
+
+
 def m_posts(lines):
     """Post texts and the profile status line."""
     while True:
@@ -920,6 +1049,8 @@ def m_posts(lines):
             [("tag", _f("Dauer-Hashtag .....  {value}",
                          value=_show(lines, "post", "standing_hashtag",
                                      _("– keiner –")))),
+             ("liga", _f("Hashtag je Liga ...  {value}",
+                         value=_league_summary(lines))),
              ("kopf", _f("Kopfzeile .........  {value}",
                          value=_show(lines, "post", "prefix", short=30))),
              ("hinweis", _f("Kopfzeile zeigen ..  {value}",
@@ -942,6 +1073,8 @@ def m_posts(lines):
                              read_value(lines, "post", "standing_hashtag"))
             if value is not None:
                 set_value(lines, "post", "standing_hashtag", value.lstrip("#"))
+        elif choice == "liga":
+            m_league_hashtags(lines)
         elif choice == "kopf":
             value = tui.ask("Kopfzeile",
                              _("Erste Zeile jedes Hauptbeitrags\n"
