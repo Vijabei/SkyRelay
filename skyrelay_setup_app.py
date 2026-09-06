@@ -295,18 +295,28 @@ Screen { layout: vertical; background: $surface; }
 
 #rahmen { height: 1fr; }
 
+/* "height: 1fr" ist hier nicht Geschmack, sondern noetig: ohne das misst
+   sich die Liste an ihrem Inhalt und wird sieben Zeilen hoch - eine je
+   Eintrag. Ein Polster an den Eintraegen selbst geht in diese Rechnung nicht
+   ein, gezeichnet wird aber damit; was dann nicht mehr hineinpasst, bleibt
+   schlicht leer. Genau so verschwanden die Menuepunkte. */
 #navigation {
-    width: 36;
+    width: 34;
+    height: 1fr;
     border-right: solid $panel;
-    padding: 1 0;
+    padding: 1 1;
     background: $surface;
 }
-#navigation > .option-list--option { padding: 1 2; }
 
 #inhalt {
     width: 1fr;
     padding: 1 3 2 3;
 }
+
+/* Eine Zeile ist ab etwa 90 Zeichen schwer zu lesen - das Auge findet den
+   Anfang der naechsten nicht mehr. Auf einem breiten Terminal waechst
+   deshalb der Rand, nicht der Satz. */
+#bereichsname, #einleitung, .feld { max-width: 92; }
 
 #bereichsname {
     height: auto;
