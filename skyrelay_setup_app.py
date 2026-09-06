@@ -1081,10 +1081,23 @@ class Assistent(App):
     async def tue_thema(self):
         jetzt = self.theme
         moeglich = sorted(self.available_themes)
+
+        # Wenn das Terminal nur wenige Farben meldet, sieht JEDES Thema grau
+        # aus. Das gehoert genau hierhin gesagt - hier faellt es auf, und
+        # hier wuerde man sonst weiter Themen durchprobieren.
+        hinweis = _("Wähle einen aus – er wirkt sofort. Abbrechen stellt den "
+                    "vorherigen wieder her.")
+        system = self.console.color_system
+        if system not in ("truecolor", "windows"):
+            hinweis += "\n\n" + _f(
+                "Achtung: Dieses Terminal meldet nur {system} – deshalb wirken "
+                "alle Töne blass oder grau, egal welcher gewählt ist. Abhilfe "
+                "vor dem Start:  export COLORTERM=truecolor",
+                system=_("16 Farben") if system in (None, "standard")
+                       else _("256 Farben"))
+
         wahl = await self.push_screen_wait(Auswahl(
-            _("Farbton der Oberfläche"),
-            _("Wähle einen aus – er wirkt sofort. Abbrechen stellt den "
-              "vorherigen wieder her."),
+            _("Farbton der Oberfläche"), hinweis,
             [(name, name) for name in moeglich], filtern=True))
         if not wahl:
             self.theme = jetzt

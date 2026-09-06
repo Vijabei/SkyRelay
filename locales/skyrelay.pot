@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SkyRelay VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-06 19:57+0200\n"
+"POT-Creation-Date: 2026-09-06 20:08+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -516,7 +516,7 @@ msgid ""
 msgstr ""
 
 #: skyrelay-setup.py:732 skyrelay-setup.py:1486 skyrelay_setup_app.py:607
-#: skyrelay_setup_app.py:1138 skyrelay_setup_app.py:1143
+#: skyrelay_setup_app.py:1151 skyrelay_setup_app.py:1156
 msgid "Speichern"
 msgstr ""
 
@@ -1128,7 +1128,7 @@ msgstr ""
 msgid "{entry!r} ist keine Zahl - die Reihenfolge bleibt bei {order}."
 msgstr ""
 
-#: skyrelay-setup.py:1384 skyrelay_setup_app.py:1102
+#: skyrelay-setup.py:1384 skyrelay_setup_app.py:1115
 msgid "Nur eine Sprache verfügbar"
 msgstr ""
 
@@ -1142,7 +1142,7 @@ msgid ""
 "Wer eine Sprache beisteuern möchte: siehe CONTRIBUTING.md."
 msgstr ""
 
-#: skyrelay-setup.py:1391 skyrelay-setup.py:1437 skyrelay_setup_app.py:1108
+#: skyrelay-setup.py:1391 skyrelay-setup.py:1437 skyrelay_setup_app.py:1121
 msgid "Sprache / Language"
 msgstr ""
 
@@ -1196,7 +1196,7 @@ msgstr ""
 msgid "Beenden"
 msgstr ""
 
-#: skyrelay-setup.py:1467 skyrelay_setup_app.py:1159
+#: skyrelay-setup.py:1467 skyrelay_setup_app.py:1172
 msgid "Ungespeicherte Änderungen"
 msgstr ""
 
@@ -1207,12 +1207,12 @@ msgid ""
 "Jetzt speichern?"
 msgstr ""
 
-#: skyrelay-setup.py:1481 skyrelay_setup_app.py:1132
+#: skyrelay-setup.py:1481 skyrelay_setup_app.py:1145
 #, python-brace-format
 msgid "Ticker:  WhatsApp-Kanal  →  @{handle}"
 msgstr ""
 
-#: skyrelay-setup.py:1482 skyrelay_setup_app.py:1133
+#: skyrelay-setup.py:1482 skyrelay_setup_app.py:1146
 msgid "Ticker:  – kein Konto –"
 msgstr ""
 
@@ -1607,7 +1607,7 @@ msgid ""
 "Erklärungen aus der Vorlage. Vorhandene Werte bleiben unberührt."
 msgstr ""
 
-#: skyrelay_setup_app.py:287 skyrelay_setup_app.py:1085
+#: skyrelay_setup_app.py:287 skyrelay_setup_app.py:1100
 msgid "Farbton der Oberfläche"
 msgstr ""
 
@@ -1869,13 +1869,29 @@ msgstr ""
 msgid "Nachtragen"
 msgstr ""
 
-#: skyrelay_setup_app.py:1086
+#: skyrelay_setup_app.py:1088
 msgid ""
 "Wähle einen aus – er wirkt sofort. Abbrechen stellt den vorherigen wieder"
 " her."
 msgstr ""
 
-#: skyrelay_setup_app.py:1103
+#: skyrelay_setup_app.py:1093
+#, python-brace-format
+msgid ""
+"Achtung: Dieses Terminal meldet nur {system} – deshalb wirken alle Töne "
+"blass oder grau, egal welcher gewählt ist. Abhilfe vor dem Start:  export"
+" COLORTERM=truecolor"
+msgstr ""
+
+#: skyrelay_setup_app.py:1096
+msgid "16 Farben"
+msgstr ""
+
+#: skyrelay_setup_app.py:1097
+msgid "256 Farben"
+msgstr ""
+
+#: skyrelay_setup_app.py:1116
 msgid ""
 "Übersetzt ist bisher nur die Ausgangssprache.\n"
 "\n"
@@ -1883,18 +1899,18 @@ msgid ""
 "    tools/i18n.sh compile"
 msgstr ""
 
-#: skyrelay_setup_app.py:1109
+#: skyrelay_setup_app.py:1122
 msgid ""
 "Gilt für diesen Assistenten. Protokoll und Konsolenausgabe der Bots "
 "bleiben englisch."
 msgstr ""
 
-#: skyrelay_setup_app.py:1135
+#: skyrelay_setup_app.py:1148
 #, python-brace-format
 msgid "Feed:    @{profil}  →  @{handle}"
 msgstr ""
 
-#: skyrelay_setup_app.py:1140
+#: skyrelay_setup_app.py:1153
 #, python-brace-format
 msgid ""
 "\n"
@@ -1903,30 +1919,30 @@ msgid ""
 " gesichert."
 msgstr ""
 
-#: skyrelay_setup_app.py:1147
+#: skyrelay_setup_app.py:1160
 msgid "Nicht gespeichert"
 msgstr ""
 
-#: skyrelay_setup_app.py:1153
+#: skyrelay_setup_app.py:1166
 msgid "Gespeichert"
 msgstr ""
 
-#: skyrelay_setup_app.py:1160
+#: skyrelay_setup_app.py:1173
 msgid ""
 "Es gibt Änderungen, die noch nicht in der Datei stehen.\n"
 "\n"
 "Wirklich beenden und verwerfen?"
 msgstr ""
 
-#: skyrelay_setup_app.py:1162
+#: skyrelay_setup_app.py:1175
 msgid "Verwerfen und beenden"
 msgstr ""
 
-#: skyrelay_setup_app.py:1172
+#: skyrelay_setup_app.py:1185
 msgid "Bedienung"
 msgstr ""
 
-#: skyrelay_setup_app.py:1173
+#: skyrelay_setup_app.py:1186
 msgid ""
 "Tab / Umschalt+Tab   zwischen den Feldern\n"
 "Pfeiltasten          in der Liste links und in Auswahlfenstern\n"

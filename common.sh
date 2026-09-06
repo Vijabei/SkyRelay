@@ -40,6 +40,23 @@ require_venv() {
         "Zuerst ./install.sh ausführen."
 }
 
+# Wie viele Farben meldet dieses Terminal? Rich - womit das Fenster malt -
+# entscheidet das an COLORTERM und TERM, nicht durch Nachfragen beim
+# Terminal. Ohne COLORTERM und ohne "256color" im TERM bleiben 16 Farben
+# uebrig, und dann werden aus gedeckten Toenen fast nur Grautoene.
+#
+# Ueber SSH faellt das besonders leicht hinein: TERM wird uebertragen,
+# COLORTERM nicht - das muesste die Gegenstelle in AcceptEnv erlauben.
+farben() {
+    if [ -n "${COLORTERM:-}" ]; then
+        echo "viele"
+    elif case "${TERM:-}" in *256color*) true ;; *) false ;; esac; then
+        echo "256"
+    else
+        echo "wenige"
+    fi
+}
+
 # Is this a git working copy, and is it untouched? Both scripts that pull need
 # to know, and neither may overwrite someone's local edits.
 in_git_repo() {

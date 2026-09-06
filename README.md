@@ -183,7 +183,16 @@ codes – typing filters them: three letters instead of twenty presses of the
 arrow key.
 
 It is laid out for at least 96×28 characters and says so when the window is
-smaller. `F1` shows the keys, `Ctrl+S` saves, `Ctrl+Q` quits.
+smaller. `F1` shows the keys, `Ctrl+S` saves, `Ctrl+Q` quits. The colours
+live in `[general] theme` and can be changed from inside the assistant.
+
+**Everything looks grey?** Then the terminal reports only 16 colours. How many
+it may use is decided by `COLORTERM` and `TERM` – and SSH does not carry
+`COLORTERM` along. `./config.sh` says so at startup and names the remedy:
+
+```bash
+echo 'export COLORTERM=truecolor' >> ~/.bashrc
+```
 
 If `textual` is missing (it is in `requirements.txt`), the assistant falls
 back to asking line by line; `SKYRELAY_SETUP_TEXT=1` forces that mode. The

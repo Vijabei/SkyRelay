@@ -181,6 +181,15 @@ genügt Tippen, um zu filtern: drei Buchstaben statt zwanzig Pfeiltasten.
 
 Er ist für mindestens 96×28 Zeichen gebaut und sagt es, wenn das Fenster kleiner
 ist. `F1` zeigt die Tastenbelegung, `Strg+S` speichert, `Strg+Q` beendet.
+Der Farbton steht in `[general] theme` und lässt sich im Assistenten wechseln.
+
+**Sieht alles grau aus?** Dann meldet das Terminal nur 16 Farben. Wieviele es
+sein dürfen, entscheiden `COLORTERM` und `TERM` – und über SSH wird `COLORTERM`
+nicht mitgeschickt. `./config.sh` sagt es beim Start und nennt die Abhilfe:
+
+```bash
+echo 'export COLORTERM=truecolor' >> ~/.bashrc
+```
 
 Fehlt `textual` (es steht in `requirements.txt`), fällt der Assistent
 automatisch auf eine zeilenweise Abfrage zurück; erzwingen lässt sie sich mit

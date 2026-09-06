@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SkyRelay VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-06 19:57+0200\n"
+"POT-Creation-Date: 2026-09-06 20:08+0200\n"
 "PO-Revision-Date: 2026-09-01 01:27+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -533,7 +533,7 @@ msgstr ""
 "Cancelled - nothing was changed. Start the assistant again."
 
 #: skyrelay-setup.py:732 skyrelay-setup.py:1486 skyrelay_setup_app.py:607
-#: skyrelay_setup_app.py:1138 skyrelay_setup_app.py:1143
+#: skyrelay_setup_app.py:1151 skyrelay_setup_app.py:1156
 msgid "Speichern"
 msgstr "Save"
 
@@ -1234,7 +1234,7 @@ msgstr "Not a number"
 msgid "{entry!r} ist keine Zahl - die Reihenfolge bleibt bei {order}."
 msgstr "{entry!r} is not a number - the order stays at {order}."
 
-#: skyrelay-setup.py:1384 skyrelay_setup_app.py:1102
+#: skyrelay-setup.py:1384 skyrelay_setup_app.py:1115
 msgid "Nur eine Sprache verfügbar"
 msgstr "Only one language available"
 
@@ -1254,7 +1254,7 @@ msgstr ""
 "\n"
 "If you would like to contribute a language: see CONTRIBUTING.md."
 
-#: skyrelay-setup.py:1391 skyrelay-setup.py:1437 skyrelay_setup_app.py:1108
+#: skyrelay-setup.py:1391 skyrelay-setup.py:1437 skyrelay_setup_app.py:1121
 msgid "Sprache / Language"
 msgstr "Language / Sprache"
 
@@ -1313,7 +1313,7 @@ msgstr "Save and quit"
 msgid "Beenden"
 msgstr "Quit"
 
-#: skyrelay-setup.py:1467 skyrelay_setup_app.py:1159
+#: skyrelay-setup.py:1467 skyrelay_setup_app.py:1172
 msgid "Ungespeicherte Änderungen"
 msgstr "Unsaved changes"
 
@@ -1327,12 +1327,12 @@ msgstr ""
 "\n"
 "Save them now?"
 
-#: skyrelay-setup.py:1481 skyrelay_setup_app.py:1132
+#: skyrelay-setup.py:1481 skyrelay_setup_app.py:1145
 #, python-brace-format
 msgid "Ticker:  WhatsApp-Kanal  →  @{handle}"
 msgstr "Ticker:  WhatsApp channel  →  @{handle}"
 
-#: skyrelay-setup.py:1482 skyrelay_setup_app.py:1133
+#: skyrelay-setup.py:1482 skyrelay_setup_app.py:1146
 msgid "Ticker:  – kein Konto –"
 msgstr "Ticker:  – no account –"
 
@@ -1851,7 +1851,7 @@ msgstr ""
 "the template. Existing values are left untouched."
 
 # | msgid "Sprache der Oberfläche"
-#: skyrelay_setup_app.py:287 skyrelay_setup_app.py:1085
+#: skyrelay_setup_app.py:287 skyrelay_setup_app.py:1100
 msgid "Farbton der Oberfläche"
 msgstr "Colours of the interface"
 
@@ -2192,16 +2192,35 @@ msgstr ""
 msgid "Nachtragen"
 msgstr "Top up"
 
-#: skyrelay_setup_app.py:1086
+#: skyrelay_setup_app.py:1088
 msgid ""
 "Wähle einen aus – er wirkt sofort. Abbrechen stellt den vorherigen wieder"
 " her."
 msgstr "Pick one - it takes effect at once. Cancelling puts the previous one back."
 
+#: skyrelay_setup_app.py:1093
+#, python-brace-format
+msgid ""
+"Achtung: Dieses Terminal meldet nur {system} – deshalb wirken alle Töne "
+"blass oder grau, egal welcher gewählt ist. Abhilfe vor dem Start:  export"
+" COLORTERM=truecolor"
+msgstr ""
+"Careful: this terminal reports only {system}, which is why every theme "
+"looks pale or grey whichever one is picked. The remedy, before starting:"
+"  export COLORTERM=truecolor"
+
+#: skyrelay_setup_app.py:1096
+msgid "16 Farben"
+msgstr "16 colours"
+
+#: skyrelay_setup_app.py:1097
+msgid "256 Farben"
+msgstr "256 colours"
+
 # | msgid "" "Übersetzt ist bisher nur die Ausgangssprache.\n" "\n" "Kataloge
 # | werden gebaut, nicht mitgeliefert:\n" "    tools/i18n.sh compile\n" "\n"
 # | "Wer eine Sprache beisteuern möchte: siehe CONTRIBUTING.md."
-#: skyrelay_setup_app.py:1103
+#: skyrelay_setup_app.py:1116
 msgid ""
 "Übersetzt ist bisher nur die Ausgangssprache.\n"
 "\n"
@@ -2215,19 +2234,19 @@ msgstr ""
 
 # | msgid "" "Gilt für diesen Assistenten. Protokoll und Konsolenausgabe\n"
 # | "bleiben englisch."
-#: skyrelay_setup_app.py:1109
+#: skyrelay_setup_app.py:1122
 msgid ""
 "Gilt für diesen Assistenten. Protokoll und Konsolenausgabe der Bots "
 "bleiben englisch."
 msgstr "Applies to this assistant. The bots' log and console output stay English."
 
 # | msgid "Feed:    @{profile}  →  @{handle}"
-#: skyrelay_setup_app.py:1135
+#: skyrelay_setup_app.py:1148
 #, python-brace-format
 msgid "Feed:    @{profil}  →  @{handle}"
 msgstr "Feed:    @{profil}  →  @{handle}"
 
-#: skyrelay_setup_app.py:1140
+#: skyrelay_setup_app.py:1153
 #, python-brace-format
 msgid ""
 "\n"
@@ -2240,16 +2259,16 @@ msgstr ""
 "Write to {datei}? The previous version is backed up as {datei}.bak first."
 
 # | msgid "– nicht gesetzt –"
-#: skyrelay_setup_app.py:1147
+#: skyrelay_setup_app.py:1160
 msgid "Nicht gespeichert"
 msgstr "Not saved"
 
 # | msgid "Speichern"
-#: skyrelay_setup_app.py:1153
+#: skyrelay_setup_app.py:1166
 msgid "Gespeichert"
 msgstr "Saved"
 
-#: skyrelay_setup_app.py:1160
+#: skyrelay_setup_app.py:1173
 msgid ""
 "Es gibt Änderungen, die noch nicht in der Datei stehen.\n"
 "\n"
@@ -2260,16 +2279,16 @@ msgstr ""
 "Really quit and discard them?"
 
 # | msgid "Speichern und beenden"
-#: skyrelay_setup_app.py:1162
+#: skyrelay_setup_app.py:1175
 msgid "Verwerfen und beenden"
 msgstr "Discard and quit"
 
 # | msgid "Beenden"
-#: skyrelay_setup_app.py:1172
+#: skyrelay_setup_app.py:1185
 msgid "Bedienung"
 msgstr "How to work it"
 
-#: skyrelay_setup_app.py:1173
+#: skyrelay_setup_app.py:1186
 msgid ""
 "Tab / Umschalt+Tab   zwischen den Feldern\n"
 "Pfeiltasten          in der Liste links und in Auswahlfenstern\n"
