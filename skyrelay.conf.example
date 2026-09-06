@@ -59,6 +59,20 @@ league_shortcuts =
 timezone = Europe/Berlin
 
 
+[league_hashtags]
+# Ein eigener Dauer-Hashtag je Liga - für Vereine, die ihre Mannschaften
+# unterschiedlich kennzeichnen (#arminia für die Männer, #arminiafrauen
+# für die Frauen). Welche Mannschaft spielt, sagt genau die Liga.
+# Format:  <Ligakürzel> = <Hashtag ohne #>
+# Die Kürzel sind dieselben wie in [team] league_shortcuts; welche wirklich
+# vorkommen, nennt der Ticker beim Start im Protokoll.
+# Ohne passenden Eintrag gilt [post] standing_hashtag.
+# Spielen mehrere Mannschaften am selben Tag, stehen ALLE zugehörigen
+# Hashtags auf dem Beitrag. Beim Spiel-Hashtag ist das anders: der wäre
+# dann schlicht falsch und weicht [post] overlap_hashtag.
+# bl2 = arminia
+# rlw-frauen = arminiafrauen
+
 [team_codes]
 # Kürzel für die Hashtag-Bildung: Heimteam + Auswärtsteam ergibt z.B. #KSCDSC.
 # Format:  <OpenLigaDB-Team-Nummer> = <Kürzel>
@@ -117,6 +131,9 @@ source_template = 🔗 [Quelle]: {label}
 #   venv/bin/python skyrelay-matchday.py --show-config
 source_label = WhatsApp-Kanal des Vereins
 # Hashtag, der unter jedem Beitrag steht (ohne #). Leer lassen für keinen.
+# Wer seine Mannschaften unterschiedlich kennzeichnet, hinterlegt sie in
+# [league_hashtags] - an Spieltagen dieser Liga gilt dann der Eintrag von
+# dort statt dieses Werts.
 standing_hashtag = arminia
 # Spielen an einem Tag mehrere Mannschaften des Vereins (z.B. Herren und
 # Frauen), laesst sich einer Kanal-Nachricht nicht ansehen, zu welcher Partie
@@ -165,7 +182,8 @@ prefix = first ; top ; 1
 source = first ; top ; 2
 # Der aus dem Spielplan gebildete Hashtag - nur der Ticker hat einen.
 match_hashtag = last ; bottom ; 1
-# Der Dauer-Hashtag aus [post] standing_hashtag.
+# Der Dauer-Hashtag aus [post] standing_hashtag - bzw. aus
+# [league_hashtags], wenn für die Liga des Tages dort etwas steht.
 standing_hashtag = last ; bottom ; 2
 
 

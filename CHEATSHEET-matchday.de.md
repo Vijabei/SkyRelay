@@ -158,6 +158,7 @@ Sie steht in `.gitignore` und gehört **nicht** ins Repository.
 | `[team] timezone` | Zeitzone für Anstoß und Tagesende |
 | `[team_codes]` | Kürzel je Team-Nummer für die Hashtag-Bildung. **Pokalgegner ggf. nachtragen** — unbekannte Teams bekommen ein 3-Buchstaben-Ersatzkürzel plus Warnung im Log. |
 | `[post] prefix` / `source_label` / `standing_hashtag` | Kopfzeile, Beschriftung des Quell-Links und Dauer-Hashtag jedes Beitrags |
+| `[league_hashtags]` | Ein Dauer-Hashtag je Liga, als `<Kürzel> = <Hashtag>` — für Vereine, die ihre Mannschaften unterschiedlich kennzeichnen (`bl2 = arminia`, `rlw-frauen = arminiafrauen`). Welche Mannschaft spielt, sagt genau die Liga. Ohne passenden Eintrag gilt `[post] standing_hashtag`. Spielen mehrere Mannschaften an einem Tag, stehen alle zugehörigen Hashtags auf dem Beitrag — anders als der Spiel-Hashtag, der dann falsch wäre und `[post] overlap_hashtag` weicht. |
 | `[post] image_placeholder` / `video_placeholder` / `video_hint` | Texte für Beiträge ohne eigenen Text bzw. bei fehlgeschlagenem Video-Upload |
 | `[profile] enabled` / `marker` / `line_on` / `line_off` / `line_off_no_match` | Bio-Statuszeile. Platzhalter: `{info}` („1. Spieltag" / „DFB-Pokal, 1. Runde" / `fallback_match_info`), `{hashtag}`, `{date}`, `{time}` |
 | `[schedule] day_end` | Wann sich der Ticker selbst beendet (Standard `23:59`) |

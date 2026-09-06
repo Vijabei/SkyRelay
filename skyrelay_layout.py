@@ -377,9 +377,22 @@ def source_block(template, label, url):
 
 
 def tag_block(tag):
-    """A writer for a hashtag block - None when there is no tag."""
-    if not tag:
+    """A writer for a hashtag block - None when there is no tag.
+
+    One tag or several: a club that labels its teams differently hands in a
+    list, and they end up on one line separated by a space. Each one is written
+    as its own tag, so every one of them stays clickable."""
+    tags = [tag] if isinstance(tag, str) else list(tag or [])
+    tags = [t.strip().lstrip("#") for t in tags if t and t.strip().strip("#")]
+    if not tags:
         return None
-    return lambda tb: tb.tag(f"#{tag}", tag)
+
+    def write(tb):
+        for position, one in enumerate(tags):
+            if position:
+                tb.text(" ")
+            tb.tag(f"#{one}", one)
+
+    return write
 
 

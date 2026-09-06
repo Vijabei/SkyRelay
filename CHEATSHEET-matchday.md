@@ -174,6 +174,7 @@ It is created from the template: `cp skyrelay.conf.example skyrelay.conf`, or by
 | `[team_codes]` | The code per team number for building the hashtag. **Add cup opponents as needed** — unknown teams get a three letter stand-in plus a warning in the log. |
 | `[layout]` | Where header, source and hashtags go — one line per block, `posts ; spot ; order`. See the README. |
 | `[post] prefix` / `source_template` / `source_label` / `standing_hashtag` | The header, how the source line looks, the label of its link, and the standing hashtag on every post |
+| `[league_hashtags]` | A standing hashtag per league, written as `<shortcut> = <tag>` — for a club that labels its teams differently (`bl2 = arminia`, `rlw-frauen = arminiafrauen`). Which team is playing is exactly what the league says. Without a matching entry `[post] standing_hashtag` applies. When several teams play on one day, every tag that belongs to them goes on the post — unlike the match hashtag, which would then be wrong and gives way to `[post] overlap_hashtag`. |
 | `[post] bot_notice` / `bot_notice_marker` | Whether the header appears at all: `always`, `never`, or `auto` (only while the bio does not mention it itself) |
 | `[post] image_placeholder` / `video_placeholder` / `video_hint` | Texts for posts without text of their own, and for a failed video upload |
 | `[profile] enabled` / `marker` / `line_on` / `line_off` / `line_off_no_match` | The bio status line. Placeholders: `{info}` ("1. Spieltag" / "DFB-Pokal, 1. Runde" / `fallback_match_info`), `{hashtag}`, `{date}`, `{time}` |

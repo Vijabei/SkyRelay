@@ -67,6 +67,7 @@ import re
 import sys
 import time
 import traceback
+from collections import namedtuple
 from datetime import datetime, date, timezone
 from zoneinfo import ZoneInfo
 
@@ -182,6 +183,18 @@ SOURCE_TEMPLATE = cfg("post", "source_template", DEFAULT_SOURCE_TEMPLATE)
 BOT_NOTICE = cfg("post", "bot_notice", "always")
 BOT_NOTICE_MARKER = cfg("post", "bot_notice_marker", "Bot")
 STANDING_HASHTAG = cfg("post", "standing_hashtag", "").strip().lstrip("#")
+# A standing hashtag of its own per league. Many clubs label their teams
+# differently - #arminia for the men, #arminiafrauen for the women - and
+# which team is playing is exactly what the league says. The keys are the
+# same shortcuts [team] league_shortcuts filters on. Without an entry
+# STANDING_HASHTAG applies, which is what the ticker always did.
+DEFAULT_STANDING_TAGS = [STANDING_HASHTAG] if STANDING_HASHTAG else []
+LEAGUE_HASHTAGS = {}
+if _cfg.has_section("league_hashtags"):
+    for _league, _tag in _cfg.items("league_hashtags"):
+        _tag = _tag.strip().lstrip("#")
+        if _tag:
+            LEAGUE_HASHTAGS[_league.strip().lower()] = _tag
 # When several of the club's teams play on the same day, a channel message
 # does not reveal which match it belongs to. Rather than labelling the posts
 # wrongly, this hashtag takes the place of the match hashtags. Leave it empty
@@ -433,9 +446,14 @@ def fetch_team_matches(weeks_back=1, weeks_forward=1):
     return sorted(best.values(), key=lambda item: item[0])
 
 
+# A fixture in the shape the rest of the program uses it. Named rather than a
+# bare tuple: the league joined the other four late, and every place that
+# unpacked by position would otherwise have had to be counted out again.
+Match = namedtuple("Match", "kickoff description hashtag info league")
+
+
 def describe_match(kickoff_local, match):
-    """Builds (kickoff_local, description, hashtag, short info) from an
-    OpenLigaDB match."""
+    """Builds a Match from an OpenLigaDB fixture."""
     desc = f'{match["team1"]["teamName"]} - {match["team2"]["teamName"]} ({match["leagueName"]})'
     # team1 is the home side in the OpenLigaDB data.
     home_team, away_team = team_code(match["team1"]), team_code(match["team2"])
@@ -447,12 +465,29 @@ def describe_match(kickoff_local, match):
         log(f'   Please adjust one of them in [team_codes]: team numbers '
             f'{match["team1"]["teamId"]} ({match["team1"]["teamName"]}) and '
             f'{match["team2"]["teamId"]} ({match["team2"]["teamName"]}).')
-    return kickoff_local, desc, home_team + away_team, match_info_text(match)
+    return Match(kickoff_local, desc, home_team + away_team,
+                 match_info_text(match),
+                 (match.get("leagueShortcut") or "").strip().lower())
+
+
+def standing_tags_for(matches):
+    """The standing hashtags for a day's matches.
+
+    The league says which of a club's teams is playing, so it says which tag
+    belongs on the post. Several teams on one day get every tag that belongs to
+    them: unlike the match hashtag, which would then be plainly wrong, naming
+    both is right here - the message really could be about either of them.
+
+    Without a matching entry the one from [post] applies, which is what the
+    ticker always did."""
+    by_league = list(dict.fromkeys(
+        LEAGUE_HASHTAGS[m.league] for m in matches if m.league in LEAGUE_HASHTAGS))
+    return by_league or DEFAULT_STANDING_TAGS
 
 
 def get_todays_matches():
-    """Returns every match of today as a list of (kickoff_local, description,
-    hashtag, short info), sorted by kickoff - empty when nothing is on today.
+    """Returns every Match of today, sorted by kickoff - empty when nothing is
+    on today.
 
     A list on purpose: when, say, the men's and the women's team play on the
     same day, both run through the same WhatsApp channel. The hashtag follows
@@ -464,7 +499,7 @@ def get_todays_matches():
 
 
 def get_next_matches():
-    """Returns every match of the next matchday (for the "bot is off" profile
+    """Returns every Match of the next matchday (for the "bot is off" profile
     line), otherwise an empty list. It deliberately looks far ahead, so that
     winter and summer breaks are bridged too. If several matches fall on that
     day, all of them come back - the profile line then names each one."""
@@ -570,7 +605,7 @@ def post_writers(match_tag):
         "source": source_block(SOURCE_TEMPLATE, POST_SOURCE_LABEL,
                                CHANNEL_INVITE_LINK),
         "match_hashtag": tag_block(match_tag),
-        "standing_hashtag": tag_block(STANDING_HASHTAG),
+        "standing_hashtag": tag_block(standing_tags),
     }
 
 
@@ -678,6 +713,10 @@ bsky_client = None
 _login_attempts = 0  # begrenzt Wiederholungen, siehe ensure_bsky()
 match_hashtag = None  # set in main() from the OpenLigaDB data (e.g. "DSCWOB")
 match_hashtags_tag = []  # every match hashtag of the day - the profile line names them
+# The standing hashtag as it will actually be written. Starts as the one
+# from [post]; main() replaces it where [league_hashtags] has something to
+# say about the league being played today.
+standing_tags = DEFAULT_STANDING_TAGS
 match_info = None     # short note on today's match, e.g. "1. Spieltag" (profile line)
 match_kickoff = None  # kickoff time of today's match (profile line)
 
@@ -736,11 +775,13 @@ def set_profile_status(on):
         else:
             next_matches = get_next_matches()
             if next_matches:
-                kickoff, _desc, _hashtag, info = next_matches[0]
+                first = next_matches[0]
                 line = PROFILE_LINE_OFF.format(
-                    info=" + ".join(dict.fromkeys(i for *_, i in next_matches)) or info,
-                    hashtag=" ".join(f"#{h}" for *_, h, _ in next_matches),
-                    date=kickoff.strftime("%d.%m."), time=kickoff.strftime("%H:%M"),
+                    info=" + ".join(dict.fromkeys(m.info for m in next_matches))
+                         or first.info,
+                    hashtag=" ".join(f"#{m.hashtag}" for m in next_matches),
+                    date=first.kickoff.strftime("%d.%m."),
+                    time=first.kickoff.strftime("%H:%M"),
                 )
             else:
                 line = PROFILE_LINE_OFF_NO_MATCH
@@ -1175,6 +1216,7 @@ async def with_retries(description, coro_factory, max_attempts=6, wait_seconds=1
 
 async def main():
     global match_hashtag, match_hashtags_tag, match_info, match_kickoff, channel_user
+    global standing_tags
 
     missing = [name for name, value in (
         ("[source] channel_invite_link", CHANNEL_INVITE_LINK),
@@ -1219,12 +1261,22 @@ async def main():
                 sys.exit(1)
 
     if todays_matches:
-        match_hashtags_tag = [h for *_, h, _ in todays_matches]
-        match_kickoff = todays_matches[0][0]
-        match_info = " + ".join(dict.fromkeys(i for *_, i in todays_matches))
-        for kickoff, desc, hashtag, info in todays_matches:
-            log(f"⚽ Today is a matchday: {desc}, {info}, "
-                f"kickoff {kickoff.strftime('%H:%M')}. Match hashtag: #{hashtag}")
+        match_hashtags_tag = [m.hashtag for m in todays_matches]
+        match_kickoff = todays_matches[0].kickoff
+        match_info = " + ".join(dict.fromkeys(m.info for m in todays_matches))
+        for m in todays_matches:
+            log(f"⚽ Today is a matchday: {m.description}, {m.info}, "
+                f"kickoff {m.kickoff.strftime('%H:%M')}. "
+                f"Match hashtag: #{m.hashtag}")
+
+        standing_tags = standing_tags_for(todays_matches)
+        if standing_tags != DEFAULT_STANDING_TAGS:
+            log("Standing hashtag from [league_hashtags]: "
+                + " ".join("#" + one for one in standing_tags))
+        elif LEAGUE_HASHTAGS:
+            log("ℹ️ No entry in [league_hashtags] for "
+                + ", ".join(sorted({m.league or "?" for m in todays_matches}))
+                + " - [post] standing_hashtag applies.")
 
         if len(todays_matches) > 1:
             # Several teams on one day sharing one channel: a message does not

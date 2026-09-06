@@ -14,8 +14,10 @@ import configparser
 import os
 
 # Sections whose keys are free-form and therefore appear in no source file:
-# [team_codes] holds OpenLigaDB team numbers.
-FREE_SECTIONS = {"team_codes"}
+# [team_codes] holds OpenLigaDB team numbers, [league_hashtags] league
+# shortcuts. Both are tables a club fills in, not settings the programs know
+# by name.
+FREE_SECTIONS = {"team_codes", "league_hashtags"}
 
 # Keys that are still read, so a configuration nobody has touched keeps
 # behaving as before, but that no longer belong in a new one. They are gone
