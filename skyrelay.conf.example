@@ -55,11 +55,6 @@ openligadb_team_id = 83
 # Leer lassen = kein Filter (dann zählt jede Liga, auch erfundene).
 # Welche Kürzel wirklich vorkommen, nennt der Ticker beim Start im Protokoll.
 league_shortcuts =
-# VERALTET, bitte auf league_shortcuts umstellen: Dieser Schlüssel verglich
-# PRÄFIXE. Damit passierte "bl2h" die Prüfung, weil es mit "bl" anfängt - und
-# dieselbe Partie tauchte an einem zweiten, falschen Tag auf. Solange
-# league_shortcuts leer ist, gilt weiterhin dieser Wert.
-league_prefixes = bl, dfb
 # Zeitzone für Anstoßzeiten und das Tagesende.
 timezone = Europe/Berlin
 

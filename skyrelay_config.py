@@ -17,6 +17,15 @@ import os
 # [team_codes] holds OpenLigaDB team numbers.
 FREE_SECTIONS = {"team_codes"}
 
+# Keys that are still read, so a configuration nobody has touched keeps
+# behaving as before, but that no longer belong in a new one. They are gone
+# from the template, and without this list the comparison would report them
+# twice over: missing from the template, and missing from every configuration
+# that is right to be without them. The value names what replaced them.
+DEPRECATED_KEYS = {
+    ("team", "league_prefixes"): "[team] league_shortcuts",
+}
+
 SOURCE_FILES = {
     "skyrelay-matchday.py": "ticker",
     "skyrelay-feed.py": "feed",
@@ -199,6 +208,8 @@ def collect_findings(base_dir, config_text=None):
     # 3. Is something missing from the template? Then nobody learns about it.
     for (section, key), entry in sorted(read.items()):
         who = ", ".join(sorted(entry["programs"]))
+        if (section, key) in DEPRECATED_KEYS:
+            continue
         if (section, key) not in own:
             findings.append(("note",
                              f"[{section}] {key} is missing - the program's "
@@ -207,6 +218,16 @@ def collect_findings(base_dir, config_text=None):
             findings.append(("problem",
                              f"[{section}] {key} is missing from "
                              f"skyrelay.conf.example ({who})"))
+
+    # 4. Something out of use still sitting in the file? It does no harm - the
+    #    successor wins - but it is a line that can go, and saying so is the
+    #    only way anyone finds out.
+    for (section, key), successor in sorted(DEPRECATED_KEYS.items()):
+        if (section, key) in own:
+            findings.append(("note",
+                             f"[{section}] {key} is out of use - "
+                             f"{successor} has taken over and this line "
+                             f"can go"))
     return findings
 
 
