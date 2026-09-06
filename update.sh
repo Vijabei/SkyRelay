@@ -15,6 +15,18 @@ set -euo pipefail
 # shellcheck source=common.sh
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
+# Ab hier steht alles in einer Klammergruppe. Das ist keine Zierde, sondern
+# Notwehr: Dieses Skript holt weiter unten den neuen Stand - und ersetzt sich
+# dabei selbst. bash liest ein Skript aber nicht am Stueck, sondern
+# haeppchenweise ab einem Byte-Versatz. Wird die Datei durch den neuen Stand
+# laenger, liest bash an der alten Stelle weiter und landet mitten in einer
+# fremden Zeile: Der Rest des Laufs faellt aus oder tut etwas anderes.
+#
+# Eine Klammergruppe wird am Stueck gelesen und zerlegt, bevor die erste Zeile
+# darin laeuft. Damit steht auch das abschliessende "exit" fest, und bash
+# liest nach dem Lauf nicht in der neuen Datei weiter.
+{
+
 title "SkyRelay - Aktualisierung"
 printf 'Verzeichnis: %s\n' "$SCRIPT_DIR"
 
@@ -97,3 +109,6 @@ printf '    ./config.sh --check\n'
 printf '    venv/bin/python skyrelay-feed.py --show-config\n'
 printf '\n  Laufende Dienste wurden nicht angefasst; der nächste cron-Lauf\n'
 printf '  nimmt den neuen Stand von selbst.\n\n'
+
+exit 0
+}

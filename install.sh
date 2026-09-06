@@ -15,6 +15,18 @@ set -euo pipefail
 # shellcheck source=common.sh
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
+# Ab hier steht alles in einer Klammergruppe. Das ist keine Zierde, sondern
+# Notwehr: Dieses Skript holt weiter unten den neuen Stand - und ersetzt sich
+# dabei selbst. bash liest ein Skript aber nicht am Stueck, sondern
+# haeppchenweise ab einem Byte-Versatz. Wird die Datei durch den neuen Stand
+# laenger, liest bash an der alten Stelle weiter und landet mitten in einer
+# fremden Zeile: Der Rest des Laufs faellt aus oder tut etwas anderes.
+#
+# Eine Klammergruppe wird am Stueck gelesen und zerlegt, bevor die erste Zeile
+# darin laeuft. Damit steht auch das abschliessende "exit" fest, und bash
+# liest nach dem Lauf nicht in der neuen Datei weiter.
+{
+
 PYTHON_MIN="3.10"
 
 title "SkyRelay - Installation"
@@ -207,3 +219,6 @@ fi
 printf '  Kein Terminal - die Einrichtung wurde nicht gestartet.\n'
 printf '  Sie braucht Rückfragen und läuft deshalb nur von Hand:\n\n'
 printf '    ./config.sh\n\n'
+
+exit 0
+}
