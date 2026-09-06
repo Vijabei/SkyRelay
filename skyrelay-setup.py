@@ -248,6 +248,15 @@ def set_value(lines, section, key, value):
     return True
 
 
+def read_team_codes(lines):
+    """The [team_codes] table as {team number: code}.
+
+    The keys are numbers, which is what tells them apart from every other
+    table in the file - no other section is keyed by digits."""
+    return {int(line.split("=")[0].strip()): line.split("=", 1)[1].strip()
+            for line in lines if re.match(r"^\d+\s*=", line)}
+
+
 def set_team_codes(lines, codes):
     """Replaces the contents of [team_codes] with the new table."""
     start = end = None
@@ -1502,6 +1511,63 @@ def save(lines, saved):
     return True
 
 
+def schreibe(lines, saved):
+    """Writes the configuration, backing up the previous version first.
+    Returns None when it worked, otherwise something to show the user.
+
+    Deliberately without a question of its own: save() asks through the old
+    surface, and a function that both asks and writes cannot be used by a
+    window that has already asked."""
+    if os.path.exists(TARGET):
+        try:
+            with open(TARGET + ".bak", "w", encoding="utf-8") as handle:
+                handle.writelines(saved)
+        except OSError as error:
+            return _f("Die Sicherungskopie ließ sich nicht anlegen: {error}\n\n"
+                      "Es wurde nichts geschrieben.", error=error)
+    try:
+        with open(TARGET, "w", encoding="utf-8") as handle:
+            handle.writelines(lines)
+    except OSError as error:
+        return _f("Schreiben fehlgeschlagen: {error}", error=error)
+    return None
+
+
+def naechste_schritte(lines):
+    """What is left to do once the file is written."""
+    schritte = [_f("Gespeichert: {datei}", datei=os.path.basename(TARGET)), ""]
+    if read_value(lines, "source", "channel_invite_link"):
+        schritte += [_("Erste WhatsApp-Kopplung (einmalig, interaktiv):"),
+                     "  SKYRELAY_FORCE=1 SKYRELAY_DRY_RUN=1 \\",
+                     "     venv/bin/python skyrelay-matchday.py", ""]
+    if read_value(lines, "feed", "instagram_profile"):
+        schritte += [_("Instagram-Sitzung anlegen (einmalig):"),
+                     "  venv/bin/instaloader -l "
+                     + (read_value(lines, "feed", "instagram_session_user")
+                        or "<Zweitkonto>"), ""]
+    schritte.append(_("Danach cron einrichten - siehe README.md"))
+    return "\n".join(schritte)
+
+
+def fenster_modus():
+    """The window. Returns True if something was written.
+
+    It gets this module handed to it: the application owns the screens, this
+    file owns everything that touches the configuration, and neither has to
+    know how the other does its job."""
+    import sys as _sys
+
+    import skyrelay_setup_app
+
+    if not os.path.exists(TEMPLATE):
+        print(f"Error: the template is missing: {TEMPLATE}", file=_sys.stderr)
+        _sys.exit(1)
+    source = TARGET if os.path.exists(TARGET) else TEMPLATE
+    with open(source, encoding="utf-8") as handle:
+        lines = handle.readlines()
+    return skyrelay_setup_app.run(lines, _sys.modules[__name__])
+
+
 def add_missing_without_menu():
     """--add-missing: add missing keys straight into the file.
 
@@ -1557,10 +1623,31 @@ if __name__ == "__main__":
     if "--add-missing" in sys.argv:
         sys.exit(add_missing_without_menu())
     try:
-        # The menu surface, when questionary is there and a terminal is attached.
-        # SKYRELAY_SETUP_TEXT=1 forces the line by line questions.
-        if (tui.available() and sys.stdin.isatty()
-                and os.environ.get("SKYRELAY_SETUP_TEXT") != "1"):
+        # The window, when Textual is installed and a terminal is attached.
+        # SKYRELAY_SETUP_TEXT=1 forces the line by line questions - for a
+        # connection where a full screen application is more trouble than it
+        # is worth, and for anyone who prefers being asked.
+        zeilenweise = os.environ.get("SKYRELAY_SETUP_TEXT") == "1"
+        altes_menue = os.environ.get("SKYRELAY_SETUP_MENU") == "1"
+
+        fenster = False
+        if sys.stdin.isatty() and not zeilenweise and not altes_menue:
+            try:
+                import textual  # noqa: F401
+                fenster = True
+            except ImportError:
+                print("Hinweis: Das Paket 'textual' fehlt - die Einrichtung "
+                      "läuft zeilenweise.\n"
+                      "Nachinstallieren mit:  venv/bin/pip install textual\n",
+                      file=sys.stderr)
+
+        if fenster:
+            fenster_modus()
+        elif altes_menue and tui.available() and sys.stdin.isatty():
+            # Der Weg vor dem Fenster. Er steht noch da, solange das Fenster
+            # jung ist - wenn dort etwas klemmt, soll niemand auf die
+            # zeilenweise Abfrage zurückfallen müssen. Sobald sich das Fenster
+            # bewährt hat, kann dieser Zweig samt skyrelay_tui.py weg.
             menu_mode()
         else:
             main()

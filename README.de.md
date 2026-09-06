@@ -174,12 +174,18 @@ Das ist auch der bequeme Weg für spätere Änderungen: Ein einzelnes Kürzel
 korrigieren oder das Zeitfenster verschieben dauert damit Sekunden. Oben zeigt das
 Menü an, welche Pflichtangaben noch fehlen.
 
-In langen Listen – Verein, Liga, Kürzeltabelle – genügt Tippen, um zu filtern:
-drei Buchstaben statt zwanzig Pfeiltasten.
+Der Assistent öffnet ein eigenes Fenster im Terminal: links die Bereiche, rechts
+ein Formular, und unter jedem Feld steht, was es bewirkt. Bedienbar mit Tastatur
+oder Maus, auch über SSH. In langen Listen – Verein, Liga, Kürzeltabelle –
+genügt Tippen, um zu filtern: drei Buchstaben statt zwanzig Pfeiltasten.
 
-Fehlt `questionary` (es steht in `requirements.txt`), fällt der Assistent
+Er ist für mindestens 96×28 Zeichen gebaut und sagt es, wenn das Fenster kleiner
+ist. `F1` zeigt die Tastenbelegung, `Strg+S` speichert, `Strg+Q` beendet.
+
+Fehlt `textual` (es steht in `requirements.txt`), fällt der Assistent
 automatisch auf eine zeilenweise Abfrage zurück; erzwingen lässt sie sich mit
-`SKYRELAY_SETUP_TEXT=1`.
+`SKYRELAY_SETUP_TEXT=1`. Die vorherige Menüoberfläche ist übergangsweise noch
+über `SKYRELAY_SETUP_MENU=1` erreichbar.
 
 ### Sprache der Bedienoberfläche
 

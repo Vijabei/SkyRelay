@@ -6,7 +6,7 @@
 # sagt dieses Skript, was zu tun ist, statt mit einem Python-Fehler zu enden.
 #
 # Aufruf:
-#   ./config.sh                 Menü (oder zeilenweise, wenn questionary fehlt)
+#   ./config.sh                 Fenster (oder zeilenweise, wenn textual fehlt)
 #   ./config.sh --add-missing   nur fehlende Schlüssel nachtragen
 #   ./config.sh --check         Konfiguration prüfen, nichts ändern
 #
@@ -25,11 +25,11 @@ if [ "${1:-}" = "--check" ]; then
     exec "$VENV_PY" "$SCRIPT_DIR/skyrelay-feed.py" --check-config
 fi
 
-# Die Menüoberfläche steckt in questionary. Fehlt es, fragt der Assistent
-# zeilenweise weiter - deshalb nur ein Hinweis, kein Abbruch.
-if ! "$VENV_PY" -c 'import questionary' >/dev/null 2>&1; then
-    warn "questionary fehlt - die Einrichtung läuft zeilenweise statt im Menü."
-    printf '    Nachinstallieren mit:  %s -m pip install questionary\n' "$VENV_PY"
+# Das Fenster steckt in textual. Fehlt es, fragt der Assistent zeilenweise
+# weiter - deshalb nur ein Hinweis, kein Abbruch.
+if ! "$VENV_PY" -c 'import textual' >/dev/null 2>&1; then
+    warn "textual fehlt - die Einrichtung läuft zeilenweise statt im Fenster."
+    printf '    Nachinstallieren mit:  %s -m pip install textual\n' "$VENV_PY"
 fi
 
 if [ ! -t 0 ]; then

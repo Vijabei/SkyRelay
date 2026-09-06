@@ -176,11 +176,19 @@ That is also the comfortable way to change things later: correcting a single cod
 or shifting the time window takes seconds. At the top the menu shows what
 required entries are still missing.
 
-In long lists – club, league, the table of codes – typing filters them: three
-letters instead of twenty presses of the arrow key.
+The assistant opens a window of its own in the terminal: the sections on the
+left, a form on the right, and under every field a line saying what it does.
+Keyboard or mouse, over SSH as well. In long lists – club, league, the table of
+codes – typing filters them: three letters instead of twenty presses of the
+arrow key.
 
-If `questionary` is missing (it is in `requirements.txt`), the assistant falls
-back to asking line by line; `SKYRELAY_SETUP_TEXT=1` forces that mode.
+It is laid out for at least 96×28 characters and says so when the window is
+smaller. `F1` shows the keys, `Ctrl+S` saves, `Ctrl+Q` quits.
+
+If `textual` is missing (it is in `requirements.txt`), the assistant falls
+back to asking line by line; `SKYRELAY_SETUP_TEXT=1` forces that mode. The
+previous menu surface is still reachable for the time being through
+`SKYRELAY_SETUP_MENU=1`.
 
 ### The language of the interface
 

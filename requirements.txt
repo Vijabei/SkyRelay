@@ -33,9 +33,16 @@ segno>=1.6.1
 regex>=2024.11.6
 
 # --- Oberflaeche des Einrichtungsassistenten ---
-# Menues und Fragen von skyrelay-setup.py. Fehlt das Paket, fragt der Assistent
-# zeilenweise - er laeuft also auch ohne, nur unbequemer.
-# Reines Python; zieht prompt_toolkit nach, ebenfalls reines Python.
+# Das Fenster von skyrelay-setup.py: eigener Bildschirm, Bereiche links, ein
+# Formular rechts, Erklaerung unter jedem Feld. Reines Python, laeuft ab 3.9
+# und ueber SSH. Fehlt das Paket, fragt der Assistent zeilenweise - er laeuft
+# also auch ohne, nur unbequemer.
+textual>=8.0.0
+
+# Die Oberflaeche VOR dem Fenster. Sie ist nur noch ueber
+# SKYRELAY_SETUP_MENU=1 erreichbar und liegt als erprobter Rueckweg bereit,
+# solange sich das Fenster noch nicht im Alltag bewaehrt hat. Danach kann
+# diese Zeile samt skyrelay_tui.py verschwinden.
 questionary>=2.1.1
 
 # --- Uebersetzungen (nur zum Bauen der Kataloge noetig) ---
