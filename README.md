@@ -195,9 +195,9 @@ echo 'export COLORTERM=truecolor' >> ~/.bashrc
 ```
 
 If `textual` is missing (it is in `requirements.txt`), the assistant falls
-back to asking line by line; `SKYRELAY_SETUP_TEXT=1` forces that mode. The
-previous menu surface is still reachable for the time being through
-`SKYRELAY_SETUP_MENU=1`.
+back to asking line by line; `SKYRELAY_SETUP_TEXT=1` forces that mode. Asking
+line by line is also the way for a terminal without a full screen, and for
+anything that runs without a keyboard.
 
 ### The language of the interface
 

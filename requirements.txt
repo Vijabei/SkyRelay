@@ -39,12 +39,6 @@ regex>=2024.11.6
 # also auch ohne, nur unbequemer.
 textual>=8.0.0
 
-# Die Oberflaeche VOR dem Fenster. Sie ist nur noch ueber
-# SKYRELAY_SETUP_MENU=1 erreichbar und liegt als erprobter Rueckweg bereit,
-# solange sich das Fenster noch nicht im Alltag bewaehrt hat. Danach kann
-# diese Zeile samt skyrelay_tui.py verschwinden.
-questionary>=2.1.1
-
 # --- Uebersetzungen (nur zum Bauen der Kataloge noetig) ---
 # Gelesen werden .mo-Dateien mit gettext aus der Standardbibliothek - dafuer
 # braucht es nichts. Babel wird nur gebraucht, um .po-Dateien zu erzeugen und

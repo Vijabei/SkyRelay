@@ -193,8 +193,8 @@ echo 'export COLORTERM=truecolor' >> ~/.bashrc
 
 Fehlt `textual` (es steht in `requirements.txt`), fällt der Assistent
 automatisch auf eine zeilenweise Abfrage zurück; erzwingen lässt sie sich mit
-`SKYRELAY_SETUP_TEXT=1`. Die vorherige Menüoberfläche ist übergangsweise noch
-über `SKYRELAY_SETUP_MENU=1` erreichbar.
+`SKYRELAY_SETUP_TEXT=1`. Die zeilenweise Abfrage ist auch der Weg für ein
+Terminal ohne Vollbild und für alles, was ohne Tastatur läuft.
 
 ### Sprache der Bedienoberfläche
 

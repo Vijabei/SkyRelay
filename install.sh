@@ -82,8 +82,8 @@ if ! "$PYTHON_BIN" -c "import venv, ensurepip" 2>/dev/null; then
 fi
 ok "venv- und ensurepip-Modul vorhanden"
 
-# Die Menüoberfläche der Einrichtung steckt seit dem Wechsel von whiptail in
-# questionary und kommt damit aus requirements.txt - hier ist nichts zu prüfen.
+# Das Fenster der Einrichtung steckt in textual und kommt aus
+# requirements.txt - hier ist nichts zu prüfen.
 
 # libmagic steckt hinter python-magic, das neonize mitbringt. Fehlt die
 # Bibliothek, scheitert schon "import neonize" - und zwar erst nach Minuten
