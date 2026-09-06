@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SkyRelay VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-06 14:23+0200\n"
+"POT-Creation-Date: 2026-09-06 16:07+0200\n"
 "PO-Revision-Date: 2026-09-01 01:27+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -1359,23 +1359,42 @@ msgstr ""
 "\n"
 "Cancelled - nothing was written.\n"
 
-#: skyrelay_tui.py:30
-msgid "SkyRelay - Einrichtung"
-msgstr "SkyRelay - setup"
-
-# | msgid "Auswahl"
-#: skyrelay_tui.py:31
-msgid "Auswählen"
-msgstr "Select"
-
-#: skyrelay_tui.py:32
+#: skyrelay_tui.py:37
 msgid "Zurück"
 msgstr "Back"
 
-#: skyrelay_tui.py:33
+#: skyrelay_tui.py:38
 msgid "Abbrechen"
 msgstr "Cancel"
 
+#: skyrelay_tui.py:39
+msgid "Weiter mit einer beliebigen Taste …"
+msgstr "Press any key to continue …"
+
+#: skyrelay_tui.py:40
+msgid "Ja"
+msgstr "Yes"
+
+# | msgid "ein"
+#: skyrelay_tui.py:41
+msgid "Nein"
+msgstr "No"
+
+#: skyrelay_tui.py:45
+msgid "Pfeiltasten, dann Enter"
+msgstr "arrow keys, then Enter"
+
+#: skyrelay_tui.py:46
+msgid "Pfeiltasten oder tippen zum Filtern, dann Enter"
+msgstr "arrow keys or type to filter, then Enter"
+
 #~ msgid "{league} – keiner –"
 #~ msgstr "{league} – none –"
+
+#~ msgid "SkyRelay - Einrichtung"
+#~ msgstr "SkyRelay - setup"
+
+# | msgid "Auswahl"
+#~ msgid "Auswählen"
+#~ msgstr "Select"
 

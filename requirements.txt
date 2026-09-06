@@ -32,6 +32,12 @@ segno>=1.6.1
 # "git pull" ohne "pip install" bleibt gefahrlos.
 regex>=2024.11.6
 
+# --- Oberflaeche des Einrichtungsassistenten ---
+# Menues und Fragen von skyrelay-setup.py. Fehlt das Paket, fragt der Assistent
+# zeilenweise - er laeuft also auch ohne, nur unbequemer.
+# Reines Python; zieht prompt_toolkit nach, ebenfalls reines Python.
+questionary>=2.1.1
+
 # --- Uebersetzungen (nur zum Bauen der Kataloge noetig) ---
 # Gelesen werden .mo-Dateien mit gettext aus der Standardbibliothek - dafuer
 # braucht es nichts. Babel wird nur gebraucht, um .po-Dateien zu erzeugen und

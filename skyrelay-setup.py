@@ -1011,7 +1011,7 @@ def m_league_hashtags(lines):
         table = read_league_hashtags(lines)
         standing = read_value(lines, "post", "standing_hashtag")
         # Nur der Hashtag - das Ligakuerzel steht als Schluessel schon in der
-        # ersten Spalte, die whiptail selbst setzt.
+        # ersten Spalte, die die Oberfläche selbst setzt.
         entries = []
         for league in leagues:
             if table.get(league):
@@ -1505,8 +1505,8 @@ def save(lines, saved):
 def add_missing_without_menu():
     """--add-missing: add missing keys straight into the file.
 
-    For anyone who does not need the assistant at all - after an update on a
-    server that gets by without whiptail, for instance."""
+    For anyone who does not need the assistant at all - from a cron job, or
+    over a connection where a menu is more trouble than it is worth."""
     def confirm_callback(added):
         print(f"{len(added)} key(s) are missing and will be added along with "
               f"their explanations:")
@@ -1557,7 +1557,7 @@ if __name__ == "__main__":
     if "--add-missing" in sys.argv:
         sys.exit(add_missing_without_menu())
     try:
-        # The menu surface, when whiptail is there and a terminal is attached.
+        # The menu surface, when questionary is there and a terminal is attached.
         # SKYRELAY_SETUP_TEXT=1 forces the line by line questions.
         if (tui.available() and sys.stdin.isatty()
                 and os.environ.get("SKYRELAY_SETUP_TEXT") != "1"):

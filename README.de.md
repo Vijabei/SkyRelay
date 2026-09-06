@@ -174,8 +174,12 @@ Das ist auch der bequeme Weg für spätere Änderungen: Ein einzelnes Kürzel
 korrigieren oder das Zeitfenster verschieben dauert damit Sekunden. Oben zeigt das
 Menü an, welche Pflichtangaben noch fehlen.
 
-Fehlt `whiptail` auf dem System, fällt der Assistent automatisch auf eine
-zeilenweise Abfrage zurück; erzwingen lässt sie sich mit `SKYRELAY_SETUP_TEXT=1`.
+In langen Listen – Verein, Liga, Kürzeltabelle – genügt Tippen, um zu filtern:
+drei Buchstaben statt zwanzig Pfeiltasten.
+
+Fehlt `questionary` (es steht in `requirements.txt`), fällt der Assistent
+automatisch auf eine zeilenweise Abfrage zurück; erzwingen lässt sie sich mit
+`SKYRELAY_SETUP_TEXT=1`.
 
 ### Sprache der Bedienoberfläche
 

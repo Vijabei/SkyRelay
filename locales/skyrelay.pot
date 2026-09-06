@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SkyRelay VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-06 14:23+0200\n"
+"POT-Creation-Date: 2026-09-06 16:07+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1233,19 +1233,31 @@ msgid ""
 "Abgebrochen - es wurde nichts geschrieben.\n"
 msgstr ""
 
-#: skyrelay_tui.py:30
-msgid "SkyRelay - Einrichtung"
-msgstr ""
-
-#: skyrelay_tui.py:31
-msgid "Auswählen"
-msgstr ""
-
-#: skyrelay_tui.py:32
+#: skyrelay_tui.py:37
 msgid "Zurück"
 msgstr ""
 
-#: skyrelay_tui.py:33
+#: skyrelay_tui.py:38
 msgid "Abbrechen"
+msgstr ""
+
+#: skyrelay_tui.py:39
+msgid "Weiter mit einer beliebigen Taste …"
+msgstr ""
+
+#: skyrelay_tui.py:40
+msgid "Ja"
+msgstr ""
+
+#: skyrelay_tui.py:41
+msgid "Nein"
+msgstr ""
+
+#: skyrelay_tui.py:45
+msgid "Pfeiltasten, dann Enter"
+msgstr ""
+
+#: skyrelay_tui.py:46
+msgid "Pfeiltasten oder tippen zum Filtern, dann Enter"
 msgstr ""
 

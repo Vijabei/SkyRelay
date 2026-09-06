@@ -176,8 +176,11 @@ That is also the comfortable way to change things later: correcting a single cod
 or shifting the time window takes seconds. At the top the menu shows what
 required entries are still missing.
 
-If `whiptail` is missing, the assistant falls back to asking line by line;
-`SKYRELAY_SETUP_TEXT=1` forces that mode.
+In long lists – club, league, the table of codes – typing filters them: three
+letters instead of twenty presses of the arrow key.
+
+If `questionary` is missing (it is in `requirements.txt`), the assistant falls
+back to asking line by line; `SKYRELAY_SETUP_TEXT=1` forces that mode.
 
 ### The language of the interface
 

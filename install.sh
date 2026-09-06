@@ -70,13 +70,8 @@ if ! "$PYTHON_BIN" -c "import venv, ensurepip" 2>/dev/null; then
 fi
 ok "venv- und ensurepip-Modul vorhanden"
 
-# whiptail treibt die Menüoberfläche der Einrichtung an (wie bei raspi-config)
-if command -v whiptail >/dev/null 2>&1; then
-    ok "whiptail vorhanden (Menüoberfläche für die Einrichtung)"
-else
-    warn "whiptail fehlt - die Einrichtung läuft dann zeilenweise statt im Menü."
-    printf '    Nachinstallieren mit:  sudo apt install whiptail\n'
-fi
+# Die Menüoberfläche der Einrichtung steckt seit dem Wechsel von whiptail in
+# questionary und kommt damit aus requirements.txt - hier ist nichts zu prüfen.
 
 # libmagic steckt hinter python-magic, das neonize mitbringt. Fehlt die
 # Bibliothek, scheitert schon "import neonize" - und zwar erst nach Minuten
