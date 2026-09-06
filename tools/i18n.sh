@@ -57,11 +57,15 @@ status)
     # msgstr "" an und wuerde als unuebersetzt gezaehlt.
     "$VENV_PY" - "$HIER/locales" "$DOMAIN" <<'PYENDE'
 import os
+import re
 import sys
 
 from babel.messages.pofile import read_po
 
+PLATZHALTER = re.compile(r"\{(\w+)")
+
 wurzel, domain = sys.argv[1], sys.argv[2]
+fehlerhaft = 0
 for sprache in sorted(os.listdir(wurzel)):
     pfad = os.path.join(wurzel, sprache, "LC_MESSAGES", domain + ".po")
     if not os.path.exists(pfad):
@@ -69,9 +73,38 @@ for sprache in sorted(os.listdir(wurzel)):
     with open(pfad, encoding="utf-8") as datei:
         katalog = read_po(datei)
     texte = [eintrag for eintrag in katalog if eintrag.id]
-    offen = [eintrag for eintrag in texte if not eintrag.string]
-    hinweis = "" if offen else "  (vollstaendig)"
-    print(f"  {sprache:<6} {len(texte):4d} Texte, {len(offen):4d} offen{hinweis}")
+    # Unscharfe Eintraege zaehlen als offen: "compile" ueberspringt sie, also
+    # steht im Programm der deutsche Ursprungstext. Sie hier mitzuzaehlen ist
+    # der einzige Weg, das zu bemerken - eine unscharfe Uebernahme entsteht
+    # bei jedem "update", sobald ein Text sich auch nur leicht aendert, und
+    # traegt dann Platzhalter aus dem alten Satz mit sich herum.
+    leer = [eintrag for eintrag in texte if not eintrag.string]
+    unscharf = [eintrag for eintrag in texte if eintrag.string and eintrag.fuzzy]
+    offen = len(leer) + len(unscharf)
+    art = []
+    if leer:
+        art.append(f"{len(leer)} ohne")
+    if unscharf:
+        art.append(f"{len(unscharf)} unscharf")
+    hinweis = f"  ({', '.join(art)})" if art else "  (vollstaendig)"
+    print(f"  {sprache:<6} {len(texte):4d} Texte, {offen:4d} offen{hinweis}")
+
+    # Ein Platzhalter, den die Uebersetzung nennt und der Ursprungstext nicht,
+    # ist ein Absturz beim Aufruf: _f() setzt nur die Werte ein, die das
+    # Programm uebergibt. Bemerkt wird das sonst erst in der fremden Sprache.
+    for eintrag in texte:
+        werte = eintrag.string
+        if not werte:
+            continue
+        for fassung in (werte if isinstance(werte, (list, tuple)) else [werte]):
+            fremd = set(PLATZHALTER.findall(fassung)) - set(PLATZHALTER.findall(eintrag.id))
+            if fremd:
+                fehlerhaft += 1
+                print(f"    ! unbekannte Platzhalter {sorted(fremd)}:")
+                print(f"      {eintrag.id.splitlines()[0][:70]}")
+                print(f"      -> {fassung.splitlines()[0][:70]}")
+
+sys.exit(1 if fehlerhaft else 0)
 PYENDE
     ;;
 add)
