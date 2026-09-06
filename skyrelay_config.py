@@ -32,6 +32,7 @@ SOURCE_FILES = {
     "skyrelay-matchday.py": "ticker",
     "skyrelay-feed.py": "feed",
     "skyrelay-setup.py": "assistant",
+    "skyrelay_setup_app.py": "assistant",
     "skyrelay-testlauf.py": "test run",
     "skyrelay_common.py": "shared module",
 }
@@ -87,7 +88,13 @@ def accessed_keys(base_dir):
         for node in ast.walk(tree):
             if not isinstance(node, ast.Call):
                 continue
-            function = getattr(node.func, "id", None)
+            # Both a plain call and one through an object: the setup window
+            # owns no configuration of its own and reaches everything through
+            # helfer.read_value(...), which is an attribute access. Without
+            # the second half of this line every key it alone reads would be
+            # reported as read by nobody.
+            function = (getattr(node.func, "id", None)
+                        or getattr(node.func, "attr", None))
             if function in READ_FUNCTIONS:
                 offset = READ_FUNCTIONS[function]
             elif function in LINE_FUNCTIONS:

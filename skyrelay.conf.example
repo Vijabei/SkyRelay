@@ -18,6 +18,13 @@
 # Betrifft NUR den Einrichtungsassistenten. Protokoll und Konsolenausgabe sind
 # immer englisch - so ist dieselbe Meldung überall dieselbe, egal wer sie liest.
 language =
+# Farbton des Einrichtungsfensters. Die Namen kommen aus Textual; im
+# Assistenten selbst lässt sich der Ton auswählen und man sieht ihn sofort.
+# Bekannt sind unter anderem: flexoki, nord, gruvbox, tokyo-night,
+# solarized-dark, dracula, monokai, catppuccin-mocha, textual-dark - und für
+# helle Terminals textual-light, solarized-light, catppuccin-latte.
+# Ein unbekannter Name schadet nicht: dann gilt wieder die Vorgabe.
+theme = flexoki
 
 
 [bluesky]

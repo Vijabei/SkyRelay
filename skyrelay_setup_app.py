@@ -38,6 +38,9 @@ from skyrelay_i18n import _, _f, N_
 MIN_BREITE = 96
 MIN_HOEHE = 28
 
+# Der Farbton, wenn die Konfiguration keinen nennt oder einen unbekannten.
+VORGABE_THEMA = "flexoki"
+
 
 # ---------------------------------------------------------------- the model
 class Feld:
@@ -281,6 +284,11 @@ def bereiche():
                            "ist – samt der Erklärungen aus der Vorlage. "
                            "Vorhandene Werte bleiben unberührt."),
                          art="aktion", aktion="nachziehen"),
+                    Feld(None, "theme", _("Farbton der Oberfläche"),
+                         _("Wirkt sofort. Wer ein helles Terminal hat, findet "
+                           "hier auch helle Töne – die Vorgabe ist für einen "
+                           "dunklen Hintergrund gemacht."),
+                         art="aktion", aktion="thema"),
                     Feld(None, "sprache", _("Sprache der Oberfläche"),
                          _("Gilt für diesen Assistenten. Die Protokolle der "
                            "Bots bleiben englisch, damit dieselbe Meldung "
@@ -484,14 +492,49 @@ class Auswahl(ModalScreen[str]):
         treffer = [(k, b) for k, b in self.eintraege if suche in str(b).lower()]
         for schluessel, beschriftung in treffer:
             liste.add_option(Option(str(beschriftung), id=str(schluessel)))
+        # Immer etwas markieren, damit die Eingabetaste aus dem Suchfeld
+        # heraus schon etwas zu uebernehmen hat.
+        if treffer:
+            liste.highlighted = 0
         if self.filtern:
             self.query_one("#kastentext", Static).update(
                 _f("{treffer} von {gesamt}", treffer=len(treffer),
                    gesamt=len(self.eintraege)))
 
+    def _markiertes(self):
+        """Der gerade markierte Eintrag - oder None."""
+        liste = self.query_one("#liste", OptionList)
+        if liste.option_count and liste.highlighted is not None:
+            return liste.get_option_at_index(liste.highlighted).id
+        return None
+
+    def on_key(self, ereignis):
+        """Pfeiltasten und Eingabe wirken auch, waehrend man noch tippt.
+
+        Ohne das liegt der Fokus im Suchfeld und die Liste daneben bekommt
+        keine Taste ab: Man tippt drei Buchstaben, sieht den gesuchten Eintrag
+        markiert vor sich und kommt nicht an ihn heran, ausser mit Tabulator.
+        Das ist genau der Griff, den niemand errät."""
+        if not self.filtern or self.focused is not self.query_one("#suche"):
+            return
+        liste = self.query_one("#liste", OptionList)
+        if ereignis.key == "down":
+            liste.action_cursor_down()
+            ereignis.stop()
+        elif ereignis.key == "up":
+            liste.action_cursor_up()
+            ereignis.stop()
+
     @on(Input.Changed, "#suche")
     def gefiltert(self, ereignis):
         self._fuellen(ereignis.value)
+
+    @on(Input.Submitted, "#suche")
+    def aus_der_suche(self):
+        """Eingabe im Suchfeld nimmt den markierten Eintrag."""
+        markiert = self._markiertes()
+        if markiert is not None:
+            self.dismiss(markiert)
 
     @on(OptionList.OptionSelected)
     def gewaehlt(self, ereignis):
@@ -588,6 +631,7 @@ class Assistent(App):
         yield Footer()
 
     async def on_mount(self):
+        self._thema_setzen()
         self._titel_setzen()
         self.query_one("#navigation", OptionList).focus()
         await self._bereich_zeigen(self.bereiche[0])
@@ -604,6 +648,19 @@ class Assistent(App):
                "Unterschied.",
                breite=MIN_BREITE, hoehe=MIN_HOEHE,
                ist_breite=self.size.width, ist_hoehe=self.size.height)))
+
+    def _thema_setzen(self):
+        """The colour the configuration asks for.
+
+        An unknown name must not be fatal - a catalogue of themes changes
+        with the library, and a configuration written a year ago should still
+        open."""
+        gewuenscht = (self.helfer.read_value(self.zeilen, "general", "theme")
+                      or VORGABE_THEMA)
+        if gewuenscht in self.available_themes:
+            self.theme = gewuenscht
+        else:
+            self.theme = VORGABE_THEMA
 
     def _titel_setzen(self):
         stern = " *" if self.zeilen != self.gesichert else ""
@@ -1019,6 +1076,22 @@ class Assistent(App):
             self.zeilen[:] = entwurf
             self._titel_setzen()
             await self._bereich_zeigen(self.aktueller)
+
+    @work
+    async def tue_thema(self):
+        jetzt = self.theme
+        moeglich = sorted(self.available_themes)
+        wahl = await self.push_screen_wait(Auswahl(
+            _("Farbton der Oberfläche"),
+            _("Wähle einen aus – er wirkt sofort. Abbrechen stellt den "
+              "vorherigen wieder her."),
+            [(name, name) for name in moeglich], filtern=True))
+        if not wahl:
+            self.theme = jetzt
+            return
+        self.theme = wahl
+        self.helfer.set_value(self.zeilen, "general", "theme", wahl)
+        self._titel_setzen()
 
     @work
     async def tue_sprache(self):
