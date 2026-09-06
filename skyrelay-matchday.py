@@ -70,6 +70,21 @@ import traceback
 from datetime import datetime, date, timezone
 from zoneinfo import ZoneInfo
 
+# Answers about the configuration, before anything else gets going: both calls
+# connect to nothing and write nothing.
+#   --check-config  reports what does not add up
+#   --show-config   shows which value applies now and where it comes from
+#
+# They stand HERE, above the imports of other people's packages, on purpose.
+# skyrelay_config gets by on the standard library, and asking what the
+# configuration says is exactly what one wants on a machine where the
+# installation is not finished yet - where neonize cannot find libmagic, say.
+if "--check-config" in sys.argv or "--show-config" in sys.argv:
+    from skyrelay_config import check_config, show_config
+    _base = os.path.dirname(os.path.abspath(__file__))
+    sys.exit(check_config(_base) if "--check-config" in sys.argv
+             else show_config(_base))
+
 import requests
 import segno
 from atproto import Client, models, client_utils
@@ -107,17 +122,6 @@ from skyrelay_common import (
     GRAPHEME_SOURCE,
     show_preview,
 )
-from skyrelay_config import check_config, show_config
-
-# Answers about the configuration, before anything else gets going:
-# both calls connect to nothing and write nothing.
-#   --check-config  reports what does not add up
-#   --show-config   shows which value applies now and where it comes from
-if "--check-config" in sys.argv:
-    sys.exit(check_config(os.path.dirname(os.path.abspath(__file__))))
-if "--show-config" in sys.argv:
-    sys.exit(show_config(os.path.dirname(os.path.abspath(__file__))))
-
 # httpx (the HTTP client of the atproto library) would log every request.
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
@@ -143,8 +147,9 @@ OPENLIGADB_TEAM_ID = cfg_int("team", "openligadb_team_id", 0)
 LEAGUE_SHORTCUTS = tuple(
     s.strip().lower() for s in cfg("team", "league_shortcuts", "").split(",") if s.strip()
 )
-# The predecessor. Still read, so that a configuration nobody has touched keeps
-# behaving as before - and so --check-config does not report it as orphaned.
+# The predecessor. Gone from the template, but still read here: a configuration
+# nobody has touched keeps behaving as before. skyrelay_config.DEPRECATED_KEYS
+# knows about it, so --check-config neither misses it nor demands it back.
 # See the note in fetch_team_matches.
 LEGACY_LEAGUE_PREFIXES = tuple(
     p.strip().lower() for p in cfg("team", "league_prefixes", "").split(",") if p.strip()

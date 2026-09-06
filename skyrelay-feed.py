@@ -25,6 +25,22 @@ import re
 import sys
 import glob
 import shutil
+
+# Answers about the configuration, before anything else gets going: both calls
+# connect to nothing and write nothing.
+#   --check-config  reports what does not add up
+#   --show-config   shows which value applies now and where it comes from
+#
+# They stand HERE, above the imports of other people's packages, on purpose.
+# skyrelay_config gets by on the standard library, and asking what the
+# configuration says is exactly what one wants on a machine where the
+# installation is not finished yet and a package is still missing.
+if "--check-config" in sys.argv or "--show-config" in sys.argv:
+    from skyrelay_config import check_config, show_config
+    _base = os.path.dirname(os.path.abspath(__file__))
+    sys.exit(check_config(_base) if "--check-config" in sys.argv
+             else show_config(_base))
+
 import instaloader
 from atproto import Client, models, client_utils
 import time
@@ -57,17 +73,6 @@ from skyrelay_common import (
     GRAPHEME_SOURCE,
     show_preview,
 )
-from skyrelay_config import check_config, show_config
-
-# Answers about the configuration, before anything else gets going: both calls
-# connect to nothing and write nothing.
-#   --check-config  reports what does not add up
-#   --show-config   shows which value applies right now and where it comes from
-if "--check-config" in sys.argv:
-    sys.exit(check_config(os.path.dirname(os.path.abspath(__file__))))
-if "--show-config" in sys.argv:
-    sys.exit(show_config(os.path.dirname(os.path.abspath(__file__))))
-
 
 # Instagram keeps changing the endpoints that serve profile data, so the window
 # of usable instaloader versions is narrow:
