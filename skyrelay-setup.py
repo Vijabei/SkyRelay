@@ -1010,16 +1010,16 @@ def m_league_hashtags(lines):
 
         table = read_league_hashtags(lines)
         standing = read_value(lines, "post", "standing_hashtag")
+        # Nur der Hashtag - das Ligakuerzel steht als Schluessel schon in der
+        # ersten Spalte, die whiptail selbst setzt.
         entries = []
         for league in leagues:
             if table.get(league):
-                entries.append((league, f"{league:14} #{table[league]}"))
+                entries.append((league, f"#{table[league]}"))
             elif standing:
-                entries.append((league, _f("{league} (Dauer-Hashtag: #{tag})",
-                                           league=f"{league:14}", tag=standing)))
+                entries.append((league, _f("(Dauer-Hashtag: #{tag})", tag=standing)))
             else:
-                entries.append((league, _f("{league} – keiner –",
-                                           league=f"{league:14}")))
+                entries.append((league, _("– keiner –")))
 
         choice = tui.choose(
             _("Hashtag je Liga"),
