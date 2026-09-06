@@ -790,7 +790,10 @@ class Assistent(App):
             return
 
         self.push_screen(Warten(_f("Melde mich als {handle} an …", handle=handle)))
-        ergebnis = await self._anmelden(handle, passwort)
+        # Ein mit @work(thread=True) versehener Aufruf liefert einen
+        # Worker, kein Ergebnis - erst wait() gibt das zurück, was die
+        # Funktion im Faden berechnet hat.
+        ergebnis = await self._anmelden(handle, passwort).wait()
         self.pop_screen()
         await self.push_screen_wait(Hinweis(_("Anmeldung"), ergebnis))
 
@@ -809,7 +812,7 @@ class Assistent(App):
     @work
     async def tue_liga(self):
         self.push_screen(Warten(_("Frage OpenLigaDB nach den Ligen …")))
-        ligen = await self._ligen_holen()
+        ligen = await self._ligen_holen().wait()
         self.pop_screen()
         if isinstance(ligen, str):
             await self.push_screen_wait(Hinweis(_("Abruf fehlgeschlagen"), ligen))
@@ -827,7 +830,7 @@ class Assistent(App):
         kuerzel, saison = wahl.split("|", 1)
 
         self.push_screen(Warten(_("Frage die Mannschaften ab …")))
-        mannschaften = await self._mannschaften_holen(kuerzel, saison)
+        mannschaften = await self._mannschaften_holen(kuerzel, saison).wait()
         self.pop_screen()
         if isinstance(mannschaften, str):
             await self.push_screen_wait(Hinweis(_("Abruf fehlgeschlagen"),
