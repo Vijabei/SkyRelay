@@ -24,7 +24,8 @@ from datetime import datetime
 
 import requests
 from PIL import Image
-from atproto import models
+from atproto import Client, models
+from atproto_client.request import Request
 from atproto_client.models.blob_ref import BlobRef
 
 # The configuration tools live in their own module, deliberately without third
@@ -205,6 +206,23 @@ def get_app_password(*names):
         if value:
             return value, name
     return None, names[0]
+
+
+# How long a single request to Bluesky may take before we give up on it.
+# atproto does not set one of its own and so inherits httpx's default of five
+# seconds - too short for creating a post whose video was processed a moment
+# ago: the server checks the video reference once more before it answers.
+# On 11.09. that cost a post-match interview, five seconds to the dot after
+# the video was reported ready. The request had gone out in full; only the
+# answer was late, so the post may even exist - the bot cannot know.
+BLUESKY_TIMEOUT_SECONDS = 30
+
+
+def make_bluesky_client():
+    """A Bluesky client that waits long enough for a post with a video.
+
+    Both bots build theirs here, so the limit lives in one place."""
+    return Client(request=Request(timeout=BLUESKY_TIMEOUT_SECONDS))
 
 
 def log_in_to_bluesky(client, handle, password, password_variable):

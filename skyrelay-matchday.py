@@ -88,7 +88,7 @@ if "--check-config" in sys.argv or "--show-config" in sys.argv:
 
 import requests
 import segno
-from atproto import Client, models, client_utils
+from atproto import models, client_utils
 
 from neonize.aioze.client import NewAClient
 from neonize.aioze.events import ConnectedEv, MessageEv, PairStatusEv
@@ -99,6 +99,7 @@ from skyrelay_common import (
     load_config,
     start_file_logging,
     log_in_to_bluesky,
+    make_bluesky_client,
     bot_notice,
     get_app_password,
     compress_image_for_bluesky,
@@ -736,7 +737,7 @@ def ensure_bsky():
                            "no further attempts in this run.")
     _login_attempts += 1
     log("Connecting to Bluesky...")
-    connection = Client()
+    connection = make_bluesky_client()
     # Take it over only after a successful login: otherwise an
     # unauthenticated object would stay behind, and every following post
     # would go out unauthenticated ("AuthMissing").

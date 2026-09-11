@@ -42,7 +42,7 @@ if "--check-config" in sys.argv or "--show-config" in sys.argv:
              else show_config(_base))
 
 import instaloader
-from atproto import Client, models, client_utils
+from atproto import models, client_utils
 import time
 import requests
 import traceback
@@ -52,6 +52,7 @@ from skyrelay_common import (
     load_config,
     start_file_logging,
     log_in_to_bluesky,
+    make_bluesky_client,
     bot_notice,
     get_app_password,
     compress_image_for_bluesky,
@@ -317,7 +318,7 @@ def ensure_login():
     # unauthenticated ("AuthMissing").
     if client is None:
         log("Connecting to Bluesky...")
-        connection = Client()
+        connection = make_bluesky_client()
         try:
             log_in_to_bluesky(connection, BLUESKY_HANDLE, BLUESKY_APP_PASSWORD,
                               PASSWORD_VARIABLE)
