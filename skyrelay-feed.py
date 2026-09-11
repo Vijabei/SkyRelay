@@ -449,15 +449,20 @@ for post in latest_posts:
             except Exception as sidecar_error:
                 log(f"[DEBUG] Analysing the sidecar failed: {sidecar_error}")
 
-        # 6. Split the text, build the Instagram URL
+        # 6. Build the Instagram URL, then split the text
         caption = post.caption if post.caption else ""
-        # The first post also carries the header and the source link (~75
-        # characters) and has to stay under Bluesky's 300 character limit ->
-        # deliberately smaller than the following chunks.
-        first_chunk_length = 180
-        follow_chunk_length = 240
 
-        text_chunks = split_caption(caption, first_chunk_length, follow_chunk_length)
+        # The URL comes first: split_caption measures each post with what it
+        # really carries, and the source link is part of that. There are no
+        # fixed chunk lengths any more - until 06.09. this call still passed
+        # the old 180/240 that split_caption had stopped taking on 01.09., and
+        # every single post failed on it for five days.
+        if is_video_post:
+            insta_url = f"https://www.instagram.com/reel/{post.shortcode}/"
+        else:
+            insta_url = f"https://www.instagram.com/p/{post.shortcode}/"
+
+        text_chunks = split_caption(caption, insta_url)
         if not text_chunks:
             if is_video_post or is_multi_video_post:
                 text_chunks = [VIDEO_PLACEHOLDER]
@@ -467,11 +472,6 @@ for post in latest_posts:
                 text_chunks = [IMAGE_PLACEHOLDER]
 
         alt_text = build_alt_text(caption)
-
-        if is_video_post:
-            insta_url = f"https://www.instagram.com/reel/{post.shortcode}/"
-        else:
-            insta_url = f"https://www.instagram.com/p/{post.shortcode}/"
 
         # 7. Prepare the images (for pure image posts all jpgs; for mixed
         # carousels only the real image items - the jpgs of the video items are
