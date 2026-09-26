@@ -66,8 +66,10 @@ morning until midnight, steered through environment variables.
 ### 2. A manual run (friendlies, "let it run for a few hours")
 
 ```bash
-export BLUESKY_TICKER_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"
-SKYRELAY_FORCE=1 SKYRELAY_HASHTAG=DSCGUE python skyrelay-matchday.py
+# The password from a file, which is where it belongs - one line per
+# KEY=value, and `set -a` exports them whether or not they say `export`:
+set -a && . ~/.skyrelay.env && set +a
+SKYRELAY_FORCE=1 SKYRELAY_HASHTAG=DSCGUE venv/bin/python skyrelay-matchday.py
 ```
 
 - **Stopping:** `Ctrl+C` (caught cleanly) — or by itself at 23:59.
@@ -78,7 +80,7 @@ SKYRELAY_FORCE=1 SKYRELAY_HASHTAG=DSCGUE python skyrelay-matchday.py
 - For long runs over SSH (surviving the session being closed):
 
 ```bash
-nohup env SKYRELAY_FORCE=1 SKYRELAY_HASHTAG=DSCGUE python skyrelay-matchday.py >/dev/null 2>&1 &
+nohup env SKYRELAY_FORCE=1 SKYRELAY_HASHTAG=DSCGUE venv/bin/python skyrelay-matchday.py >/dev/null 2>&1 &
 tail -f skyrelay.log        # watch (the program writes the log itself)
 pgrep -af skyrelay-matchday # is it running? PID and command line
 kill <PID>                  # stop it (cleanly, the bio goes to "Bot ist aus")
@@ -87,12 +89,16 @@ kill <PID>                  # stop it (cleanly, the bio goes to "Bot ist aus")
 ### 3a. Catch-up (fetch missed posts, then keep listening)
 
 ```bash
-SKYRELAY_CATCHUP=5 SKYRELAY_FORCE=1 SKYRELAY_HASHTAG=DSCGUE python skyrelay-matchday.py
+SKYRELAY_CATCHUP=5 SKYRELAY_FORCE=1 SKYRELAY_HASHTAG=DSCGUE venv/bin/python skyrelay-matchday.py
 ```
 
 - Fetches the last `N` posts, **skipping** everything the watermark says was
   already done today (no duplicates), and then moves seamlessly into listening.
 - The right mode when the program started too late on a matchday, or had crashed.
+- ⚠️ Catch-up has **no date filter**. It relays every channel post newer than
+  the watermark, so after a longer gap that can be a whole week of posts. Pick
+  `N` to match what really needs fetching, and remember the watermark may be
+  days old.
 - The same neonize caveat as replay (see below): a message without content among
   the last `N` → a crash. Pick a small `N`.
 
@@ -100,10 +106,10 @@ SKYRELAY_CATCHUP=5 SKYRELAY_FORCE=1 SKYRELAY_HASHTAG=DSCGUE python skyrelay-matc
 
 ```bash
 # The last channel post to the log only (a dry run):
-SKYRELAY_REPLAY=1 SKYRELAY_FORCE=1 SKYRELAY_DRY_RUN=1 python skyrelay-matchday.py
+SKYRELAY_REPLAY=1 SKYRELAY_FORCE=1 SKYRELAY_DRY_RUN=1 venv/bin/python skyrelay-matchday.py
 
 # The last channel post FOR REAL on Bluesky (an end to end test):
-SKYRELAY_REPLAY=1 SKYRELAY_FORCE=1 python skyrelay-matchday.py
+SKYRELAY_REPLAY=1 SKYRELAY_FORCE=1 venv/bin/python skyrelay-matchday.py
 
 # The last 3 posts:
 SKYRELAY_REPLAY=3 ...
@@ -127,7 +133,7 @@ SKYRELAY_REPLAY=3 ...
 ## The first pairing (once, interactively — not from cron)
 
 ```bash
-SKYRELAY_FORCE=1 SKYRELAY_DRY_RUN=1 python skyrelay-matchday.py
+SKYRELAY_FORCE=1 SKYRELAY_DRY_RUN=1 venv/bin/python skyrelay-matchday.py
 ```
 
 - An ASCII **QR code appears in the terminal** (only when a pairing is really
@@ -166,6 +172,7 @@ It is created from the template: `cp skyrelay.conf.example skyrelay.conf`, or by
 | Section / key | Meaning |
 |---|---|
 | `[general] language` | Language of the setup assistant (`de`, `en`, or empty for whatever the system says). The log stays English. |
+| `[general] theme` | The colours of the setup window (`flexoki` by default). Any theme Textual knows; an unknown name simply falls back to the default. |
 | `[bluesky] handle` | The account that is posted to. The app password does **not** go here but into `BLUESKY_TICKER_APP_PASSWORD`. |
 | `[source] channel_invite_link` | The WhatsApp channel's invite link (channel → Share → copy link) |
 | `[team] openligadb_filter` / `openligadb_team_id` | The club at OpenLigaDB. Look the team number up at `https://api.openligadb.de/getavailableteams/bl2/2026`. **Empty, or `0`, means no matchday detection** — for sports without OpenLigaDB data; the ticker then runs on any day it is started, with the hashtag from `SKYRELAY_HASHTAG`. |
@@ -176,10 +183,12 @@ It is created from the template: `cp skyrelay.conf.example skyrelay.conf`, or by
 | `[post] prefix` / `source_template` / `source_label` / `standing_hashtag` | The header, how the source line looks, the label of its link, and the standing hashtag on every post |
 | `[league_hashtags]` | A standing hashtag per league, written as `<shortcut> = <tag>` — for a club that labels its teams differently (`bl2 = arminia`, `rlw-frauen = arminiafrauen`). Which team is playing is exactly what the league says. Without a matching entry `[post] standing_hashtag` applies. When several teams play on one day, every tag that belongs to them goes on the post — unlike the match hashtag, which would then be wrong and gives way to `[post] overlap_hashtag`. |
 | `[post] bot_notice` / `bot_notice_marker` | Whether the header appears at all: `always`, `never`, or `auto` (only while the bio does not mention it itself) |
-| `[post] image_placeholder` / `video_placeholder` / `video_hint` | Texts for posts without text of their own, and for a failed video upload |
+| `[post] image_placeholder` / `video_placeholder` / `audio_placeholder` / `sticker_placeholder` / `video_hint` | Texts for posts that carry media but no text of their own, and for a failed video upload |
+| `[post] media_prefix` / `[files] video_retry_dir` / `[post] video_retry_text` / `[limits] video_retry_max_attempts` / `video_retry_interval_seconds` | A video whose upload failed is set aside and handed in later as a reply to its own post: under which name it is filed, where it waits, what the reply says, how often it is tried and how long between attempts |
 | `[profile] enabled` / `marker` / `line_on` / `line_off` / `line_off_no_match` | The bio status line. Placeholders: `{info}` ("1. Spieltag" / "DFB-Pokal, 1. Runde" / `fallback_match_info`), `{hashtag}`, `{date}`, `{time}` |
 | `[schedule] day_end` | When the ticker stops by itself (`23:59` by default) |
 | `[schedule] subscribe_renew_seconds` | How often the live subscription is renewed (it lasts only a few minutes) |
+| `[schedule] pause_between_posts_seconds` | The pause between two Bluesky posts |
 | `[files] session` / `state` / `posts_map` / `log` | File names in the program folder. When moving over from an older version, existing `dsc_ticker_*` files are **adopted automatically** — no fresh pairing needed. |
 | `[logging] to_file` / `max_bytes` / `backup_count` | The log file and its rotation |
 | `[limits] max_video_bytes` / `video_job_timeout_seconds` | Bluesky's limits; normally left alone |
@@ -229,7 +238,7 @@ It is created from the template: `cp skyrelay.conf.example skyrelay.conf`, or by
 | `⚠️ No DFL code on file for "XY"` in the log | A cup or otherwise unknown opponent → add the correct code under `[team_codes]`. |
 | cron: `/bin/sh: 1: …/bin/python3: not found` | A typo in the path (usually the capitalisation). It means the **interpreter**, not Python. Check with `ls -l <path>`. |
 | The ticker starts on a day without a match | `league_shortcuts` should prevent that. Check the log for "matches from other leagues ignored", and which league was taken for a matchday. |
-| The bio status line stays on "Bot ist an" | The process was killed hard (`kill -9`, a power cut) — then the `finally` never runs. Put it back by hand: `SKYRELAY_PROFILE=off … python skyrelay-matchday.py`. |
+| The bio status line stays on "Bot ist an" | The process was killed hard (`kill -9`, a power cut) — then the `finally` never runs. Put it back by hand: `SKYRELAY_PROFILE=off … venv/bin/python skyrelay-matchday.py`. |
 | The program "posts nothing" | Is it in the right mode? Check the log: `REPLAY finished…` versus `Listening for new channel posts…`. Environment variables have to stand **before** the python call on the same line. |
 | `Error sending close to websocket … EOF` at the end | Cosmetic, from disconnecting cleanly — ignore it. |
 | `SIGSEGV … signal arrived during cgo execution` **after** "REPLAY finished" or the end of the day | A cleanup race in neonize: the Go socket thread logs into Python while the interpreter is already shutting down. Purely cosmetic — the work was finished at that point. Since 13.07. the program waits 2 s after disconnecting to avoid it. |
