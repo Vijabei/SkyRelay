@@ -64,6 +64,7 @@ import json
 import logging
 import os
 import re
+import signal
 import sys
 import time
 import traceback
@@ -1548,6 +1549,45 @@ async def main():
     log("End of day reached - the ticker stops. See you next matchday!")
 
 
+# Welches Signal das Ende gebracht hat - nur fuer die Meldung am Schluss.
+_beendendes_signal = None
+
+
+def _signal_wie_strg_c(signum, _rahmen):
+    """Macht aus einem Signal dasselbe wie aus Strg+C.
+
+    Ohne das beendet Python sich bei SIGTERM auf der Stelle: kein `finally`,
+    kein `atexit`, und die Statuszeile der Biografie bliebe auf "Bot ist an"
+    stehen - obwohl `kill <PID>` der uebliche Weg ist, den Ticker zu beenden.
+    Strg+C loest dagegen eine Ausnahme aus, und die raeumt auf. Also wird hier
+    dieselbe Ausnahme ausgeloest, und alles laeuft ueber den erprobten Weg."""
+    global _beendendes_signal
+    _beendendes_signal = signal.Signals(signum).name
+    raise KeyboardInterrupt
+
+
+def signale_abfangen():
+    """Faengt SIGTERM ab, und SIGHUP nur, wenn es nicht schon ignoriert wird.
+
+    Die Einschraenkung bei SIGHUP ist wichtig: Unter `nohup` steht es auf
+    "ignorieren", damit der Ticker das Schliessen der SSH-Sitzung uebersteht.
+    Wuerden wir es hier trotzdem abfangen, machten wir nohup zunichte - der
+    Bot ginge beim Abmelden aus."""
+    gefangen = []
+    for name in ("SIGTERM", "SIGHUP"):
+        sig = getattr(signal, name, None)
+        if sig is None:
+            continue
+        if name == "SIGHUP" and signal.getsignal(sig) == signal.SIG_IGN:
+            continue          # nohup: absichtlich taub, so lassen
+        try:
+            signal.signal(sig, _signal_wie_strg_c)
+            gefangen.append(name)
+        except (ValueError, OSError):
+            pass              # nicht im Hauptthread oder nicht erlaubt
+    return gefangen
+
+
 async def run():
     """A wrapper around main(): it ALWAYS closes the WhatsApp connection cleanly
     at the end - otherwise the Go threads keep the process alive for minutes
@@ -1571,7 +1611,9 @@ async def run():
 
 
 if __name__ == "__main__":
+    signale_abfangen()
     try:
         asyncio.run(run())
     except KeyboardInterrupt:
-        log("Interrupted with Ctrl+C - the WhatsApp connection was closed.")
+        log(f"Stopped ({_beendendes_signal or 'Ctrl+C'}) - the WhatsApp "
+            f"connection was closed and the bio was put back.")
