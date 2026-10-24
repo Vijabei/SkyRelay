@@ -525,6 +525,23 @@ If you use a **different** Bluesky account for Instagram than for the ticker,
 enter it under `[feed] bluesky_handle` and give the app passwords separately
 (see above).
 
+**When Instagram blocks the secondary account.** If Instagram answers with
+`feedback_required` (usually as `400 Bad Request`), `checkpoint_required` or
+`challenge_required`, the account is the problem, not SkyRelay — and every
+further query only stretches the block. The feed then writes into its log what
+to do and leaves Instagram alone for `[feed] block_pause_hours` hours (12 by
+default). Should the block still hold after that, the pause doubles, up to four
+times its length. To lift the block:
+
+1. Log in with the secondary account in the Instagram app or a browser, ideally
+   from the same network as the server, and confirm whatever Instagram asks
+   for ("This was me", a code, new terms).
+2. Give it a day or two.
+3. Create the session anew: `venv/bin/instaloader -l your_secondary_account`
+
+To try again before the pause runs out, delete `skyrelay_feed_pause.txt` (or
+the file named in `[feed] pause_file`).
+
 ---
 
 ## Documentation
