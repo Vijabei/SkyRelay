@@ -521,6 +521,23 @@ Nutzt du für Instagram ein **anderes** Bluesky-Konto als für den Ticker, träg
 es unter `[feed] bluesky_handle` ein und gibst die App-Passwörter getrennt an
 (siehe unten).
 
+**Wenn Instagram das Zweitkonto sperrt.** Meldet Instagram `feedback_required`
+(meist als `400 Bad Request`), `checkpoint_required` oder `challenge_required`,
+liegt das am Konto, nicht an SkyRelay — und jede weitere Anfrage verlängert die
+Sperre nur. Der Feed schreibt dann ins Protokoll, was zu tun ist, und fragt
+`[feed] block_pause_hours` Stunden lang (Vorgabe 12) nicht mehr an. Hält die
+Sperre danach noch an, verdoppelt sich die Pause bis höchstens auf das
+Vierfache. Aufheben lässt sie sich so:
+
+1. Mit dem Zweitkonto in der Instagram-App oder im Browser anmelden, am besten
+   aus demselben Netz wie der Server, und bestätigen, was Instagram verlangt
+   („Das war ich", Code, neue Bedingungen).
+2. Einen bis zwei Tage warten.
+3. Die Sitzung neu anlegen: `venv/bin/instaloader -l dein_zweitkonto`
+
+Wer danach nicht bis zum Ende der Pause warten will, löscht
+`skyrelay_feed_pause.txt` (bzw. die Datei aus `[feed] pause_file`).
+
 ---
 
 ## Dokumentation

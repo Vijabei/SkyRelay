@@ -141,12 +141,19 @@ VIDEO_RETRY_MAX_ATTEMPTS = cfg_int("limits", "video_retry_max_attempts", 8)
 VIDEO_RETRY_TEXT = cfg("post", "video_retry_text",
                        "🎥 Nachgereicht: das Video zum Beitrag oben.")
 
+# How long the feed leaves Instagram alone once it holds the account back
+# (feedback_required and the like). 0 = never pause, only explain.
+BLOCK_PAUSE_HOURS = cfg_int("feed", "block_pause_hours", 12)
+
 LOG_TO_FILE = cfg_bool("logging", "to_file", True)
 LOG_MAX_BYTES = cfg_int("logging", "max_bytes", 2_000_000)
 LOG_BACKUP_COUNT = cfg_int("logging", "backup_count", 5)
 
 STATE_FILE = os.path.join(BASE_DIR, cfg("feed", "state", "skyrelay_feed_posted.txt"))
 LOG_FILE = os.path.join(BASE_DIR, cfg("feed", "log", "skyrelay-feed.log"))
+# Configurable like the state file: several clubs side by side must not
+# pause each other.
+PAUSE_FILE = os.path.join(BASE_DIR, cfg("feed", "pause_file", "skyrelay_feed_pause.txt"))
 TMP_DIR = os.path.join(BASE_DIR, "tmp")
 # The German default stays: it is a folder name on disk, and renaming it would
 # strand videos that a running installation still has waiting in there.
@@ -209,6 +216,84 @@ if os.path.exists(STATE_FILE):
     with open(STATE_FILE, "r", encoding="utf-8") as f:
         posted_shortcodes = set(f.read().splitlines())
 
+# Instagram's answers when it holds the account itself back - an action block
+# or a security check, not a throttled endpoint. Nothing in SkyRelay can fix
+# that, and every further query from cron only stretches the block. So the feed
+# notes when it may ask again and stays away until then.
+INSTAGRAM_BLOCK_MARKERS = ("feedback_required", "checkpoint_required",
+                           "challenge_required")
+
+
+def instagram_block(error):
+    """The marker Instagram's refusal carries, or None for any other error."""
+    text = str(error)
+    return next((marker for marker in INSTAGRAM_BLOCK_MARKERS if marker in text),
+                None)
+
+
+def read_pause():
+    """(until, hours) of the pause on record, or None. The file stays after the
+    pause runs out: should the block still hold, the next pause is longer."""
+    try:
+        with open(PAUSE_FILE, encoding="utf-8") as f:
+            until, hours = f.read().split()[:2]
+        return float(until), int(hours)
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError) as error:
+        log(f"⚠️ Ignoring the unreadable pause file {PAUSE_FILE}: {error}")
+        return None
+
+
+def pause_for_block(marker):
+    """Explains the block and, unless switched off, pauses the feed."""
+    log(f"⛔ Instagram is holding the account {INSTA_BOT_USER} back ({marker}).")
+    log("   That is a block on the account, not a fault in SkyRelay - asking")
+    log("   again only stretches it. To lift it:")
+    log(f"     1. Log in as {INSTA_BOT_USER} in the Instagram app or a browser,")
+    log("        ideally from this network, and confirm whatever it asks for")
+    log("        (\"This was me\", a code, new terms).")
+    log("     2. Give it a day or two.")
+    log(f"     3. Create the session anew: venv/bin/instaloader -l {INSTA_BOT_USER}")
+    if BLOCK_PAUSE_HOURS <= 0:
+        log("   [feed] block_pause_hours = 0 - not pausing, the next run asks again.")
+        return
+    # Still blocked straight after a pause: double it, up to four times the
+    # configured length.
+    previous = read_pause()
+    hours = (min(previous[1] * 2, BLOCK_PAUSE_HOURS * 4) if previous
+             else BLOCK_PAUSE_HOURS)
+    until = time.time() + hours * 3600
+    try:
+        with open(PAUSE_FILE, "w", encoding="utf-8") as f:
+            f.write(f"{until:.0f} {hours}\n")
+    except OSError as error:
+        log(f"⚠️ Could not write the pause file {PAUSE_FILE}: {error}")
+        return
+    log(f"   The feed leaves Instagram alone for {hours} hours, until "
+        f"{time.strftime('%Y-%m-%d %H:%M', time.localtime(until))}.")
+    log(f"   To try sooner (after confirming in the app), delete {PAUSE_FILE}")
+
+
+def lift_pause():
+    """Instagram answers again - forget the pause and its length."""
+    if os.path.exists(PAUSE_FILE):
+        try:
+            os.remove(PAUSE_FILE)
+            log("Instagram answers again - the pause is lifted.")
+        except OSError as error:
+            log(f"⚠️ Could not remove the pause file {PAUSE_FILE}: {error}")
+
+
+_pause = read_pause()
+if _pause and _pause[0] > time.time():
+    log(f"Paused: Instagram held the account {INSTA_BOT_USER} back. Not asking "
+        f"again before {time.strftime('%Y-%m-%d %H:%M', time.localtime(_pause[0]))}.")
+    log(f"   To try sooner (after confirming in the app), delete {PAUSE_FILE}")
+    sys.exit(0)
+elif _pause:
+    log("The pause is over - asking Instagram again.")
+
 # 2. Set up instaloader and load the session
 L = instaloader.Instaloader(
     dirname_pattern=os.path.join(TMP_DIR, "{target}"),
@@ -243,7 +328,12 @@ try:
 
 except Exception as error:
     log(f"The Instagram query failed: {error}")
+    marker = instagram_block(error)
+    if marker:
+        pause_for_block(marker)
     sys.exit(1)
+
+lift_pause()
 
 
 # 4. Helpers
@@ -669,6 +759,12 @@ for post in latest_posts:
     except Exception as error:
         log(f"Error on post {post.shortcode}: {error}")
         traceback.print_exc()
+        # The block can also strike in the middle of the downloads - then the
+        # remaining posts would only knock on the same closed door.
+        marker = instagram_block(error)
+        if marker:
+            pause_for_block(marker)
+            break
 
     finally:
         # 11. Clean up (runs on errors as well, and clears subfolders too)

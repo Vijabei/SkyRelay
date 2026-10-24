@@ -257,9 +257,16 @@ alt_text_fallback = News
 # Text der Folgebeiträge, wenn ein Instagram-Beitrag mehr Medien als Text hat
 # (z.B. ein Karussell mit mehreren Videos, aber nur einer kurzen Bildunterschrift).
 continuation_text = Weitere Inhalte...
-# Merkliste bereits übernommener Beiträge und eigene Protokolldatei.
+# Sperrt Instagram das Zweitkonto (feedback_required, checkpoint_required,
+# challenge_required), fragt der Feed so viele Stunden lang nicht mehr an -
+# jede weitere Anfrage verlängert die Sperre nur. Hält sie danach noch an,
+# verdoppelt sich die Pause (höchstens auf das Vierfache). 0 = nie pausieren.
+block_pause_hours = 12
+# Merkliste bereits übernommener Beiträge, eigene Protokolldatei und die Datei,
+# in der eine laufende Pause steht (löschen, um vorher wieder anzufragen).
 state = skyrelay_feed_posted.txt
 log = skyrelay-feed.log
+pause_file = skyrelay_feed_pause.txt
 
 
 [profile]

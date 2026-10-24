@@ -14,6 +14,7 @@ session-*
 skyrelay_state*
 skyrelay_posts*
 skyrelay_feed_posted*
+skyrelay_feed_pause*
 dsc_ticker_state.txt
 dsc_ticker_posts.json
 posted_shortcodes.txt
