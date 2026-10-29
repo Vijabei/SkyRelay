@@ -527,8 +527,10 @@ enter it under `[feed] bluesky_handle` and give the app passwords separately
 
 **When Instagram blocks the secondary account.** If Instagram answers with
 `feedback_required` (usually as `400 Bad Request`), `checkpoint_required` or
-`challenge_required`, the account is the problem, not SkyRelay — and every
-further query only stretches the block. The feed then writes into its log what
+`challenge_required`, the account is usually the problem — and every further
+query only stretches the block. An outdated instaloader, whose query Instagram
+no longer accepts, gets the same answer, though (see *Known limitations*). If a
+fresh account is turned away straight away too, that is the cause: `./update.sh`. The feed then writes into its log what
 to do and leaves Instagram alone for `[feed] block_pause_hours` hours (12 by
 default). Should the block still hold after that, the pause doubles, up to four
 times its length. To lift the block:
@@ -586,11 +588,13 @@ the file named in `[feed] pause_file`).
   venv/bin/python3 skyrelay-testlauf.py --latest
   venv/bin/python3 skyrelay-testlauf.py --before <serverID> --type audio,sticker
   ```
-* **`instaloader` is pinned to 4.15.2.** Version 4.15.3 moved the profile lookup
-  to an endpoint Instagram has been throttling since early August 2026 — the very
-  first request ends in a "429 Too Many Requests"
-  ([instaloader#2726](https://github.com/instaloader/instaloader/issues/2726),
-  open). Only update once that is solved.
+* **`instaloader` is pinned to 4.16.** Instagram keeps changing how profiles and
+  posts are queried, and only a few versions fit at any one time. Since early
+  October 2026 Instagram answers the query of older versions with
+  `feedback_required` — for every account, a fresh one included
+  ([instaloader#2767](https://github.com/instaloader/instaloader/issues/2767)).
+  4.16 sends the same query as the Instagram website. Before switching, check
+  with `SKYRELAY_DRY_RUN=1` that the new version still finds the posts.
 * **Polls** are skipped: Bluesky has no such format.
 * **Voice messages need a detour to download.** Channel media sit unencrypted
   behind `directPath` — images and videos therefore carry no `mediaKey` at all.

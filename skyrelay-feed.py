@@ -77,21 +77,18 @@ from skyrelay_common import (
 
 # Instagram keeps changing the endpoints that serve profile data, so the window
 # of usable instaloader versions is narrow:
-#   < 4.15.1  breaks on Instagram's move to GraphQL
-#   4.15.2    works (pinned in requirements.txt)
-#   >= 4.15.3 goes back to "web_profile_info"; Instagram has been throttling
-#             that endpoint since August 2026, the very first request ends in a
-#             429 (instaloader#2726, still open)
+#   < 4.16    Instagram has answered their query for a profile's posts with
+#             400 "feedback_required" since October 2026 - for every account,
+#             a fresh one included (instaloader#2767)
+#   4.16      works (pinned in requirements.txt); sends the website's query and,
+#             logged in, no longer touches the throttled "web_profile_info"
+#             (instaloader#2726)
 _instaloader_version = tuple(int(p) for p in instaloader.__version__.split(".")[:3]
                              if p.isdigit())
-if _instaloader_version < (4, 15, 1):
-    log(f"⚠️ instaloader {instaloader.__version__} is too old for Instagram's "
-        f"current endpoints. Recommended: pip install 'instaloader==4.15.2'")
-elif _instaloader_version >= (4, 15, 3):
-    log(f"⚠️ instaloader {instaloader.__version__} uses 'web_profile_info', the "
-        f"endpoint Instagram throttles - expect HTTP 429.")
-    log(f"   Recommended until instaloader#2726 is solved: "
-        f"pip install 'instaloader==4.15.2'")
+if _instaloader_version < (4, 16):
+    log(f"⚠️ instaloader {instaloader.__version__} is too old: Instagram answers "
+        f"its query for posts with 'feedback_required'.")
+    log("   Recommended: ./update.sh, or pip install 'instaloader==4.16'")
 
 # ============================== CONFIGURATION ================================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -256,8 +253,10 @@ def read_pause():
 def pause_for_block(marker):
     """Explains the block and, unless switched off, pauses the feed."""
     log(f"⛔ Instagram is holding the account {INSTA_BOT_USER} back ({marker}).")
-    log("   That is a block on the account, not a fault in SkyRelay - asking")
-    log("   again only stretches it. To lift it:")
+    log("   Usually that is a block on the account, and asking again only")
+    log("   stretches it. An outdated instaloader gets the same answer, though -")
+    log("   if a fresh account is turned away as well, run ./update.sh.")
+    log("   To lift a block on the account:")
     log(f"     1. Log in as {INSTA_BOT_USER} in the Instagram app or a browser,")
     log("        ideally from this network, and confirm whatever it asks for")
     log("        (\"This was me\", a code, new terms).")
