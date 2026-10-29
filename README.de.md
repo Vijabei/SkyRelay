@@ -523,8 +523,10 @@ es unter `[feed] bluesky_handle` ein und gibst die App-Passwörter getrennt an
 
 **Wenn Instagram das Zweitkonto sperrt.** Meldet Instagram `feedback_required`
 (meist als `400 Bad Request`), `checkpoint_required` oder `challenge_required`,
-liegt das am Konto, nicht an SkyRelay — und jede weitere Anfrage verlängert die
-Sperre nur. Der Feed schreibt dann ins Protokoll, was zu tun ist, und fragt
+liegt das meist am Konto — und jede weitere Anfrage verlängert die Sperre nur.
+Dieselbe Antwort bekommt aber auch eine veraltete instaloader-Version, deren
+Abfrage Instagram nicht mehr annimmt (siehe *Bekannte Einschränkungen*). Wird
+auch ein frisches Konto sofort abgewiesen, liegt es daran: `./update.sh`. Der Feed schreibt dann ins Protokoll, was zu tun ist, und fragt
 `[feed] block_pause_hours` Stunden lang (Vorgabe 12) nicht mehr an. Hält die
 Sperre danach noch an, verdoppelt sich die Pause bis höchstens auf das
 Vierfache. Aufheben lässt sie sich so:
@@ -583,11 +585,13 @@ Wer danach nicht bis zum Ende der Pause warten will, löscht
   venv/bin/python3 skyrelay-testlauf.py --latest
   venv/bin/python3 skyrelay-testlauf.py --before <ServerID> --type audio,sticker
   ```
-* **`instaloader` ist auf 4.15.2 festgelegt.** Version 4.15.3 stellte die
-  Profilabfrage auf einen Endpunkt um, den Instagram seit Anfang August 2026
-  drosselt — schon die erste Anfrage endet mit „429 Too Many Requests"
-  ([instaloader#2726](https://github.com/instaloader/instaloader/issues/2726),
-  offen). Erst nach dessen Lösung aktualisieren.
+* **`instaloader` ist auf 4.16 festgelegt.** Instagram ändert immer wieder,
+  wie Profile und Beiträge abgefragt werden, und nur wenige Versionen passen
+  jeweils. Seit Anfang Oktober 2026 beantwortet Instagram die Abfrage älterer
+  Versionen mit `feedback_required` — bei jedem Konto, auch bei einem frischen
+  ([instaloader#2767](https://github.com/instaloader/instaloader/issues/2767)).
+  4.16 stellt dieselbe Abfrage wie die Instagram-Website. Vor einem Wechsel mit
+  `SKYRELAY_DRY_RUN=1` prüfen, ob die neue Version die Beiträge noch findet.
 * **Umfragen** werden übersprungen: Bluesky kennt dieses Format nicht.
 * **Sprachnachrichten brauchen einen Umweg beim Download.** Kanalmedien liegen
   unverschlüsselt hinter `directPath` — Bilder und Videos bringen deshalb gar
