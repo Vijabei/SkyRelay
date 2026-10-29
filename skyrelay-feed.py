@@ -223,6 +223,14 @@ if os.path.exists(STATE_FILE):
 INSTAGRAM_BLOCK_MARKERS = ("feedback_required", "checkpoint_required",
                            "challenge_required")
 
+# The run that should ask again is started by cron in the same minute the pause
+# was noted in. Counted from the end of the query, the pause would still have
+# seconds to go when that run looks, and the asking would fall to the run after
+# it, hours later. So the pause counts from the start of the run, and a few
+# minutes either way do not matter.
+RUN_STARTED = time.time()
+PAUSE_GRACE_SECONDS = 300
+
 
 def instagram_block(error):
     """The marker Instagram's refusal carries, or None for any other error."""
@@ -263,7 +271,7 @@ def pause_for_block(marker):
     previous = read_pause()
     hours = (min(previous[1] * 2, BLOCK_PAUSE_HOURS * 4) if previous
              else BLOCK_PAUSE_HOURS)
-    until = time.time() + hours * 3600
+    until = RUN_STARTED + hours * 3600
     try:
         with open(PAUSE_FILE, "w", encoding="utf-8") as f:
             f.write(f"{until:.0f} {hours}\n")
@@ -286,7 +294,7 @@ def lift_pause():
 
 
 _pause = read_pause()
-if _pause and _pause[0] > time.time():
+if _pause and _pause[0] - PAUSE_GRACE_SECONDS > time.time():
     log(f"Paused: Instagram held the account {INSTA_BOT_USER} back. Not asking "
         f"again before {time.strftime('%Y-%m-%d %H:%M', time.localtime(_pause[0]))}.")
     log(f"   To try sooner (after confirming in the app), delete {PAUSE_FILE}")
