@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SkyRelay VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-06 20:33+0200\n"
+"POT-Creation-Date: 2026-11-07 13:22+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,6 +16,390 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
+
+#: skyrelay-heartbeat.py:252
+#, python-brace-format
+msgid "Auf PyPI gibt es {package} {latest} (installiert: {installed})."
+msgstr ""
+
+#: skyrelay-heartbeat.py:255
+#, python-brace-format
+msgid "{package} {installed} ist die neueste Fassung auf PyPI."
+msgstr ""
+
+#: skyrelay-heartbeat.py:289
+msgid "WhatsApp-Verbindung gestört"
+msgstr ""
+
+#: skyrelay-heartbeat.py:290
+#, python-brace-format
+msgid ""
+"Seit {minutes} Minuten: {detail}. whatsmeow versucht es weiter; hält es "
+"an, den Ticker neu starten."
+msgstr ""
+
+#: skyrelay-heartbeat.py:296
+msgid "WhatsApp lässt den Ticker nicht mehr ein"
+msgstr ""
+
+#: skyrelay-heartbeat.py:297
+#, python-brace-format
+msgid ""
+"WhatsApp weist die Client-Version ab, die neonize {version} mitbringt "
+"(„Client outdated“, 405).\n"
+"→ ./update.sh ausführen. Hält requirements.txt noch dieselbe Fassung "
+"fest, braucht es zuerst eine neuere neonize."
+msgstr ""
+
+#: skyrelay-heartbeat.py:304
+msgid "WhatsApp hat den Ticker abgemeldet"
+msgstr ""
+
+#: skyrelay-heartbeat.py:305
+#, python-brace-format
+msgid ""
+"Das verknüpfte Gerät wurde abgemeldet – am Handy entfernt oder "
+"abgelaufen.\n"
+"→ Neu koppeln, interaktiv im Terminal:\n"
+"rm {session}\n"
+"SKYRELAY_FORCE=1 SKYRELAY_DRY_RUN=1 venv/bin/python skyrelay-matchday.py"
+msgstr ""
+
+#: skyrelay-heartbeat.py:311
+msgid "Der Ticker ist nicht mit WhatsApp gekoppelt"
+msgstr ""
+
+#: skyrelay-heartbeat.py:312
+msgid ""
+"WhatsApp verlangt einen QR-Scan.\n"
+"→ Einmal interaktiv koppeln:\n"
+"SKYRELAY_FORCE=1 SKYRELAY_DRY_RUN=1 venv/bin/python skyrelay-matchday.py"
+msgstr ""
+
+#: skyrelay-heartbeat.py:315
+msgid "WhatsApp hat die Nummer gesperrt"
+msgstr ""
+
+#: skyrelay-heartbeat.py:316
+#, python-brace-format
+msgid ""
+"Vorübergehende Sperre ({detail}). SkyRelay kann daran nichts ändern – "
+"abwarten und am Handy nachsehen."
+msgstr ""
+
+#: skyrelay-heartbeat.py:319
+msgid "Zwei Verbindungen mit derselben WhatsApp-Sitzung"
+msgstr ""
+
+#: skyrelay-heartbeat.py:320
+msgid ""
+"Ein anderes Programm hat sich mit derselben Sitzung angemeldet und den "
+"Ticker verdrängt – ein zweiter Ticker oder der Testlauf. Es darf immer "
+"nur einer laufen."
+msgstr ""
+
+#: skyrelay-heartbeat.py:324
+msgid "Keine Verbindung zu WhatsApp"
+msgstr ""
+
+#: skyrelay-heartbeat.py:325
+#, python-brace-format
+msgid ""
+"{detail}.\n"
+"→ Netz des Pi prüfen, sonst ins Protokoll sehen: tail -50 {log}"
+msgstr ""
+
+#: skyrelay-heartbeat.py:328
+msgid "WhatsApp-Kanal nicht erreichbar"
+msgstr ""
+
+#: skyrelay-heartbeat.py:329
+#, python-brace-format
+msgid ""
+"Verbunden, aber der Kanal ließ sich nicht auflösen: {detail}\n"
+"→ Einladungslink in [source] channel_invite_link prüfen."
+msgstr ""
+
+#: skyrelay-heartbeat.py:333
+msgid "WhatsApp-Störung"
+msgstr ""
+
+#: skyrelay-heartbeat.py:341
+#, python-brace-format
+msgid ""
+"Handle und App-Passwort passen nicht zusammen ({detail}).\n"
+"→ App-Passwort in der crontab prüfen; wurde es bei Bluesky widerrufen, "
+"ein neues anlegen."
+msgstr ""
+
+#: skyrelay-heartbeat.py:344
+#, python-brace-format
+msgid ""
+"{variable} ist nicht gesetzt.\n"
+"→ Gehört oben in die crontab (crontab -e), ohne Anführungszeichen."
+msgstr ""
+
+#: skyrelay-heartbeat.py:347
+msgid ""
+"Bluesky lässt heute keine weiteren Anmeldungen zu (Tageslimit). Das gibt "
+"sich von selbst – weitere Versuche bringen nichts."
+msgstr ""
+
+#: skyrelay-heartbeat.py:352
+#, python-brace-format
+msgid "Bluesky-Anmeldung ({who}) scheitert: @{handle}"
+msgstr ""
+
+#: skyrelay-heartbeat.py:364
+#, python-brace-format
+msgid "Ein Beitrag ließ sich nicht übertragen ({who})"
+msgstr ""
+
+#: skyrelay-heartbeat.py:365
+#, python-brace-format
+msgid ""
+"{detail}\n"
+"Einzelheiten im Protokoll: {log}"
+msgstr ""
+
+#: skyrelay-heartbeat.py:378
+msgid "Der Ticker hat noch nie einen Status geschrieben"
+msgstr ""
+
+#: skyrelay-heartbeat.py:379
+msgid ""
+"Seit der Wächter läuft, ist der Ticker nicht gestartet.\n"
+"→ Stimmt der tägliche cron-Eintrag (crontab -l)?"
+msgstr ""
+
+#: skyrelay-heartbeat.py:397
+msgid "Der Prozess läuft nicht mehr."
+msgstr ""
+
+#: skyrelay-heartbeat.py:398
+msgid "Der Prozess hängt."
+msgstr ""
+
+#: skyrelay-heartbeat.py:401
+msgid "Der Ticker ist ausgefallen"
+msgstr ""
+
+#: skyrelay-heartbeat.py:402
+#, python-brace-format
+msgid ""
+"Er sollte bis {until} lauschen, das letzte Lebenszeichen kam um {beat}. "
+"{state} Die Bio steht vermutlich noch auf „Bot ist an“.\n"
+"→ Protokoll ansehen: tail -50 {log}\n"
+"→ Neu starten und Verpasstes nachholen:\n"
+"SKYRELAY_CATCHUP=5 nohup venv/bin/python skyrelay-matchday.py >/dev/null "
+"2>&1 &"
+msgstr ""
+
+#: skyrelay-heartbeat.py:417
+#, python-brace-format
+msgid "Der Ticker ist seit {hours} Stunden nicht gestartet"
+msgstr ""
+
+#: skyrelay-heartbeat.py:419
+msgid ""
+"Damit fehlt auch die tägliche WhatsApp-Prüfung.\n"
+"→ Stimmt der cron-Eintrag (crontab -l)? War der Pi aus?"
+msgstr ""
+
+#: skyrelay-heartbeat.py:432
+msgid "Spielplan nicht abrufbar"
+msgstr ""
+
+#: skyrelay-heartbeat.py:433
+#, python-brace-format
+msgid ""
+"OpenLigaDB antwortete nicht ({detail}). An einem Spieltag startet der "
+"Ticker dann nicht.\n"
+"→ Wird heute gespielt, von Hand starten:\n"
+"SKYRELAY_FORCE=1 nohup venv/bin/python skyrelay-matchday.py >/dev/null "
+"2>&1 &"
+msgstr ""
+
+#: skyrelay-heartbeat.py:441 skyrelay-heartbeat.py:446
+msgid "Ticker"
+msgstr ""
+
+#: skyrelay-heartbeat.py:455
+msgid "Der Ticker hat sich mit einem Fehler beendet"
+msgstr ""
+
+#: skyrelay-heartbeat.py:456
+#, python-brace-format
+msgid ""
+"{detail}\n"
+"→ Protokoll ansehen: tail -50 {log}"
+msgstr ""
+
+#: skyrelay-heartbeat.py:471
+msgid "Der Feed hat noch nie einen Status geschrieben"
+msgstr ""
+
+#: skyrelay-heartbeat.py:472
+msgid ""
+"Seit der Wächter läuft, ist der Feed nicht gestartet.\n"
+"→ Stimmt der cron-Eintrag (crontab -l)?"
+msgstr ""
+
+#: skyrelay-heartbeat.py:484
+#, python-brace-format
+msgid "Der Feed ist seit {hours} Stunden nicht gelaufen"
+msgstr ""
+
+#: skyrelay-heartbeat.py:486
+msgid "→ Stimmt der cron-Eintrag (crontab -l)? War der Pi aus?"
+msgstr ""
+
+#: skyrelay-heartbeat.py:493
+#, python-brace-format
+msgid "Instagram antwortet mit {marker}."
+msgstr ""
+
+#: skyrelay-heartbeat.py:495
+#, python-brace-format
+msgid "Der Feed pausiert bis {until}."
+msgstr ""
+
+#: skyrelay-heartbeat.py:496
+#, python-brace-format
+msgid ""
+"→ Meist liegt es am Konto: mit {user} in der App anmelden und bestätigen,"
+" was Instagram verlangt; danach venv/bin/instaloader -l {user}\n"
+"→ Wird auch ein frisches Konto abgewiesen, ist instaloader veraltet: "
+"./update.sh"
+msgstr ""
+
+#: skyrelay-heartbeat.py:505
+msgid "Instagram sperrt das Abrufkonto"
+msgstr ""
+
+#: skyrelay-heartbeat.py:509
+msgid "Instagram-Sitzung fehlt oder ist kaputt"
+msgstr ""
+
+#: skyrelay-heartbeat.py:510
+#, python-brace-format
+msgid ""
+"{detail}\n"
+"→ Neu anlegen: venv/bin/instaloader -l {user}"
+msgstr ""
+
+#: skyrelay-heartbeat.py:517
+#, python-brace-format
+msgid "Letzter Fehler: {detail}"
+msgstr ""
+
+#: skyrelay-heartbeat.py:518
+msgid "Der Feed läuft, aber keine Abfrage gelang."
+msgstr ""
+
+#: skyrelay-heartbeat.py:519
+#, python-brace-format
+msgid "→ Protokoll ansehen: tail -50 {log}"
+msgstr ""
+
+#: skyrelay-heartbeat.py:525
+#, python-brace-format
+msgid "Der Feed holt seit {hours} Stunden nichts von Instagram"
+msgstr ""
+
+#: skyrelay-heartbeat.py:531 skyrelay-heartbeat.py:535
+msgid "Feed"
+msgstr ""
+
+#: skyrelay-heartbeat.py:548
+msgid "Speicher fast voll"
+msgstr ""
+
+#: skyrelay-heartbeat.py:549
+#, python-brace-format
+msgid ""
+"Nur noch {free} MB frei für {path}.\n"
+"→ Alte Protokolle und tmp/ aufräumen; sudo apt clean hilft oft auch."
+msgstr ""
+
+#: skyrelay-heartbeat.py:575
+#, python-brace-format
+msgid ""
+"ℹ️ Neue Fassung: {package} {latest} (installiert: {installed}). Nicht "
+"ungeprüft wechseln – erst mit SKYRELAY_DRY_RUN=1 testen, siehe UPGRADE-"
+"TEST.md. Solange alles läuft, besteht kein Anlass."
+msgstr ""
+
+#: skyrelay-heartbeat.py:588
+msgid "WhatsApp-Verbindung des Tickers"
+msgstr ""
+
+#: skyrelay-heartbeat.py:589
+msgid "Der Ticker läuft wieder"
+msgstr ""
+
+#: skyrelay-heartbeat.py:590
+msgid "Täglicher Start des Tickers"
+msgstr ""
+
+#: skyrelay-heartbeat.py:591
+msgid "Der Ticker endet wieder ohne Fehler"
+msgstr ""
+
+#: skyrelay-heartbeat.py:592
+msgid "Spielplan von OpenLigaDB"
+msgstr ""
+
+#: skyrelay-heartbeat.py:593
+msgid "Bluesky-Anmeldung des Tickers"
+msgstr ""
+
+#: skyrelay-heartbeat.py:594
+msgid "Bluesky-Anmeldung des Feeds"
+msgstr ""
+
+#: skyrelay-heartbeat.py:595
+msgid "Instagram-Abruf des Feeds"
+msgstr ""
+
+#: skyrelay-heartbeat.py:596
+msgid "Regelmäßiger Start des Feeds"
+msgstr ""
+
+#: skyrelay-heartbeat.py:597
+msgid "Speicherplatz"
+msgstr ""
+
+#: skyrelay-heartbeat.py:613 skyrelay-heartbeat.py:616
+#: skyrelay-heartbeat.py:760
+#, python-brace-format
+msgid "seit {since}"
+msgstr ""
+
+#: skyrelay-heartbeat.py:615
+#, python-brace-format
+msgid "⏰ Weiterhin: {title}"
+msgstr ""
+
+#: skyrelay-heartbeat.py:618
+#, python-brace-format
+msgid "✅ Wieder in Ordnung: {title}"
+msgstr ""
+
+#: skyrelay-heartbeat.py:620
+#, python-brace-format
+msgid "Gestört seit {since}"
+msgstr ""
+
+#: skyrelay-heartbeat.py:721
+msgid ""
+"🧪 Testmeldung: Wenn du das liest, kommen die Meldungen des Wächters bei "
+"dir an."
+msgstr ""
+
+#: skyrelay-heartbeat.py:757
+msgid "Alles in Ordnung."
+msgstr ""
 
 #: skyrelay-setup.py:49
 msgid "Fußball · 1. Bundesliga"
@@ -192,7 +576,7 @@ msgstr ""
 msgid "Spiel"
 msgstr ""
 
-#: skyrelay-setup.py:491 skyrelay_setup_app.py:117
+#: skyrelay-setup.py:491 skyrelay_setup_app.py:121
 msgid "WhatsApp-Kanal"
 msgstr ""
 
@@ -407,11 +791,11 @@ msgstr ""
 msgid "ob der Bot gerade läuft - beim Beenden wird sie zurückgestellt."
 msgstr ""
 
-#: skyrelay-setup.py:654 skyrelay_setup_app.py:257
+#: skyrelay-setup.py:654 skyrelay_setup_app.py:261
 msgid "Text während des Betriebs"
 msgstr ""
 
-#: skyrelay-setup.py:656 skyrelay_setup_app.py:260
+#: skyrelay-setup.py:656 skyrelay_setup_app.py:264
 msgid "Text nach dem Beenden"
 msgstr ""
 
@@ -514,8 +898,8 @@ msgid ""
 "Abgebrochen - es wurde nichts geändert. Starte den Assistenten erneut."
 msgstr ""
 
-#: skyrelay-setup.py:733 skyrelay_setup_app.py:607 skyrelay_setup_app.py:1151
-#: skyrelay_setup_app.py:1156
+#: skyrelay-setup.py:733 skyrelay_setup_app.py:664 skyrelay_setup_app.py:1260
+#: skyrelay_setup_app.py:1265
 msgid "Speichern"
 msgstr ""
 
@@ -545,7 +929,7 @@ msgid ""
 "  Danach den Dauerbetrieb per cron einrichten - siehe README.md.\n"
 msgstr ""
 
-#: skyrelay-setup.py:782 skyrelay_setup_app.py:193
+#: skyrelay-setup.py:782 skyrelay_setup_app.py:197
 msgid "Kopfzeile"
 msgstr ""
 
@@ -557,7 +941,7 @@ msgstr ""
 msgid "Spiel-Hashtag"
 msgstr ""
 
-#: skyrelay-setup.py:785 skyrelay_setup_app.py:219
+#: skyrelay-setup.py:785 skyrelay_setup_app.py:223
 msgid "Dauer-Hashtag"
 msgstr ""
 
@@ -620,22 +1004,26 @@ msgstr ""
 msgid "Instagram-Sitzung anlegen (einmalig):"
 msgstr ""
 
-#: skyrelay-setup.py:883
+#: skyrelay-setup.py:884
+msgid "Wächter ausprobieren und per cron alle 15 Minuten starten:"
+msgstr ""
+
+#: skyrelay-setup.py:886
 msgid "Danach cron einrichten - siehe README.md"
 msgstr ""
 
-#: skyrelay-setup.py:986
+#: skyrelay-setup.py:989
 msgid ""
 "\n"
 "\n"
 "Abgebrochen - es wurde nichts geschrieben.\n"
 msgstr ""
 
-#: skyrelay_setup_app.py:89
+#: skyrelay_setup_app.py:93
 msgid "1 · Bluesky-Konto"
 msgstr ""
 
-#: skyrelay_setup_app.py:90
+#: skyrelay_setup_app.py:94
 msgid ""
 "Unter welchem Konto die Beiträge erscheinen.\n"
 "\n"
@@ -644,43 +1032,43 @@ msgid ""
 "Repository oder eine Sicherungskopie."
 msgstr ""
 
-#: skyrelay_setup_app.py:95
+#: skyrelay_setup_app.py:99
 msgid "Handle des Ticker-Kontos"
 msgstr ""
 
-#: skyrelay_setup_app.py:96
+#: skyrelay_setup_app.py:100
 msgid "Vollständig und ohne @, z.B. mein-bot.bsky.social"
 msgstr ""
 
-#: skyrelay_setup_app.py:98
+#: skyrelay_setup_app.py:102
 msgid "Eigenes Konto für den Feed"
 msgstr ""
 
-#: skyrelay_setup_app.py:99
+#: skyrelay_setup_app.py:103
 msgid ""
 "Nur ausfüllen, wenn der Instagram-Feed unter einem anderen Konto posten "
 "soll. Leer = dasselbe Konto wie oben."
 msgstr ""
 
-#: skyrelay_setup_app.py:102
+#: skyrelay_setup_app.py:106
 msgid "leer = wie oben"
 msgstr ""
 
-#: skyrelay_setup_app.py:103
+#: skyrelay_setup_app.py:107
 msgid "Anmeldung prüfen"
 msgstr ""
 
-#: skyrelay_setup_app.py:104
+#: skyrelay_setup_app.py:108
 msgid ""
 "Meldet sich einmal an und sagt, ob Handle und App-Passwort "
 "zusammenpassen. Es wird nichts veröffentlicht."
 msgstr ""
 
-#: skyrelay_setup_app.py:110
+#: skyrelay_setup_app.py:114
 msgid "2 · Spieltags-Ticker"
 msgstr ""
 
-#: skyrelay_setup_app.py:111
+#: skyrelay_setup_app.py:115
 msgid ""
 "Spiegelt an Spieltagen den WhatsApp-Kanal des Vereins nach Bluesky.\n"
 "\n"
@@ -689,49 +1077,49 @@ msgid ""
 "Verbindung aufgebaut."
 msgstr ""
 
-#: skyrelay_setup_app.py:118
+#: skyrelay_setup_app.py:122
 msgid ""
 "Der Einladungslink des Kanals, den der Bot mitliest. In WhatsApp: Kanal "
 "öffnen → Name antippen → Link kopieren."
 msgstr ""
 
-#: skyrelay_setup_app.py:122
+#: skyrelay_setup_app.py:126
 msgid "Liga und Verein suchen"
 msgstr ""
 
-#: skyrelay_setup_app.py:123
+#: skyrelay_setup_app.py:127
 msgid ""
 "Sucht bei OpenLigaDB und trägt Verein, Liga und die Kürzeltabelle der "
 "ganzen Liga auf einmal ein. Der bequemste Weg – die drei Felder darunter "
 "füllen sich dabei von selbst."
 msgstr ""
 
-#: skyrelay_setup_app.py:128
+#: skyrelay_setup_app.py:132
 msgid "Suchbegriff"
 msgstr ""
 
-#: skyrelay_setup_app.py:129
+#: skyrelay_setup_app.py:133
 msgid ""
 "Teil des Vereinsnamens, mit dem OpenLigaDB gefunden wird. Leer lassen, "
 "wenn es für die Sportart dort keine Daten gibt – dann läuft der Ticker an"
 " jedem Tag, an dem er gestartet wird."
 msgstr ""
 
-#: skyrelay_setup_app.py:134
+#: skyrelay_setup_app.py:138
 msgid "Team-Nummer"
 msgstr ""
 
-#: skyrelay_setup_app.py:135
+#: skyrelay_setup_app.py:139
 msgid ""
 "Zur Absicherung, weil der Suchbegriff auch fremde Vereine treffen kann. 0"
 " = keine Spieltags-Erkennung."
 msgstr ""
 
-#: skyrelay_setup_app.py:139
+#: skyrelay_setup_app.py:143
 msgid "Ligen"
 msgstr ""
 
-#: skyrelay_setup_app.py:140
+#: skyrelay_setup_app.py:144
 msgid ""
 "Nur Spiele aus diesen Ligen zählen – exakte Kürzel, durch Komma getrennt,"
 " z.B. „bl2, rlw-frauen“.\n"
@@ -739,29 +1127,29 @@ msgid ""
 "diese Sperre spränge der Bot an spielfreien Tagen an."
 msgstr ""
 
-#: skyrelay_setup_app.py:147
+#: skyrelay_setup_app.py:151
 msgid "Zeitzone"
 msgstr ""
 
-#: skyrelay_setup_app.py:148
+#: skyrelay_setup_app.py:152
 msgid "Für Anstoßzeiten und das Tagesende."
 msgstr ""
 
-#: skyrelay_setup_app.py:150 skyrelay_setup_app.py:919
+#: skyrelay_setup_app.py:154 skyrelay_setup_app.py:980
 msgid "Kürzel für Hashtags"
 msgstr ""
 
-#: skyrelay_setup_app.py:151
+#: skyrelay_setup_app.py:155
 msgid ""
 "Aus Heim- und Auswärtskürzel entsteht der Spiel-Hashtag, z.B. #DSCSTP. "
 "Hier lassen sie sich einzeln nachbessern."
 msgstr ""
 
-#: skyrelay_setup_app.py:157
+#: skyrelay_setup_app.py:161
 msgid "3 · Instagram-Feed"
 msgstr ""
 
-#: skyrelay_setup_app.py:158
+#: skyrelay_setup_app.py:162
 msgid ""
 "Überträgt neue Instagram-Beiträge nach Bluesky. Anders als der Ticker "
 "läuft er das ganze Jahr und wird regelmäßig von cron gestartet.\n"
@@ -770,50 +1158,50 @@ msgid ""
 "    venv/bin/instaloader -l <Zweitkonto>"
 msgstr ""
 
-#: skyrelay_setup_app.py:164
+#: skyrelay_setup_app.py:168
 msgid "Instagram-Profil"
 msgstr ""
 
-#: skyrelay_setup_app.py:165
+#: skyrelay_setup_app.py:169
 msgid "Das Profil, das gespiegelt wird – ohne @."
 msgstr ""
 
-#: skyrelay_setup_app.py:167
+#: skyrelay_setup_app.py:171
 msgid "Zweitkonto zum Abruf"
 msgstr ""
 
-#: skyrelay_setup_app.py:168
+#: skyrelay_setup_app.py:172
 msgid ""
 "Instagram zeigt Profile nur angemeldeten Konten. Nimm dafür ein "
 "Zweitkonto, nicht dein eigenes – häufiges Abrufen kann ein Konto sperren."
 msgstr ""
 
-#: skyrelay_setup_app.py:172
+#: skyrelay_setup_app.py:176
 msgid "Wie viele Beiträge prüfen"
 msgstr ""
 
-#: skyrelay_setup_app.py:173
+#: skyrelay_setup_app.py:177
 msgid ""
 "Bei jedem Lauf werden so viele der neuesten Beiträge angesehen. Höher "
 "heißt: eine Lücke nach einem Ausfall wird eher geschlossen, aber es "
 "kostet mehr Anfragen."
 msgstr ""
 
-#: skyrelay_setup_app.py:179
+#: skyrelay_setup_app.py:183
 msgid "Pause zwischen zwei Beiträgen"
 msgstr ""
 
-#: skyrelay_setup_app.py:180
+#: skyrelay_setup_app.py:184
 msgid ""
 "In Sekunden. Zu schnell hintereinander posten fällt bei Bluesky als "
 "Schwarmverhalten auf."
 msgstr ""
 
-#: skyrelay_setup_app.py:185
+#: skyrelay_setup_app.py:189
 msgid "4 · Wie ein Beitrag aussieht"
 msgstr ""
 
-#: skyrelay_setup_app.py:186
+#: skyrelay_setup_app.py:190
 msgid ""
 "Gilt für beide Bots. Bluesky lässt 300 Zeichen zu – alles, was hier fest "
 "im Beitrag steht, fehlt dem eigentlichen Text.\n"
@@ -823,114 +1211,114 @@ msgid ""
 "        venv/bin/python skyrelay-matchday.py"
 msgstr ""
 
-#: skyrelay_setup_app.py:194
+#: skyrelay_setup_app.py:198
 msgid "Erste Zeile jedes Hauptbeitrags. Leer = keine."
 msgstr ""
 
-#: skyrelay_setup_app.py:196
+#: skyrelay_setup_app.py:200
 msgid "Kopfzeile zeigen"
 msgstr ""
 
-#: skyrelay_setup_app.py:197
+#: skyrelay_setup_app.py:201
 msgid ""
 "Steht in der Bluesky-Biografie schon deutlich, dass hier ein Bot "
 "schreibt, ist der Hinweis in jedem Beitrag verschenkter Platz.\n"
 "„automatisch“ lässt ihn weg, sobald die Biografie es selbst sagt."
 msgstr ""
 
-#: skyrelay_setup_app.py:203
+#: skyrelay_setup_app.py:207
 msgid "immer"
 msgstr ""
 
-#: skyrelay_setup_app.py:204
+#: skyrelay_setup_app.py:208
 msgid "automatisch"
 msgstr ""
 
-#: skyrelay_setup_app.py:205
+#: skyrelay_setup_app.py:209
 msgid "nie"
 msgstr ""
 
-#: skyrelay_setup_app.py:206
+#: skyrelay_setup_app.py:210
 msgid "Vorlage für den Quell-Link"
 msgstr ""
 
-#: skyrelay_setup_app.py:207
+#: skyrelay_setup_app.py:211
 #, python-brace-format
 msgid ""
 "Was in eckigen Klammern steht, wird zum klickbaren Wort; {label} ist die "
 "Beschriftung darunter."
 msgstr ""
 
-#: skyrelay_setup_app.py:211
+#: skyrelay_setup_app.py:215
 msgid "Beschriftung (Ticker)"
 msgstr ""
 
-#: skyrelay_setup_app.py:212
+#: skyrelay_setup_app.py:216
 msgid ""
 "Steht neben dem Quell-Link der WhatsApp-Beiträge. Leer lassen = keine "
 "Quelle im Beitrag."
 msgstr ""
 
-#: skyrelay_setup_app.py:215
+#: skyrelay_setup_app.py:219
 msgid "Beschriftung (Feed)"
 msgstr ""
 
-#: skyrelay_setup_app.py:216
+#: skyrelay_setup_app.py:220
 msgid "Dasselbe für die Instagram-Beiträge – ein WhatsApp-Kanal passt dort nicht."
 msgstr ""
 
-#: skyrelay_setup_app.py:220
+#: skyrelay_setup_app.py:224
 msgid "Steht unter jedem Beitrag, ohne #. Leer = keiner."
 msgstr ""
 
-#: skyrelay_setup_app.py:222 skyrelay_setup_app.py:959
+#: skyrelay_setup_app.py:226 skyrelay_setup_app.py:1020
 msgid "Hashtag je Liga"
 msgstr ""
 
-#: skyrelay_setup_app.py:223
+#: skyrelay_setup_app.py:227
 msgid ""
 "Für Vereine, die ihre Mannschaften unterschiedlich kennzeichnen – "
 "#arminia für die Männer, #arminiafrauen für die Frauen. Welche Mannschaft"
 " spielt, sagt die Liga."
 msgstr ""
 
-#: skyrelay_setup_app.py:228
+#: skyrelay_setup_app.py:232
 msgid "Hashtag bei mehreren Spielen"
 msgstr ""
 
-#: skyrelay_setup_app.py:229
+#: skyrelay_setup_app.py:233
 msgid ""
 "Spielen zwei Mannschaften am selben Tag, verrät eine Kanalnachricht "
 "nicht, zu welcher Partie sie gehört. Statt eines falschen Spiel-Hashtags "
 "steht dann dieser hier. Leer = gar keiner."
 msgstr ""
 
-#: skyrelay_setup_app.py:236
+#: skyrelay_setup_app.py:240
 msgid "5 · Aufbau der Beiträge"
 msgstr ""
 
-#: skyrelay_setup_app.py:237
+#: skyrelay_setup_app.py:241
 msgid ""
 "An welcher Stelle Kopfzeile, Quelle und Hashtags stehen: oben oder unten,"
 " auf dem ersten, auf dem letzten oder auf jedem Beitrag einer längeren "
 "Nachricht."
 msgstr ""
 
-#: skyrelay_setup_app.py:241
+#: skyrelay_setup_app.py:245
 msgid "Aufbau bearbeiten"
 msgstr ""
 
-#: skyrelay_setup_app.py:242
+#: skyrelay_setup_app.py:246
 msgid ""
 "Mit Vorschau: Du siehst sofort, wie eine zweiteilige Nachricht damit "
 "aussähe."
 msgstr ""
 
-#: skyrelay_setup_app.py:247
+#: skyrelay_setup_app.py:251
 msgid "6 · Profil und Zeitfenster"
 msgstr ""
 
-#: skyrelay_setup_app.py:248
+#: skyrelay_setup_app.py:252
 #, python-brace-format
 msgid ""
 "Die Biografie des Ticker-Kontos kann anzeigen, ob der Bot gerade läuft – "
@@ -939,39 +1327,136 @@ msgid ""
 "Platzhalter: {hashtag}, {info}, {date}, {time}"
 msgstr ""
 
-#: skyrelay_setup_app.py:252
+#: skyrelay_setup_app.py:256
 msgid "Statuszeile verwenden"
 msgstr ""
 
-#: skyrelay_setup_app.py:253
+#: skyrelay_setup_app.py:257
 msgid ""
 "Setzt die erste Zeile der Bluesky-Biografie. Alle weiteren Zeilen, Avatar"
 " und Banner bleiben unangetastet."
 msgstr ""
 
-#: skyrelay_setup_app.py:258
+#: skyrelay_setup_app.py:262
 msgid "Erscheint, solange der Ticker lauscht."
 msgstr ""
 
-#: skyrelay_setup_app.py:261
+#: skyrelay_setup_app.py:265
 msgid "Erscheint zwischen den Spieltagen und nennt die nächste Partie."
 msgstr ""
 
-#: skyrelay_setup_app.py:264
+#: skyrelay_setup_app.py:268
 msgid "Feierabend des Tickers"
 msgstr ""
 
-#: skyrelay_setup_app.py:265
+#: skyrelay_setup_app.py:269
 msgid ""
 "Bis wann an einem Spieltag gelauscht wird; danach beendet sich der Bot "
 "selbst."
 msgstr ""
 
-#: skyrelay_setup_app.py:270
-msgid "7 · Prüfen und nachziehen"
+#: skyrelay_setup_app.py:274
+msgid "7 · Wächter"
 msgstr ""
 
-#: skyrelay_setup_app.py:271
+#: skyrelay_setup_app.py:275
+msgid ""
+"Meldet sich bei dir, wenn Ticker oder Feed nicht mehr laufen – meist, "
+"weil WhatsApp eine ältere Client-Version nicht mehr einlässt oder "
+"Instagram anders antwortet. Gemeldet wird nur, was sich ändert.\n"
+"\n"
+"Läuft per cron alle 15 Minuten:\n"
+"    venv/bin/python skyrelay-heartbeat.py\n"
+"Was er jetzt melden würde:  … --status"
+msgstr ""
+
+#: skyrelay_setup_app.py:283
+msgid "Wächter einschalten"
+msgstr ""
+
+#: skyrelay_setup_app.py:284
+msgid "Erst dann gibt es Meldungen und die tägliche WhatsApp-Prüfung."
+msgstr ""
+
+#: skyrelay_setup_app.py:287
+msgid "Meldungen an"
+msgstr ""
+
+#: skyrelay_setup_app.py:288
+msgid ""
+"Dein eigenes Bluesky-Konto, ohne @. Der Bot schickt dir eine "
+"Direktnachricht.\n"
+"Damit sie ankommt: dem Bot-Konto folgen, und für den Absender ein App-"
+"Passwort mit „Zugriff auf Direktnachrichten“ anlegen – es gehört in "
+"BLUESKY_HEARTBEAT_APP_PASSWORD."
+msgstr ""
+
+#: skyrelay_setup_app.py:295
+msgid "Uptime Kuma"
+msgstr ""
+
+#: skyrelay_setup_app.py:296
+msgid ""
+"Die Push-Adresse eines Kuma-Monitors vom Typ „Push“. Kuma schlägt Alarm, "
+"wenn die Meldungen ausbleiben – so erfährst du auch, dass der Pi selbst "
+"aus ist. Im Monitor 1200 Sekunden als Intervall einstellen. Leer = kein "
+"Kuma."
+msgstr ""
+
+#: skyrelay_setup_app.py:302
+msgid "Was Kuma erfährt"
+msgstr ""
+
+#: skyrelay_setup_app.py:303
+msgid ""
+"„Probleme“: Kuma steht auf „down“, solange etwas nicht stimmt, und meldet"
+" es über seine eigenen Wege. „Nur Lebenszeichen“: Kuma wacht nur darüber,"
+" dass der Pi läuft."
+msgstr ""
+
+#: skyrelay_setup_app.py:308
+msgid "Probleme"
+msgstr ""
+
+#: skyrelay_setup_app.py:309
+msgid "Nur Lebenszeichen"
+msgstr ""
+
+#: skyrelay_setup_app.py:310
+msgid "Tägliche WhatsApp-Prüfung"
+msgstr ""
+
+#: skyrelay_setup_app.py:311
+msgid ""
+"An spielfreien Tagen verbindet sich der Ticker einmal kurz mit WhatsApp "
+"und trennt wieder – nichts wird gepostet. So fällt eine abgewiesene "
+"Client-Version am Dienstag auf und nicht erst am Spieltag. Setzt voraus, "
+"dass der Ticker täglich per cron startet."
+msgstr ""
+
+#: skyrelay_setup_app.py:317
+msgid "Erinnern alle … Stunden"
+msgstr ""
+
+#: skyrelay_setup_app.py:318
+msgid "Solange ein Problem besteht. 0 = nur einmal melden."
+msgstr ""
+
+#: skyrelay_setup_app.py:320
+msgid "Testmeldung senden"
+msgstr ""
+
+#: skyrelay_setup_app.py:321
+msgid ""
+"Schickt eine Testnachricht über Bluesky und Kuma – mit den Einstellungen,"
+" wie sie gerade hier stehen, auch ungespeichert."
+msgstr ""
+
+#: skyrelay_setup_app.py:327
+msgid "8 · Prüfen und nachziehen"
+msgstr ""
+
+#: skyrelay_setup_app.py:328
 msgid ""
 "Nichts hiervon ändert deine Einstellungen – es sind Auskünfte.\n"
 "\n"
@@ -980,89 +1465,89 @@ msgid ""
 "monatelang unbemerkt bleiben."
 msgstr ""
 
-#: skyrelay_setup_app.py:277 skyrelay_setup_app.py:1054
+#: skyrelay_setup_app.py:334 skyrelay_setup_app.py:1115
 msgid "Konfiguration prüfen"
 msgstr ""
 
-#: skyrelay_setup_app.py:278
+#: skyrelay_setup_app.py:335
 msgid ""
 "Meldet Schlüssel, die kein Programm liest, und solche, die fehlen und "
 "deshalb still auf ihrer Vorgabe stehen."
 msgstr ""
 
-#: skyrelay_setup_app.py:282 skyrelay_setup_app.py:1070
+#: skyrelay_setup_app.py:339 skyrelay_setup_app.py:1131
 msgid "Fehlende Schlüssel nachtragen"
 msgstr ""
 
-#: skyrelay_setup_app.py:283
+#: skyrelay_setup_app.py:340
 msgid ""
 "Trägt ein, was seit deiner Fassung dazugekommen ist – samt der "
 "Erklärungen aus der Vorlage. Vorhandene Werte bleiben unberührt."
 msgstr ""
 
-#: skyrelay_setup_app.py:287 skyrelay_setup_app.py:1100
+#: skyrelay_setup_app.py:344 skyrelay_setup_app.py:1209
 msgid "Farbton der Oberfläche"
 msgstr ""
 
-#: skyrelay_setup_app.py:288
+#: skyrelay_setup_app.py:345
 msgid ""
 "Wirkt sofort. Wer ein helles Terminal hat, findet hier auch helle Töne – "
 "die Vorgabe ist für einen dunklen Hintergrund gemacht."
 msgstr ""
 
-#: skyrelay_setup_app.py:292
+#: skyrelay_setup_app.py:349
 msgid "Sprache der Oberfläche"
 msgstr ""
 
-#: skyrelay_setup_app.py:293
+#: skyrelay_setup_app.py:350
 msgid ""
 "Gilt für diesen Assistenten. Die Protokolle der Bots bleiben englisch, "
 "damit dieselbe Meldung überall gleich aussieht."
 msgstr ""
 
-#: skyrelay_setup_app.py:419
+#: skyrelay_setup_app.py:476
 msgid "Schließen"
 msgstr ""
 
-#: skyrelay_setup_app.py:435
+#: skyrelay_setup_app.py:492
 msgid "Ja"
 msgstr ""
 
-#: skyrelay_setup_app.py:436 skyrelay_setup_app.py:479
-#: skyrelay_setup_app.py:568
+#: skyrelay_setup_app.py:493 skyrelay_setup_app.py:536
+#: skyrelay_setup_app.py:625
 msgid "Abbrechen"
 msgstr ""
 
-#: skyrelay_setup_app.py:475
+#: skyrelay_setup_app.py:532
 msgid "Tippen filtert die Liste …"
 msgstr ""
 
-#: skyrelay_setup_app.py:501
+#: skyrelay_setup_app.py:558
 #, python-brace-format
 msgid "{treffer} von {gesamt}"
 msgstr ""
 
-#: skyrelay_setup_app.py:569
+#: skyrelay_setup_app.py:626
 msgid "Übernehmen"
 msgstr ""
 
-#: skyrelay_setup_app.py:608
+#: skyrelay_setup_app.py:665
 msgid "Zur Liste"
 msgstr ""
 
-#: skyrelay_setup_app.py:609
+#: skyrelay_setup_app.py:666
 msgid "Hilfe"
 msgstr ""
 
-#: skyrelay_setup_app.py:610
+#: skyrelay_setup_app.py:667
 msgid "Beenden"
 msgstr ""
 
-#: skyrelay_setup_app.py:643
+#: skyrelay_setup_app.py:700
 msgid "Das Fenster ist recht klein"
 msgstr ""
 
-#: skyrelay_setup_app.py:644
+#: skyrelay_setup_app.py:701
 #, python-brace-format
 msgid ""
 "Der Assistent ist für mindestens {breite}×{hoehe} Zeichen gebaut, dein "
@@ -1072,19 +1557,19 @@ msgid ""
 " um. Ein größeres Terminalfenster macht den Unterschied."
 msgstr ""
 
-#: skyrelay_setup_app.py:775
+#: skyrelay_setup_app.py:833
 msgid "Kein Handle"
 msgstr ""
 
-#: skyrelay_setup_app.py:776
+#: skyrelay_setup_app.py:834
 msgid "Trage zuerst das Handle des Ticker-Kontos ein."
 msgstr ""
 
-#: skyrelay_setup_app.py:782
+#: skyrelay_setup_app.py:840
 msgid "Kein App-Passwort gesetzt"
 msgstr ""
 
-#: skyrelay_setup_app.py:783
+#: skyrelay_setup_app.py:841
 #, python-brace-format
 msgid ""
 "{variable} ist nicht gesetzt – ohne das Passwort lässt sich die Anmeldung"
@@ -1097,25 +1582,25 @@ msgid ""
 "Einstellungen → Datenschutz und Sicherheit → App-Passwörter."
 msgstr ""
 
-#: skyrelay_setup_app.py:792
+#: skyrelay_setup_app.py:850
 #, python-brace-format
 msgid "Melde mich als {handle} an …"
 msgstr ""
 
-#: skyrelay_setup_app.py:795
+#: skyrelay_setup_app.py:856
 msgid "Anmeldung"
 msgstr ""
 
-#: skyrelay_setup_app.py:802
+#: skyrelay_setup_app.py:863
 #, python-brace-format
 msgid "✓ Anmeldung erfolgreich: {handle}"
 msgstr ""
 
-#: skyrelay_setup_app.py:804
+#: skyrelay_setup_app.py:865
 msgid "Das Paket „atproto“ fehlt – bitte ./install.sh ausführen."
 msgstr ""
 
-#: skyrelay_setup_app.py:806
+#: skyrelay_setup_app.py:867
 #, python-brace-format
 msgid ""
 "✗ Anmeldung fehlgeschlagen:\n"
@@ -1125,39 +1610,39 @@ msgid ""
 "Handle und App-Passwort prüfen."
 msgstr ""
 
-#: skyrelay_setup_app.py:811
+#: skyrelay_setup_app.py:872
 msgid "Frage OpenLigaDB nach den Ligen …"
 msgstr ""
 
-#: skyrelay_setup_app.py:815 skyrelay_setup_app.py:833
+#: skyrelay_setup_app.py:876 skyrelay_setup_app.py:894
 msgid "Abruf fehlgeschlagen"
 msgstr ""
 
-#: skyrelay_setup_app.py:819
+#: skyrelay_setup_app.py:880
 msgid "Liga wählen"
 msgstr ""
 
-#: skyrelay_setup_app.py:820
+#: skyrelay_setup_app.py:881
 msgid "Alle Wettbewerbe mit laufender oder kommender Saison."
 msgstr ""
 
-#: skyrelay_setup_app.py:829
+#: skyrelay_setup_app.py:890
 msgid "Frage die Mannschaften ab …"
 msgstr ""
 
-#: skyrelay_setup_app.py:838
+#: skyrelay_setup_app.py:899
 msgid "Verein wählen"
 msgstr ""
 
-#: skyrelay_setup_app.py:838
+#: skyrelay_setup_app.py:899
 msgid "Für welchen Verein läuft der Ticker?"
 msgstr ""
 
-#: skyrelay_setup_app.py:873
+#: skyrelay_setup_app.py:934
 msgid "Verein gesetzt"
 msgstr ""
 
-#: skyrelay_setup_app.py:874
+#: skyrelay_setup_app.py:935
 #, python-brace-format
 msgid ""
 "{verein}\n"
@@ -1170,161 +1655,161 @@ msgid ""
 "Vorschläge sind nicht immer das übliche Kürzel."
 msgstr ""
 
-#: skyrelay_setup_app.py:889 skyrelay_setup_app.py:900
+#: skyrelay_setup_app.py:950 skyrelay_setup_app.py:961
 #, python-brace-format
 msgid "OpenLigaDB antwortet nicht: {fehler}"
 msgstr ""
 
-#: skyrelay_setup_app.py:896
+#: skyrelay_setup_app.py:957
 #, python-brace-format
 msgid "Für {kuerzel} (Saison {saison}) nennt OpenLigaDB keine Mannschaften."
 msgstr ""
 
-#: skyrelay_setup_app.py:908
+#: skyrelay_setup_app.py:969
 msgid "Noch keine Kürzel"
 msgstr ""
 
-#: skyrelay_setup_app.py:909
+#: skyrelay_setup_app.py:970
 msgid ""
 "Suche zuerst unter „Liga und Verein suchen“ eine Liga – die Kürzeltabelle"
 " wird dabei gleich mit angelegt."
 msgstr ""
 
-#: skyrelay_setup_app.py:916
+#: skyrelay_setup_app.py:977
 msgid "   ←  eigener Verein"
 msgstr ""
 
-#: skyrelay_setup_app.py:920
+#: skyrelay_setup_app.py:981
 msgid ""
 "Aus Heim + Auswärts entsteht der Spiel-Hashtag, z.B. #KSCDSC.\n"
 "Eintrag wählen zum Ändern."
 msgstr ""
 
-#: skyrelay_setup_app.py:926
+#: skyrelay_setup_app.py:987
 msgid "Kürzel ändern"
 msgstr ""
 
-#: skyrelay_setup_app.py:927
+#: skyrelay_setup_app.py:988
 #, python-brace-format
 msgid "Kürzel für Team-Nummer {nummer}:"
 msgstr ""
 
-#: skyrelay_setup_app.py:943
+#: skyrelay_setup_app.py:1004
 msgid "Noch keine Ligen"
 msgstr ""
 
-#: skyrelay_setup_app.py:944
+#: skyrelay_setup_app.py:1005
 msgid ""
 "Trage zuerst unter „Spieltags-Ticker“ die Ligen ein, in denen deine "
 "Mannschaften spielen."
 msgstr ""
 
-#: skyrelay_setup_app.py:954
+#: skyrelay_setup_app.py:1015
 #, python-brace-format
 msgid "{liga} (Dauer-Hashtag: #{tag})"
 msgstr ""
 
-#: skyrelay_setup_app.py:957
+#: skyrelay_setup_app.py:1018
 msgid "– keiner –"
 msgstr ""
 
-#: skyrelay_setup_app.py:960
+#: skyrelay_setup_app.py:1021
 msgid ""
 "Ohne Eintrag gilt der Dauer-Hashtag. Spielen mehrere Mannschaften am "
 "selben Tag, stehen alle zugehörigen Hashtags im Beitrag."
 msgstr ""
 
-#: skyrelay_setup_app.py:967
+#: skyrelay_setup_app.py:1028
 msgid "Hashtag der Liga"
 msgstr ""
 
-#: skyrelay_setup_app.py:968
+#: skyrelay_setup_app.py:1029
 #, python-brace-format
 msgid ""
 "Hashtag für „{liga}“, ohne #\n"
 "(leer = es gilt der Dauer-Hashtag):"
 msgstr ""
 
-#: skyrelay_setup_app.py:988
+#: skyrelay_setup_app.py:1049
 msgid "Vorschau ansehen …"
 msgstr ""
 
-#: skyrelay_setup_app.py:990
+#: skyrelay_setup_app.py:1051
 msgid "Aufbau der Beiträge"
 msgstr ""
 
-#: skyrelay_setup_app.py:991
+#: skyrelay_setup_app.py:1052
 msgid ""
 "Baustein        Beiträge    Stelle  Reihenfolge\n"
 "Die Reihenfolge zählt nur, wenn zwei Bausteine an derselben Stelle landen."
 msgstr ""
 
-#: skyrelay_setup_app.py:999
+#: skyrelay_setup_app.py:1060
 msgid "So sähen die Beiträge aus"
 msgstr ""
 
-#: skyrelay_setup_app.py:1006
+#: skyrelay_setup_app.py:1067
 #, python-brace-format
 msgid "{block}: an welchen Beiträgen?"
 msgstr ""
 
-#: skyrelay_setup_app.py:1007
+#: skyrelay_setup_app.py:1068
 msgid "Ein Thread entsteht, sobald eine Nachricht zu lang für einen Beitrag wird."
 msgstr ""
 
-#: skyrelay_setup_app.py:1015
+#: skyrelay_setup_app.py:1076
 #, python-brace-format
 msgid "{block}: an welcher Stelle?"
 msgstr ""
 
-#: skyrelay_setup_app.py:1016
+#: skyrelay_setup_app.py:1077
 msgid "Über oder unter dem eigentlichen Text."
 msgstr ""
 
-#: skyrelay_setup_app.py:1022
+#: skyrelay_setup_app.py:1083
 #, python-brace-format
 msgid "{block}: Reihenfolge"
 msgstr ""
 
-#: skyrelay_setup_app.py:1023
+#: skyrelay_setup_app.py:1084
 msgid "Kleinere Zahl steht weiter vorne:"
 msgstr ""
 
-#: skyrelay_setup_app.py:1030
+#: skyrelay_setup_app.py:1091
 msgid "Keine Zahl"
 msgstr ""
 
-#: skyrelay_setup_app.py:1031
+#: skyrelay_setup_app.py:1092
 #, python-brace-format
 msgid "„{eingabe}“ ist keine Zahl – die Reihenfolge bleibt bei {folge}."
 msgstr ""
 
-#: skyrelay_setup_app.py:1045
+#: skyrelay_setup_app.py:1106
 msgid "Probleme:"
 msgstr ""
 
-#: skyrelay_setup_app.py:1048
+#: skyrelay_setup_app.py:1109
 msgid "Hinweise:"
 msgstr ""
 
-#: skyrelay_setup_app.py:1051
+#: skyrelay_setup_app.py:1112
 msgid "✓ Nichts zu beanstanden."
 msgstr ""
 
-#: skyrelay_setup_app.py:1052
+#: skyrelay_setup_app.py:1113
 #, python-brace-format
 msgid "{probleme} Problem(e), {hinweise} Hinweis(e)."
 msgstr ""
 
-#: skyrelay_setup_app.py:1063
+#: skyrelay_setup_app.py:1124
 msgid "Nichts nachzutragen"
 msgstr ""
 
-#: skyrelay_setup_app.py:1064
+#: skyrelay_setup_app.py:1125
 msgid "Deine Datei kennt jeden Schlüssel, den die Programme lesen."
 msgstr ""
 
-#: skyrelay_setup_app.py:1071
+#: skyrelay_setup_app.py:1132
 #, python-brace-format
 msgid ""
 "{anzahl} Schlüssel fehlen. Sie werden samt ihrer Erklärungen aus der "
@@ -1333,17 +1818,46 @@ msgid ""
 "{liste}"
 msgstr ""
 
-#: skyrelay_setup_app.py:1075
+#: skyrelay_setup_app.py:1136
 msgid "Nachtragen"
 msgstr ""
 
-#: skyrelay_setup_app.py:1088
+#: skyrelay_setup_app.py:1148
+msgid "Wohin?"
+msgstr ""
+
+#: skyrelay_setup_app.py:1149
+msgid "Trage zuerst dein Bluesky-Konto oder eine Kuma-Adresse ein."
+msgstr ""
+
+#: skyrelay_setup_app.py:1152
+msgid "Sende die Testmeldung …"
+msgstr ""
+
+#: skyrelay_setup_app.py:1155
+msgid "Testmeldung"
+msgstr ""
+
+#: skyrelay_setup_app.py:1181
+#, python-brace-format
+msgid "Der Wächter ließ sich nicht starten: {fehler}"
+msgstr ""
+
+#: skyrelay_setup_app.py:1185
+msgid "✓ Gesendet."
+msgstr ""
+
+#: skyrelay_setup_app.py:1186
+msgid "✗ Nicht alles ist angekommen."
+msgstr ""
+
+#: skyrelay_setup_app.py:1197
 msgid ""
 "Wähle einen aus – er wirkt sofort. Abbrechen stellt den vorherigen wieder"
 " her."
 msgstr ""
 
-#: skyrelay_setup_app.py:1093
+#: skyrelay_setup_app.py:1202
 #, python-brace-format
 msgid ""
 "Achtung: Dieses Terminal meldet nur {system} – deshalb wirken alle Töne "
@@ -1351,19 +1865,19 @@ msgid ""
 " COLORTERM=truecolor"
 msgstr ""
 
-#: skyrelay_setup_app.py:1096
+#: skyrelay_setup_app.py:1205
 msgid "16 Farben"
 msgstr ""
 
-#: skyrelay_setup_app.py:1097
+#: skyrelay_setup_app.py:1206
 msgid "256 Farben"
 msgstr ""
 
-#: skyrelay_setup_app.py:1115
+#: skyrelay_setup_app.py:1224
 msgid "Nur eine Sprache verfügbar"
 msgstr ""
 
-#: skyrelay_setup_app.py:1116
+#: skyrelay_setup_app.py:1225
 msgid ""
 "Übersetzt ist bisher nur die Ausgangssprache.\n"
 "\n"
@@ -1371,31 +1885,31 @@ msgid ""
 "    tools/i18n.sh compile"
 msgstr ""
 
-#: skyrelay_setup_app.py:1121
+#: skyrelay_setup_app.py:1230
 msgid "Sprache / Language"
 msgstr ""
 
-#: skyrelay_setup_app.py:1122
+#: skyrelay_setup_app.py:1231
 msgid ""
 "Gilt für diesen Assistenten. Protokoll und Konsolenausgabe der Bots "
 "bleiben englisch."
 msgstr ""
 
-#: skyrelay_setup_app.py:1145
+#: skyrelay_setup_app.py:1254
 #, python-brace-format
 msgid "Ticker:  WhatsApp-Kanal  →  @{handle}"
 msgstr ""
 
-#: skyrelay_setup_app.py:1146
+#: skyrelay_setup_app.py:1255
 msgid "Ticker:  – kein Konto –"
 msgstr ""
 
-#: skyrelay_setup_app.py:1148
+#: skyrelay_setup_app.py:1257
 #, python-brace-format
 msgid "Feed:    @{profil}  →  @{handle}"
 msgstr ""
 
-#: skyrelay_setup_app.py:1153
+#: skyrelay_setup_app.py:1262
 #, python-brace-format
 msgid ""
 "\n"
@@ -1404,34 +1918,34 @@ msgid ""
 " gesichert."
 msgstr ""
 
-#: skyrelay_setup_app.py:1160
+#: skyrelay_setup_app.py:1269
 msgid "Nicht gespeichert"
 msgstr ""
 
-#: skyrelay_setup_app.py:1166
+#: skyrelay_setup_app.py:1275
 msgid "Gespeichert"
 msgstr ""
 
-#: skyrelay_setup_app.py:1172
+#: skyrelay_setup_app.py:1281
 msgid "Ungespeicherte Änderungen"
 msgstr ""
 
-#: skyrelay_setup_app.py:1173
+#: skyrelay_setup_app.py:1282
 msgid ""
 "Es gibt Änderungen, die noch nicht in der Datei stehen.\n"
 "\n"
 "Wirklich beenden und verwerfen?"
 msgstr ""
 
-#: skyrelay_setup_app.py:1175
+#: skyrelay_setup_app.py:1284
 msgid "Verwerfen und beenden"
 msgstr ""
 
-#: skyrelay_setup_app.py:1185
+#: skyrelay_setup_app.py:1294
 msgid "Bedienung"
 msgstr ""
 
-#: skyrelay_setup_app.py:1186
+#: skyrelay_setup_app.py:1295
 msgid ""
 "Tab / Umschalt+Tab   zwischen den Feldern\n"
 "Pfeiltasten          in der Liste links und in Auswahlfenstern\n"

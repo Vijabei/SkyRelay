@@ -4,6 +4,7 @@
 *_session.sqlite3-*
 *.sqlite3
 *.sqlite3-journal
+*.sqlite3.lock
 # Instagram-Session (instaloader)
 session-*
 
@@ -15,6 +16,10 @@ skyrelay_state*
 skyrelay_posts*
 skyrelay_feed_posted*
 skyrelay_feed_pause*
+# Statusdateien fuer den Waechter und dessen Gedaechtnis
+skyrelay_health*.json*
+skyrelay_feed_health*.json*
+skyrelay_heartbeat_state*
 dsc_ticker_state.txt
 dsc_ticker_posts.json
 posted_shortcodes.txt

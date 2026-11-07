@@ -35,6 +35,7 @@ SOURCE_FILES = {
     "skyrelay_setup_app.py": "assistant",
     "skyrelay-testlauf.py": "test run",
     "skyrelay_common.py": "shared module",
+    "skyrelay-heartbeat.py": "heartbeat",
 }
 
 # The bots read through cfg("section", "key", default); the assistant works on

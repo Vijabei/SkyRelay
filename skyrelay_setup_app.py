@@ -50,8 +50,12 @@ class Feld:
     auswahl (a fixed set), aktion (a button that opens a screen of its own)."""
 
     def __init__(self, abschnitt, schluessel, name, erklaerung, art="text",
-                 optionen=None, platzhalter="", aktion=None):
+                 optionen=None, platzhalter="", aktion=None, vorgabe=True):
         self.abschnitt = abschnitt
+        # What a switch shows while the key is missing from the file - the
+        # program's own default, so the window does not claim "on" for
+        # something that is off.
+        self.vorgabe = vorgabe
         self.schluessel = schluessel
         self.name = name
         self.erklaerung = erklaerung
@@ -267,7 +271,60 @@ def bereiche():
                          platzhalter="23:59"),
                 ]),
 
-        Bereich("pruefen", _("7 · Prüfen und nachziehen"),
+        Bereich("waechter", _("7 · Wächter"),
+                _("Meldet sich bei dir, wenn Ticker oder Feed nicht mehr "
+                  "laufen – meist, weil WhatsApp eine ältere Client-Version "
+                  "nicht mehr einlässt oder Instagram anders antwortet. "
+                  "Gemeldet wird nur, was sich ändert.\n\n"
+                  "Läuft per cron alle 15 Minuten:\n"
+                  "    venv/bin/python skyrelay-heartbeat.py\n"
+                  "Was er jetzt melden würde:  … --status"),
+                [
+                    Feld("heartbeat", "enabled", _("Wächter einschalten"),
+                         _("Erst dann gibt es Meldungen und die tägliche "
+                           "WhatsApp-Prüfung."),
+                         art="schalter", vorgabe=False),
+                    Feld("heartbeat", "bluesky_recipient", _("Meldungen an"),
+                         _("Dein eigenes Bluesky-Konto, ohne @. Der Bot schickt "
+                           "dir eine Direktnachricht.\n"
+                           "Damit sie ankommt: dem Bot-Konto folgen, und für den "
+                           "Absender ein App-Passwort mit „Zugriff auf "
+                           "Direktnachrichten“ anlegen – es gehört in "
+                           "BLUESKY_HEARTBEAT_APP_PASSWORD."),
+                         platzhalter="ich.bsky.social"),
+                    Feld("heartbeat", "kuma_push_url", _("Uptime Kuma"),
+                         _("Die Push-Adresse eines Kuma-Monitors vom Typ "
+                           "„Push“. Kuma schlägt Alarm, wenn die Meldungen "
+                           "ausbleiben – so erfährst du auch, dass der Pi "
+                           "selbst aus ist. Im Monitor 1200 Sekunden als "
+                           "Intervall einstellen. Leer = kein Kuma."),
+                         platzhalter="https://kuma.example.org/api/push/…"),
+                    Feld("heartbeat", "kuma_mode", _("Was Kuma erfährt"),
+                         _("„Probleme“: Kuma steht auf „down“, solange etwas "
+                           "nicht stimmt, und meldet es über seine eigenen "
+                           "Wege. „Nur Lebenszeichen“: Kuma wacht nur darüber, "
+                           "dass der Pi läuft."),
+                         art="auswahl",
+                         optionen=[("problems", N_("Probleme")),
+                                   ("alive", N_("Nur Lebenszeichen"))]),
+                    Feld("heartbeat", "whatsapp_probe", _("Tägliche WhatsApp-Prüfung"),
+                         _("An spielfreien Tagen verbindet sich der Ticker einmal "
+                           "kurz mit WhatsApp und trennt wieder – nichts wird "
+                           "gepostet. So fällt eine abgewiesene Client-Version "
+                           "am Dienstag auf und nicht erst am Spieltag. Setzt "
+                           "voraus, dass der Ticker täglich per cron startet."),
+                         art="schalter"),
+                    Feld("heartbeat", "reminder_hours", _("Erinnern alle … Stunden"),
+                         _("Solange ein Problem besteht. 0 = nur einmal melden."),
+                         art="zahl"),
+                    Feld(None, None, _("Testmeldung senden"),
+                         _("Schickt eine Testnachricht über Bluesky und Kuma – "
+                           "mit den Einstellungen, wie sie gerade hier stehen, "
+                           "auch ungespeichert."),
+                         art="aktion", aktion="testmeldung"),
+                ]),
+
+        Bereich("pruefen", _("8 · Prüfen und nachziehen"),
                 _("Nichts hiervon ändert deine Einstellungen – es sind "
                   "Auskünfte.\n\n"
                   "Die Prüfung vergleicht deine Datei mit dem, was die "
@@ -698,7 +755,8 @@ class Assistent(App):
             wert = self.helfer.read_value(self.zeilen, feld.abschnitt,
                                           feld.schluessel)
             if feld.art == "schalter":
-                bedienung = Switch(value=str(wert).lower() != "false",
+                bedienung = Switch(value=(str(wert).lower() != "false") if wert
+                                   else feld.vorgabe,
                                    id=feld.kennung)
             elif feld.art == "auswahl":
                 bedienung = Select(
@@ -1079,6 +1137,54 @@ class Assistent(App):
             self.zeilen[:] = entwurf
             self._titel_setzen()
             await self._bereich_zeigen(self.aktueller)
+
+    @work
+    async def tue_testmeldung(self):
+        empfaenger = self.helfer.read_value(self.zeilen, "heartbeat",
+                                            "bluesky_recipient")
+        kuma = self.helfer.read_value(self.zeilen, "heartbeat", "kuma_push_url")
+        if not empfaenger and not kuma:
+            await self.push_screen_wait(Hinweis(
+                _("Wohin?"),
+                _("Trage zuerst dein Bluesky-Konto oder eine Kuma-Adresse "
+                  "ein.")))
+            return
+        self.push_screen(Warten(_("Sende die Testmeldung …")))
+        ergebnis = await self._testmeldung_senden().wait()
+        self.pop_screen()
+        await self.push_screen_wait(Hinweis(_("Testmeldung"), ergebnis))
+
+    @work(thread=True)
+    def _testmeldung_senden(self):
+        """Runs the heartbeat itself, on the settings as they stand here.
+
+        Through the real program rather than a copy of its sending code: the
+        test is worth something only if it takes the path the alarms take.
+        The unsaved state goes into a temporary file of the same name, so the
+        message does not carry a strange file name in its heading."""
+        import subprocess
+        import tempfile
+        with tempfile.TemporaryDirectory() as ordner:
+            datei = os.path.join(ordner, os.path.basename(self.helfer.TARGET))
+            with open(datei, "w", encoding="utf-8") as entwurf:
+                entwurf.writelines(self.zeilen)
+            try:
+                lauf = subprocess.run(
+                    [os.path.join(self.helfer.BASE_DIR, "venv", "bin", "python")
+                     if os.path.exists(os.path.join(self.helfer.BASE_DIR, "venv"))
+                     else "python3",
+                     os.path.join(self.helfer.BASE_DIR, "skyrelay-heartbeat.py"),
+                     "--test"],
+                    env=dict(os.environ, SKYRELAY_CONFIG=datei),
+                    capture_output=True, text=True, timeout=90)
+            except (OSError, subprocess.TimeoutExpired) as fehler:
+                return _f("Der Wächter ließ sich nicht starten: {fehler}",
+                          fehler=fehler)
+        ausgabe = "\n".join(zeile.split("] ", 1)[-1]
+                            for zeile in (lauf.stdout + lauf.stderr).splitlines())
+        kopf = (_("✓ Gesendet.") if lauf.returncode == 0
+                else _("✗ Nicht alles ist angekommen."))
+        return f"{kopf}\n\n{ausgabe}"
 
     @work
     async def tue_thema(self):
