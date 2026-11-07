@@ -236,7 +236,8 @@ ins Repository.
 
 | Symptom | Ursache / Abhilfe |
 |---|---|
-| `Wire format was corrupt` | Ein Fehler in neonize 0.4.0/0.4.1 (NUL-Bytes abgeschnitten, [#199](https://github.com/krypton-byte/neonize/issues/199)) — upstream in **0.4.2** behoben (PR #198). Wir fahren `0.4.3.post0`, vollständig geprüft am 08.08.2026. |
+| `Wire format was corrupt` | Ein Fehler in neonize 0.4.0/0.4.1 (NUL-Bytes abgeschnitten, [#199](https://github.com/krypton-byte/neonize/issues/199)) — upstream in **0.4.2** behoben (PR #198). |
+| `Client outdated (405) connect failure` | WhatsApp nimmt die Client-Version des mitgelieferten whatsmeow nicht mehr an (0.4.3.post0 seit 07.11.2026). Die Sitzung **nicht** löschen — es braucht ein neueres neonize: die Version in `requirements.txt` anheben, dann `./update.sh`. Wir fahren `0.5.2`. |
 | `panic: required field neonize.NewsletterMessage.Message not set` | Ein Go-Absturz, wenn der Nachrichtenabruf eine unsichtbare **Meta-Nachricht** erwischt (ein bearbeiteter oder gelöschter Beitrag). Betrifft nur **Wiederholen und Nachholen** (kleineres `N` wählen); der Live-Betrieb lauscht seit 13.07.2026 auf Ereignisse und ist immun. |
 | `VersionError: gencode … runtime …` | protobuf zu alt → `pip install -U protobuf` (**niemals** herunterstufen). |
 | Ärger nach einem Wechsel der neonize-Fassung | `skyrelay_session.sqlite3` löschen und neu koppeln (Datenbankschema). |

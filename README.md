@@ -565,9 +565,12 @@ the file named in `[feed] pause_file`).
 
 ## Known limitations
 
-* **`neonize` is pinned to `0.4.3.post0`** and was checked in full on 08.08.2026
-  (see [UPGRADE-TEST.md](UPGRADE-TEST.md)). Back the session file up before
-  switching — the database schema changes.
+* **`neonize` is pinned to `0.5.2`.** WhatsApp turned `0.4.3.post0` (checked in
+  full on 08.08.2026, see [UPGRADE-TEST.md](UPGRADE-TEST.md)) away on 07.11.2026
+  with `Client outdated (405)`: neonize bundles whatsmeow, and with it the client
+  version it reports. 0.5.2 brings whatsmeow from 21.09.; the interfaces the
+  ticker uses are unchanged. Back the session file up before switching — the
+  database schema changes.
 * **Ctrl+C can occasionally be caught by the Go part** (from 0.4.x on): the
   program then ends with `Quit` without cleaning up, and the profile status line
   is left saying "Bot ist an". This was seen once; normally the cleanup runs

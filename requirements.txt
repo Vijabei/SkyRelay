@@ -12,10 +12,17 @@ requests>=2.32.3
 #   0.3.18.post0  lange im Einsatz, funktioniert
 #   0.4.0 / 0.4.1 unbrauchbar - jeder Rückgabewert scheiterte mit
 #                 "Wire format was corrupt" (Issue #199)
-#   0.4.3.post0   am 08.08.2026 vollständig geprüft (siehe UPGRADE-TEST.md)
+#   0.4.3.post0   am 08.08.2026 vollständig geprüft (siehe UPGRADE-TEST.md);
+#                 seit 07.11.2026 von WhatsApp abgewiesen: "Client outdated
+#                 (405)" - die mitgelieferte whatsmeow-Fassung vom 09.07.
+#                 meldet sich als Client 2.3000.1042386815 an
+#   0.5.2         whatsmeow vom 21.09. (Client 2.3000.1047769893); die
+#                 Schnittstellen, die der Ticker nutzt, sind unverändert
+# WhatsApp weist alte Client-Versionen nach einigen Monaten ab. Kommt die 405
+# wieder, hilft nur eine neonize-Fassung mit neuerer whatsmeow-Anbindung.
 # Vor einem Wechsel die Sitzungsdatei sichern: Das Datenbankschema ändert sich,
 # ein Rückschritt erfordert unter Umständen eine neue Kopplung.
-neonize==0.4.3.post0
+neonize==0.5.2
 # protobuf NIEMALS unter die Gencode-Version der neonize-Wheels downgraden,
 # sonst scheitert schon der Import mit einem VersionError.
 protobuf>=7.34.1

@@ -561,9 +561,13 @@ Wer danach nicht bis zum Ende der Pause warten will, löscht
 
 ## Bekannte Einschränkungen
 
-* **`neonize` ist auf `0.4.3.post0` festgelegt** und wurde am 08.08.2026
-  vollständig geprüft (siehe [UPGRADE-TEST.md](UPGRADE-TEST.md)). Vor einem
-  Wechsel die Sitzungsdatei sichern — das Datenbankschema ändert sich.
+* **`neonize` ist auf `0.5.2` festgelegt.** `0.4.3.post0` (am 08.08.2026
+  vollständig geprüft, siehe [UPGRADE-TEST.md](UPGRADE-TEST.md)) weist WhatsApp
+  seit dem 07.11.2026 mit `Client outdated (405)` ab: neonize bringt whatsmeow
+  mit und damit die Client-Version, mit der es sich anmeldet. 0.5.2 enthält
+  whatsmeow vom 21.09.; die Schnittstellen, die der Ticker nutzt, sind
+  unverändert. Vor einem Wechsel die Sitzungsdatei sichern — das Datenbankschema
+  ändert sich.
 * **Strg+C kann gelegentlich vom Go-Anteil abgefangen werden** (ab 0.4.x): Dann
   endet das Programm mit `Quit`, ohne aufzuräumen, und die Profil-Statuszeile
   bleibt auf „Bot ist an" stehen. Beobachtet wurde das einmal; im Regelfall läuft
