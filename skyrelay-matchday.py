@@ -150,8 +150,13 @@ with open(CONFIG_FILE, encoding="utf-8") as _f:
 BLUESKY_HANDLE = cfg("bluesky", "handle", "")
 CHANNEL_INVITE_LINK = cfg("source", "channel_invite_link", "")
 
-OPENLIGADB_TEAM_FILTER = cfg("team", "openligadb_filter", "")
+OPENLIGADB_TEAM_FILTER = cfg("team", "openligadb_filter", "").strip()
 OPENLIGADB_TEAM_ID = cfg_int("team", "openligadb_team_id", 0)
+# Without a search term or a team number there is no fixture list - meant for
+# sports OpenLigaDB does not carry (basketball, handball leagues) and for
+# events. The ticker then runs on every day it is started, and nothing at all
+# asks OpenLigaDB: a query with an empty search term would only fail.
+WITHOUT_SCHEDULE = not OPENLIGADB_TEAM_FILTER or not OPENLIGADB_TEAM_ID
 # Which leagues count. EXACT shortcuts, comma separated - "bl2, dfb" and not
 # "bl": OpenLigaDB also carries variants of a real league (bl2h next to bl2),
 # and a prefix comparison let those through. The same fixture then appeared on
@@ -532,7 +537,12 @@ def get_next_matches():
     """Returns every Match of the next matchday (for the "bot is off" profile
     line), otherwise an empty list. It deliberately looks far ahead, so that
     winter and summer breaks are bridged too. If several matches fall on that
-    day, all of them come back - the profile line then names each one."""
+    day, all of them come back - the profile line then names each one.
+
+    Without a fixture list there is no next match to name. Asking anyway
+    failed, and the failure left the bio on "bot is on" after the day ended."""
+    if WITHOUT_SCHEDULE:
+        return []
     now = datetime.now(LOCAL_TZ)
     upcoming = [(k, m) for k, m in fetch_team_matches(0, 12) if k > now]
     if not upcoming:
@@ -1480,10 +1490,12 @@ async def main():
     global match_hashtag, match_hashtags_tag, match_info, match_kickoff, channel_user
     global standing_tags
 
+    # [team] openligadb_filter is deliberately not in here: left empty, it
+    # means "no fixture list", which the template and the README offer for
+    # sports OpenLigaDB does not carry. Demanding it made that path a dead end.
     missing = [name for name, value in (
         ("[source] channel_invite_link", CHANNEL_INVITE_LINK),
         ("[bluesky] handle", BLUESKY_HANDLE),
-        ("[team] openligadb_filter", OPENLIGADB_TEAM_FILTER),
     ) if not value or "HIER-DEN" in value or value.startswith("dein-bot.")]
     if missing:
         log(f"Error: {os.path.basename(CONFIG_FILE)} is still missing: "
@@ -1513,11 +1525,12 @@ async def main():
     # same. Without a club configured (a sport OpenLigaDB does not carry) the
     # check is skipped entirely - the ticker then runs on any day it is
     # started.
-    without_schedule = not OPENLIGADB_TEAM_FILTER or not OPENLIGADB_TEAM_ID
+    without_schedule = WITHOUT_SCHEDULE
     todays_matches = []
     if without_schedule:
-        log("No fixture list configured ([team] openligadb_filter is empty) - "
-            "skipping the matchday check.")
+        empty = ("[team] openligadb_filter is empty" if not OPENLIGADB_TEAM_FILTER
+                 else "[team] openligadb_team_id is 0")
+        log(f"No fixture list configured ({empty}) - skipping the matchday check.")
     else:
         try:
             todays_matches = get_todays_matches()
