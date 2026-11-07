@@ -17,8 +17,8 @@ skyrelay_posts*
 skyrelay_feed_posted*
 skyrelay_feed_pause*
 # Statusdateien fuer den Waechter und dessen Gedaechtnis
-skyrelay_health*
-skyrelay_feed_health*
+skyrelay_health*.json*
+skyrelay_feed_health*.json*
 skyrelay_heartbeat_state*
 dsc_ticker_state.txt
 dsc_ticker_posts.json
