@@ -321,8 +321,8 @@ health = skyrelay_health.json
 #
 #  Per cron alle 15 Minuten starten (siehe README, Abschnitt "Wächter"):
 #      */15 * * * * /pfad/zu/SkyRelay/venv/bin/python3 /pfad/zu/SkyRelay/skyrelay-heartbeat.py
-#  Das App-Passwort (BLUESKY_HEARTBEAT_APP_PASSWORD) steht wie die anderen
-#  oben in der crontab.
+#  Das App-Passwort (BLUESKY_HEARTBEAT_APP_PASSWORD) kommt dorthin, wo auch
+#  die anderen stehen: in die Datei ~/.skyrelay.env oder oben in die crontab.
 #  Ausprobieren:
 #      venv/bin/python skyrelay-heartbeat.py --status   was er jetzt melden würde
 #      venv/bin/python skyrelay-heartbeat.py --test     Testmeldung senden
@@ -330,14 +330,19 @@ health = skyrelay_health.json
 # Wächter einschalten. Erst dann gibt es Meldungen - und die tägliche
 # WhatsApp-Prüfung unten.
 enabled = false
-# Dein eigenes Bluesky-Konto (ohne @). Der Wächter schickt dir dorthin eine
-# Direktnachricht. Leer lassen = keine Direktnachrichten.
-# Damit sie ankommen: dem Bot-Konto folgen (Bluesky nimmt Nachrichten in der
-# Vorgabe nur von Konten an, denen man folgt), und das App-Passwort des
-# Absenders mit "Zugriff auf Direktnachrichten erlauben" anlegen - es gehört
-# in BLUESKY_HEARTBEAT_APP_PASSWORD.
+# Dein eigenes, persönliches Bluesky-Konto (ohne @) - NICHT das Bot-Konto:
+# Bluesky kennt keinen Chat mit sich selbst. Der Wächter schickt dir dorthin
+# eine Direktnachricht. Leer lassen = keine Direktnachrichten.
+# Damit sie ankommen: mit deinem Konto dem Bot-Konto folgen (Bluesky nimmt
+# Nachrichten in der Vorgabe nur von Konten an, denen man folgt).
 bluesky_recipient =
-# Von welchem Konto die Nachricht kommt. Leer = das Ticker-Konto aus [bluesky].
+# Von welchem Bot-Konto die Nachricht kommt. Leer = das Ticker-Konto aus
+# [bluesky]; das Feed-Konto aus [feed] bluesky_handle geht genauso.
+# Sein App-Passwort muss Direktnachrichten erlauben ("Zugriff auf
+# Direktnachrichten erlauben" beim Anlegen). Zwei Wege:
+#   - ein eigenes Passwort dafür in BLUESKY_HEARTBEAT_APP_PASSWORD, oder
+#   - das bisherige Passwort des Bots durch eines mit diesem Recht ersetzen
+#     (es kann weiterhin posten) - dann braucht es keine weitere Variable.
 bluesky_sender =
 # Ping-Adresse eines Wächters außerhalb des Pi. Er schlägt Alarm, wenn die
 # Pings ausbleiben - so erfährst du auch, dass der Pi selbst aus ist.

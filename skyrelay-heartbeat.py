@@ -818,7 +818,9 @@ def sender_password():
     BLUESKY_HEARTBEAT_APP_PASSWORD first: sending direct messages needs an app
     password created with "Allow access to your direct messages", and the
     ticker's own password is usually without it. Otherwise the password of
-    whichever bot owns the sending account."""
+    whichever bot owns the sending account - which is all it takes when that
+    bot's password is replaced by one with direct message access: such a
+    password can post just the same."""
     names = ["BLUESKY_HEARTBEAT_APP_PASSWORD"]
     if SENDER == TICKER_HANDLE:
         names += ["BLUESKY_TICKER_APP_PASSWORD"]
@@ -833,6 +835,13 @@ def sender_password():
 
 def send_dm(messages):
     """Sends the messages as Bluesky direct messages. True = delivered."""
+    if RECIPIENT.lower() == SENDER.lower():
+        # Bluesky offers no chat with oneself - and if it did, the message
+        # would wait in the bot's inbox rather than reach a person.
+        log(f"✗ Direct message not sent: @{RECIPIENT} is the sending account "
+            f"itself. Enter your own, personal account as [heartbeat] "
+            f"bluesky_recipient - or leave it empty and rely on ping_url.")
+        return False
     password, variable = sender_password()
     if not password:
         log(f"✗ Direct message not sent: {variable} is not set (sender @{SENDER}).")

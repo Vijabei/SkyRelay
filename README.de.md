@@ -595,11 +595,17 @@ des Tickers mit und braucht keinen eigenen Eintrag. Von Hand:
 
 1. `[heartbeat] enabled = true`, dazu `bluesky_recipient` (dein Konto) und/oder
    `ping_url`.
-2. **Bluesky:** Für das Bot-Konto ein eigenes App-Passwort anlegen und dabei
-   **„Zugriff auf Direktnachrichten erlauben“** ankreuzen. Das Passwort des
-   Tickers kann das meist nicht. Mit deinem Konto **dem Bot folgen**, denn
-   Bluesky nimmt Direktnachrichten in der Vorgabe nur von Konten an, denen du
-   folgst.
+2. **Bluesky:** Absender ist eines deiner Bot-Konten (vorgegeben das des
+   Tickers, `bluesky_sender` wählt ein anderes). Empfänger ist dein **eigenes,
+   persönliches** Konto. An das Bot-Konto selbst geht es nicht, Bluesky kennt
+   keinen Chat mit sich selbst. Ein weiteres Konto brauchst du nicht.
+   * Das App-Passwort des Absenders muss **„Zugriff auf Direktnachrichten
+     erlauben“**. Entweder legst du dafür ein eigenes an und trägst es als
+     `BLUESKY_HEARTBEAT_APP_PASSWORD` ein, oder du ersetzt das bisherige
+     Passwort des Bots durch eines mit diesem Recht. Es kann weiterhin posten,
+     dann braucht es keine weitere Variable.
+   * Mit deinem Konto **dem Bot folgen**, denn Bluesky nimmt Direktnachrichten in
+     der Vorgabe nur von Konten an, denen du folgst.
 3. **Wächter von außen**, einer von beiden:
    * **healthchecks.io** (nichts zu betreiben): einen Check anlegen, Zeitraum
      **15 Minuten**, Karenz **30 Minuten**, und dessen Ping-Adresse
@@ -618,13 +624,16 @@ des Tickers mit und braucht keinen eigenen Eintrag. Von Hand:
 4. Ausprobieren: `venv/bin/python skyrelay-heartbeat.py --test` schickt eine
    Testmeldung über beide Wege. `--status` zeigt, was er gerade melden würde,
    ohne etwas zu senden.
-5. Per cron alle 15 Minuten starten, das Passwort wie die anderen oben in der
-   crontab:
+5. Per cron alle 15 Minuten starten. Das Passwort steht, wo auch die anderen
+   stehen: in `~/.skyrelay.env` (eine Zeile `SCHLÜSSEL=wert`, wie im
+   CheatSheet) oder oben in der crontab.
 
 ```cron
-BLUESKY_HEARTBEAT_APP_PASSWORD=zzzz-zzzz-zzzz-zzzz
-*/15 * * * * /pfad/zu/SkyRelay/venv/bin/python3 /pfad/zu/SkyRelay/skyrelay-heartbeat.py >/dev/null 2>&1
+*/15 * * * * set -a && . $HOME/.skyrelay.env && set +a && /pfad/zu/SkyRelay/venv/bin/python3 /pfad/zu/SkyRelay/skyrelay-heartbeat.py >/dev/null 2>&1
 ```
+
+   Für `--test` von Hand die Datei vorher laden:
+   `set -a && . ~/.skyrelay.env && set +a`
 
 Der Ticker muss dafür **täglich** starten (wie oben unter *Betrieb*). Fehlt sein
 Start 36 Stunden lang, meldet der Wächter genau das.

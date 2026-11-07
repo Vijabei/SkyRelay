@@ -599,10 +599,17 @@ its own. By hand: `venv/bin/python skyrelay-matchday.py --probe`.
 
 1. `[heartbeat] enabled = true`, plus `bluesky_recipient` (your account) and/or
    `ping_url`.
-2. **Bluesky:** create an app password of its own for the bot account and tick
-   **"Allow access to your direct messages"**. The ticker's password usually
-   cannot send them. **Follow the bot** with your own account: by default
-   Bluesky only accepts direct messages from accounts you follow.
+2. **Bluesky:** the sender is one of your bot accounts (the ticker's by
+   default, `bluesky_sender` picks another). The recipient is your **own,
+   personal** account. The bot account itself does not work, because Bluesky
+   has no chat with oneself. You need no further account.
+   * The sender's app password has to **"Allow access to your direct
+     messages"**. Either create one of its own for this and set it as
+     `BLUESKY_HEARTBEAT_APP_PASSWORD`, or replace the bot's existing password
+     with one that has this right. It can still post, and no further variable
+     is needed.
+   * **Follow the bot** with your own account: by default Bluesky only accepts
+     direct messages from accounts you follow.
 3. **The outside watcher**, one of the two:
    * **healthchecks.io** (nothing to run yourself): create a check with a
      period of **15 minutes** and a grace time of **30 minutes**, and enter its
@@ -620,13 +627,16 @@ its own. By hand: `venv/bin/python skyrelay-matchday.py --probe`.
 4. Try it: `venv/bin/python skyrelay-heartbeat.py --test` sends a test message
    both ways. `--status` shows what it would report right now, without sending
    anything.
-5. Start it from cron every 15 minutes, with the password at the top of the
-   crontab like the others:
+5. Start it from cron every 15 minutes. The password goes where the others
+   are: into `~/.skyrelay.env` (one `KEY=value` line, as in the cheat sheet)
+   or at the top of the crontab.
 
 ```cron
-BLUESKY_HEARTBEAT_APP_PASSWORD=zzzz-zzzz-zzzz-zzzz
-*/15 * * * * /path/to/SkyRelay/venv/bin/python3 /path/to/SkyRelay/skyrelay-heartbeat.py >/dev/null 2>&1
+*/15 * * * * set -a && . $HOME/.skyrelay.env && set +a && /path/to/SkyRelay/venv/bin/python3 /path/to/SkyRelay/skyrelay-heartbeat.py >/dev/null 2>&1
 ```
+
+   For `--test` by hand, load the file first:
+   `set -a && . ~/.skyrelay.env && set +a`
 
 The ticker has to start **daily** for this (as under *Running it* above). If
 its start is missing for 36 hours, the heartbeat reports exactly that.
