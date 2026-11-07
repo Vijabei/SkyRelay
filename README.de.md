@@ -548,9 +548,11 @@ anders antwortet. Bisher stand das nur im Protokoll. Der Wächter sagt es dir:
 
 * als **Bluesky-Direktnachricht** vom Bot-Konto an dein eigenes Konto, mit dem,
   was passiert ist, und dem, was zu tun ist;
-* über einen **Uptime-Kuma**-Monitor vom Typ „Push“. Kuma schlägt von sich aus
-  Alarm, wenn die Meldungen ausbleiben. Nur so erfährst du, dass der Pi selbst
-  aus ist (Strom, SD-Karte, Netz).
+* über einen **Wächter von außen**: einen Check bei
+  [healthchecks.io](https://healthchecks.io) oder einen
+  [Uptime-Kuma](https://github.com/louislam/uptime-kuma)-Monitor vom Typ „Push“.
+  Er schlägt von sich aus Alarm, wenn die Pings ausbleiben. Nur so erfährst du,
+  dass der Pi selbst aus ist (Strom, SD-Karte, Netz).
 
 Gemeldet wird nur, was sich ändert: ein Problem, solange es anhält alle 24 Stunden
 eine Erinnerung, und die Entwarnung.
@@ -592,19 +594,27 @@ des Tickers mit und braucht keinen eigenen Eintrag. Von Hand:
 **Einrichten**, am einfachsten im Assistenten unter „7 · Wächter“:
 
 1. `[heartbeat] enabled = true`, dazu `bluesky_recipient` (dein Konto) und/oder
-   `kuma_push_url`.
+   `ping_url`.
 2. **Bluesky:** Für das Bot-Konto ein eigenes App-Passwort anlegen und dabei
    **„Zugriff auf Direktnachrichten erlauben“** ankreuzen. Das Passwort des
    Tickers kann das meist nicht. Mit deinem Konto **dem Bot folgen**, denn
    Bluesky nimmt Direktnachrichten in der Vorgabe nur von Konten an, denen du
    folgst.
-3. **Kuma:** einen Monitor vom Typ „Push“ anlegen, Intervall **1200 Sekunden**,
-   und die angezeigte Push-Adresse eintragen. Wie Kuma dich benachrichtigt
-   (E-Mail, Telegram, Pushover, …), stellst du in Kuma selbst ein. Kuma ist ein
-   dauerhaft laufender Node.js-Dienst: Auf klassischem Webspace geht das meist
-   nicht, wohl aber bei Hostern mit Node.js oder Docker und auf jedem kleinen
-   VPS. Wichtig ist nur, dass Kuma **nicht auf dem Pi** läuft, sonst fällt es mit
-   ihm aus.
+3. **Wächter von außen**, einer von beiden:
+   * **healthchecks.io** (nichts zu betreiben): einen Check anlegen, Zeitraum
+     **15 Minuten**, Karenz **30 Minuten**, und dessen Ping-Adresse
+     (`https://hc-ping.com/…`) eintragen. Unter *Integrations* festlegen, wie du
+     benachrichtigt wirst (E-Mail, ntfy, Telegram, Signal, …). Steht etwas
+     nicht in Ordnung, schickt SkyRelay die Beschreibung mit; sie steht dann
+     im Protokoll des Checks.
+   * **Uptime Kuma**: einen Monitor vom Typ „Push“ anlegen, Intervall
+     **1200 Sekunden**, und die angezeigte Push-Adresse eintragen. Wie Kuma
+     dich benachrichtigt, stellst du in Kuma ein. Kuma ist ein dauerhaft
+     laufender Node.js-Dienst: Auf klassischem Webspace geht das meist nicht,
+     wohl aber bei Hostern mit Node.js oder Docker und auf jedem kleinen VPS.
+
+   Welcher Dienst es ist, erkennt SkyRelay an der Adresse. Wichtig ist nur, dass
+   er **nicht auf dem Pi** läuft, sonst fällt er mit ihm aus.
 4. Ausprobieren: `venv/bin/python skyrelay-heartbeat.py --test` schickt eine
    Testmeldung über beide Wege. `--status` zeigt, was er gerade melden würde,
    ohne etwas zu senden.
@@ -640,7 +650,7 @@ Anmeldungen des Bot-Kontos.
 | `skyrelay_config.py` | Konfiguration prüfen, anzeigen, nachziehen |
 | `skyrelay_layout.py` | Aufbau der Beiträge, Zeichenzählung, Aufteilen |
 | `skyrelay_i18n.py` | Übersetzungen der Bedienoberfläche |
-| `skyrelay-heartbeat.py` | der Wächter: meldet Störungen per Bluesky-Direktnachricht und an Uptime Kuma |
+| `skyrelay-heartbeat.py` | der Wächter: meldet Störungen per Bluesky-Direktnachricht und an healthchecks.io oder Uptime Kuma |
 | `skyrelay_health.py` | Statusdateien, in die beide Bots schreiben, was geklappt hat und was nicht |
 | `tools/i18n.sh` | Kataloge erzeugen, angleichen, übersetzen |
 | `skyrelay-testlauf.py` | spielt echte Kanal-Nachrichten durch die Ticker-Pipeline, ohne zu veröffentlichen |

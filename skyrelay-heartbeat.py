@@ -10,9 +10,10 @@ whether something needs a person, and tells them:
 
   * as a Bluesky direct message from the bot account to [heartbeat]
     bluesky_recipient - with what happened and what to do about it,
-  * through an Uptime Kuma push monitor ([heartbeat] kuma_push_url). Kuma
-    raises the alarm on its own when the pushes stop coming - which is the
-    only way to learn that the Pi itself is down.
+  * to a watcher outside the Pi ([heartbeat] ping_url): a check on
+    healthchecks.io or an Uptime Kuma push monitor. It raises the alarm on
+    its own when the pings stop coming - which is the only way to learn that
+    the Pi itself is down.
 
 Only changes are reported: a problem when it appears, a reminder every
 [heartbeat] reminder_hours while it lasts, and the all-clear when it is over.
@@ -100,11 +101,17 @@ RECIPIENT = cfg("heartbeat", "bluesky_recipient", "").strip().lstrip("@")
 TICKER_HANDLE = cfg("bluesky", "handle", "").strip()
 FEED_HANDLE = cfg("feed", "bluesky_handle", "").strip() or TICKER_HANDLE
 SENDER = cfg("heartbeat", "bluesky_sender", "").strip().lstrip("@") or TICKER_HANDLE
-# The push URL as Kuma shows it - whatever stands behind the "?" is replaced.
+# The ping URL of the outside watcher, as healthchecks.io or Kuma shows it.
+# Which of the two it is, the URL itself says (Kuma's contain /api/push/).
 # The environment may override it, for whoever keeps the token out of files.
-KUMA_PUSH_URL = (os.environ.get("SKYRELAY_KUMA_PUSH_URL")
-                 or cfg("heartbeat", "kuma_push_url", "")).strip()
-KUMA_MODE = cfg("heartbeat", "kuma_mode", "problems").strip().lower()
+# kuma_push_url and kuma_mode were the names for a few days, when Kuma was the
+# only watcher - still read, so nobody's setting falls away.
+PING_URL = (os.environ.get("SKYRELAY_PING_URL")
+            or os.environ.get("SKYRELAY_KUMA_PUSH_URL")
+            or cfg("heartbeat", "ping_url", "")
+            or cfg("heartbeat", "kuma_push_url", "")).strip()
+PING_MODE = (cfg("heartbeat", "ping_mode", "")
+             or cfg("heartbeat", "kuma_mode", "") or "problems").strip().lower()
 REMINDER_HOURS = cfg_int("heartbeat", "reminder_hours", 24)
 WHATSAPP_PROBE = cfg_bool("heartbeat", "whatsapp_probe", True)
 TICKER_STALE_MINUTES = cfg_int("heartbeat", "ticker_stale_minutes", 5)
@@ -861,37 +868,60 @@ def send_dm(messages):
         return False
 
 
-def push_kuma(down, message):
-    """Tells the Kuma push monitor how things stand. True = Kuma took it."""
-    base = KUMA_PUSH_URL.split("?", 1)[0]
+def ping_service():
+    return "Uptime Kuma" if "/api/push/" in PING_URL else "healthchecks.io"
+
+
+def ping(down, summary, details=""):
+    """Tells the outside watcher how things stand. True = it took the ping.
+
+    healthchecks.io: the URL itself means "fine", URL/fail means "something is
+               wrong"; the text goes along as the body and shows up in the
+               check's log and its notifications.
+    Uptime Kuma: status=up or status=down, with a short message.
+    Both raise the alarm on their own when the pings stop coming."""
+    service = ping_service()
     try:
-        answer = requests.get(base, params={"status": "down" if down else "up",
-                                            "msg": message[:250], "ping": ""},
-                              timeout=15)
-        answer.raise_for_status()
-        ok = answer.json().get("ok", True)
+        if service == "Uptime Kuma":
+            answer = requests.get(PING_URL.split("?", 1)[0],
+                                  params={"status": "down" if down else "up",
+                                          "msg": summary[:250], "ping": ""},
+                                  timeout=15)
+            answer.raise_for_status()
+            ok = answer.json().get("ok", True)
+        else:
+            url = PING_URL.split("?", 1)[0].rstrip("/")
+            answer = requests.post(url + "/fail" if down else url,
+                                   data=(details or summary).encode("utf-8")[:10000],
+                                   timeout=15)
+            answer.raise_for_status()
+            # An unknown check answers 200 "OK (not found)" when the URL
+            # carries a slug; a mistyped UUID gets a 404 above.
+            ok = "not found" not in answer.text.lower()
         if not ok:
-            log(f"✗ Uptime Kuma refused the push: {answer.text[:200]}")
+            log(f"✗ {service} refused the ping: {answer.text[:200]}")
         return bool(ok)
     except Exception as error:
-        log(f"✗ Uptime Kuma did not take the push: {error}")
+        log(f"✗ {service} did not take the ping: {error}")
         return False
 
 
 # ---------------------------------------------------------------------- runs
 def run_test():
-    if not RECIPIENT and not KUMA_PUSH_URL:
+    if not RECIPIENT and not PING_URL:
         log("Nothing to test: neither [heartbeat] bluesky_recipient nor "
-            "kuma_push_url is set.")
+            "ping_url is set.")
         return 1
     failed = False
     text = _("🧪 Testmeldung: Wenn du das liest, kommen die Meldungen des "
              "Wächters bei dir an.")
     if RECIPIENT:
         failed |= not send_dm([f"{header()}\n\n{text}"])
-    if KUMA_PUSH_URL:
-        if push_kuma(False, "SkyRelay test"):
-            log("✓ Uptime Kuma took the push - the monitor shows it as a heartbeat.")
+    if PING_URL:
+        if ping(False, "SkyRelay test", f"{header()}\n\n{text}"):
+            log(f"✓ {ping_service()} took the ping - the check shows it as a sign "
+                f"of life. To see a notification arrive, use the test button of "
+                f"the notification method there.")
         else:
             failed = True
     return 1 if failed else 0
@@ -942,7 +972,7 @@ def run_check():
                 saved[key] = state[key]
         write_state(saved)
         print(f"\nBluesky: {'@' + RECIPIENT if RECIPIENT else '-'}  ·  "
-              f"Kuma: {'yes' if KUMA_PUSH_URL else '-'}  ·  "
+              f"{ping_service() + ': yes' if PING_URL else 'Ping: -'}  ·  "
               f"enabled: {'yes' if ENABLED else 'no'}")
         return 0
 
@@ -976,10 +1006,12 @@ def run_check():
         for package, version, _text in releases:
             state["announced"][package] = version
 
-    if KUMA_PUSH_URL:
-        down = bool(findings) and KUMA_MODE != "alive"
+    if PING_URL:
+        down = bool(findings) and PING_MODE != "alive"
         summary = "; ".join(f.title for f in findings) if down else "OK"
-        push_kuma(down, summary)
+        details = "\n\n".join([header()] + [f"⚠️ {f.title}\n{f.body}" for f in findings]) \
+            if down else f"{header()}\n\nOK"
+        ping(down, summary, details)
 
     if findings:
         log(f"{len(findings)} problem(s): " + "; ".join(f"{f.key}/{f.kind}" for f in findings))
@@ -999,9 +1031,9 @@ def main():
     if not ENABLED and not STATUS_ONLY:
         # The cron line may already be there while the switch is still off.
         return 0
-    if not RECIPIENT and not KUMA_PUSH_URL and not STATUS_ONLY:
+    if not RECIPIENT and not PING_URL and not STATUS_ONLY:
         log("[heartbeat] is switched on, but neither bluesky_recipient nor "
-            "kuma_push_url is set - nobody to tell.")
+            "ping_url is set - nobody to tell.")
         return 1
     return run_check()
 

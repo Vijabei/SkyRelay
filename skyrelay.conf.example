@@ -339,18 +339,22 @@ enabled = false
 bluesky_recipient =
 # Von welchem Konto die Nachricht kommt. Leer = das Ticker-Konto aus [bluesky].
 bluesky_sender =
-# Push-Adresse eines Uptime-Kuma-Monitors vom Typ "Push", so wie Kuma sie
-# anzeigt, z.B. https://kuma.example.org/api/push/AbCdEf1234?status=up&msg=OK&ping=
-# Kuma schlägt Alarm, wenn die Meldungen ausbleiben - so erfährst du auch,
-# dass der Pi selbst aus ist. Im Monitor ein Intervall von 1200 Sekunden
-# einstellen, zum cron-Takt von 15 Minuten passend. Leer = kein Kuma.
-# Wer die Adresse nicht in der Datei haben will: SKYRELAY_KUMA_PUSH_URL.
-kuma_push_url =
-# Was Kuma erfährt:
-#   problems  "down", solange ein Problem besteht, mit kurzer Beschreibung
-#             (Kuma meldet dann über seine eigenen Wege - E-Mail, Telegram, ...)
-#   alive     immer "up" - Kuma wacht nur darüber, dass der Pi lebt
-kuma_mode = problems
+# Ping-Adresse eines Wächters außerhalb des Pi. Er schlägt Alarm, wenn die
+# Pings ausbleiben - so erfährst du auch, dass der Pi selbst aus ist.
+# Welcher Dienst es ist, erkennt SkyRelay an der Adresse:
+#   healthchecks.io  https://hc-ping.com/1234abcd-...  (Check mit Zeitraum
+#                    15 Minuten und Karenz 30 Minuten anlegen)
+#   Uptime Kuma      https://kuma.example.org/api/push/AbCdEf1234?status=up&msg=OK&ping=
+#                    (Monitor vom Typ "Push", Intervall 1200 Sekunden)
+# Wie der Dienst dich benachrichtigt (E-Mail, ntfy, Telegram, ...), stellst du
+# dort ein. Leer = kein Wächter von außen.
+# Wer die Adresse nicht in der Datei haben will: SKYRELAY_PING_URL.
+ping_url =
+# Was der Wächter von außen erfährt:
+#   problems  "Fehler", solange ein Problem besteht, samt Beschreibung - er
+#             meldet es dann zusätzlich über seine eigenen Wege
+#   alive     immer "in Ordnung" - er wacht nur darüber, dass der Pi lebt
+ping_mode = problems
 # Erinnerung, solange ein Problem besteht, alle so viele Stunden. 0 = keine.
 reminder_hours = 24
 # An spielfreien Tagen einmal kurz mit WhatsApp verbinden, den Kanal suchen und

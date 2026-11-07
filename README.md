@@ -553,9 +553,11 @@ tells you:
 
 * as a **Bluesky direct message** from the bot account to your own, saying what
   happened and what to do about it;
-* through an **Uptime Kuma** monitor of the type "Push". Kuma raises the alarm
-  on its own when the pushes stop coming. That is the only way to learn that
-  the Pi itself is down (power, SD card, network).
+* through a **watcher outside the Pi**: a check on
+  [healthchecks.io](https://healthchecks.io) or an
+  [Uptime Kuma](https://github.com/louislam/uptime-kuma) monitor of the type
+  "Push". It raises the alarm on its own when the pings stop coming. That is
+  the only way to learn that the Pi itself is down (power, SD card, network).
 
 Only changes are reported: a problem, a reminder every 24 hours while it lasts,
 and the all-clear.
@@ -596,17 +598,25 @@ its own. By hand: `venv/bin/python skyrelay-matchday.py --probe`.
 **Setting it up**, most easily in the assistant under "7 · Heartbeat":
 
 1. `[heartbeat] enabled = true`, plus `bluesky_recipient` (your account) and/or
-   `kuma_push_url`.
+   `ping_url`.
 2. **Bluesky:** create an app password of its own for the bot account and tick
    **"Allow access to your direct messages"**. The ticker's password usually
    cannot send them. **Follow the bot** with your own account: by default
    Bluesky only accepts direct messages from accounts you follow.
-3. **Kuma:** create a monitor of the type "Push" with an interval of
-   **1200 seconds**, and enter the push URL it shows. How Kuma notifies you
-   (e-mail, Telegram, Pushover, …) is set up in Kuma itself. Kuma is a Node.js
-   service that runs all the time. Classic web space usually cannot host it,
-   but a host with Node.js or Docker can, and so can any small VPS. What matters
-   is that Kuma does **not run on the Pi**, or it goes down along with it.
+3. **The outside watcher**, one of the two:
+   * **healthchecks.io** (nothing to run yourself): create a check with a
+     period of **15 minutes** and a grace time of **30 minutes**, and enter its
+     ping URL (`https://hc-ping.com/…`). Under *Integrations* choose how you are
+     notified (e-mail, ntfy, Telegram, Signal, …). When something is wrong,
+     SkyRelay sends the description along; it then shows in the check's log.
+   * **Uptime Kuma**: create a monitor of the type "Push" with an interval of
+     **1200 seconds**, and enter the push URL it shows. How Kuma notifies you
+     is set up in Kuma itself. Kuma is a Node.js service that runs all the
+     time. Classic web space usually cannot host it, but a host with Node.js
+     or Docker can, and so can any small VPS.
+
+   SkyRelay tells the two apart by the URL. What matters is that the watcher
+   does **not run on the Pi**, or it goes down along with it.
 4. Try it: `venv/bin/python skyrelay-heartbeat.py --test` sends a test message
    both ways. `--status` shows what it would report right now, without sending
    anything.
@@ -641,7 +651,7 @@ six hours. That way it does not use up the bot account's logins.
 | `skyrelay_config.py` | checking, showing and topping up the configuration |
 | `skyrelay_layout.py` | how posts are built, character counting, splitting |
 | `skyrelay_i18n.py` | translations of the interface |
-| `skyrelay-heartbeat.py` | the heartbeat: reports trouble by Bluesky direct message and to Uptime Kuma |
+| `skyrelay-heartbeat.py` | the heartbeat: reports trouble by Bluesky direct message and to healthchecks.io or Uptime Kuma |
 | `skyrelay_health.py` | the status files both bots write into: what worked and what did not |
 | `tools/i18n.sh` | creating, aligning and compiling the catalogues |
 | `skyrelay-testlauf.py` | plays real channel messages through the ticker pipeline without publishing |
