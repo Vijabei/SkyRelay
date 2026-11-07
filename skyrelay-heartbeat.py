@@ -32,13 +32,18 @@ Bluesky library is only loaded when there is actually something to send.
 """
 
 import configparser
+import glob
+import importlib.util
 import json
 import os
+import platform
 import re
 import shutil
 import socket
 import sys
+import tempfile
 import time
+import zipfile
 from datetime import datetime
 
 # Like the bots: questions about the configuration are answered before
@@ -245,9 +250,149 @@ def latest_versions(state, now):
     return latest
 
 
+# ------------------------------------------- which WhatsApp does neonize bring?
+#
+# A new neonize is only worth anything against "Client outdated (405)" if it
+# brings a newer whatsmeow along: whatsmeow decides which client version
+# WhatsApp is shown. The version number of neonize says nothing about that -
+# 0.6.1 to 0.10.0 all carry the very whatsmeow of 0.5.2 (21.09.2026). Go
+# writes its dependencies into the binary, so the answer is in the wheel, and
+# reading it costs one download of about 20 MB per new neonize version.
+WHATSMEOW_MARK = re.compile(rb"dep\tgo\.mau\.fi/whatsmeow\t(v[0-9A-Za-z.+\-]+)")
+
+# Filled by binding_status(): what the installed and the newest neonize carry.
+BINDING = {}
+
+
+def _whatsmeow_in(blob):
+    match = WHATSMEOW_MARK.search(blob)
+    return match.group(1).decode() if match else None
+
+
+def whatsmeow_date(version):
+    """v0.0.0-20260921121126-35ae40906e74 -> 21.09.2026. whatsmeow is not
+    tagged, so its pseudo-versions carry the date of the commit."""
+    match = re.search(r"-(\d{4})(\d{2})(\d{2})\d{6}-", version or "")
+    if not match:
+        return version or "?"
+    year, month, day = match.groups()
+    return f"{day}.{month}.{year}"
+
+
+def _whatsmeow_key(version):
+    match = re.search(r"-(\d{14})-", version or "")
+    return match.group(1) if match else None
+
+
+def installed_whatsmeow():
+    """The whatsmeow inside the installed neonize, read from its library."""
+    try:
+        spec = importlib.util.find_spec("neonize")
+        folder = list(spec.submodule_search_locations)[0]
+    except Exception:
+        return None
+    for library in glob.glob(os.path.join(folder, "*.so")) + \
+            glob.glob(os.path.join(folder, "*.dylib")):
+        try:
+            with open(library, "rb") as binary:
+                found = _whatsmeow_in(binary.read())
+            if found:
+                return found
+        except OSError:
+            continue
+    return None
+
+
+def published_whatsmeow(version):
+    """The whatsmeow inside a neonize release on PyPI. Downloads the wheel for
+    this machine (the Go dependencies are the same in every one of them)."""
+    answer = requests.get(f"https://pypi.org/pypi/neonize/{version}/json", timeout=15)
+    answer.raise_for_status()
+    wheels = [f for f in answer.json().get("urls", [])
+              if f.get("filename", "").endswith(".whl")]
+    machine = platform.machine().lower()
+    wheels.sort(key=lambda f: (machine not in f["filename"].lower(),
+                               "linux" not in f["filename"]))
+    if not wheels:
+        raise RuntimeError(f"no wheel for neonize {version} on PyPI")
+    with tempfile.TemporaryFile() as download:
+        with requests.get(wheels[0]["url"], stream=True, timeout=60) as wheel:
+            wheel.raise_for_status()
+            for chunk in wheel.iter_content(1 << 20):
+                download.write(chunk)
+        download.seek(0)
+        with zipfile.ZipFile(download) as archive:
+            for member in archive.namelist():
+                if member.endswith((".so", ".dylib", ".dll")):
+                    found = _whatsmeow_in(archive.read(member))
+                    if found:
+                        return found
+    raise RuntimeError(f"no whatsmeow version found in {wheels[0]['filename']}")
+
+
+def binding_status(state, now, latest):
+    """Compares the whatsmeow of the installed neonize with that of the newest
+    one on PyPI. Remembered per version, so each is looked at only once; a
+    failed look is tried again the next day."""
+    BINDING.clear()
+    installed = installed_version("neonize")
+    if not installed:
+        return
+    cache = state.setdefault("whatsmeow", {})
+    if cache.get("installed_for") != installed:
+        cache["installed_for"] = installed
+        cache["installed"] = installed_whatsmeow()
+    BINDING["installed"] = cache.get("installed")
+
+    candidate = latest.get("neonize")
+    if not newer(candidate, installed):
+        return
+    BINDING["version"] = candidate
+    known = cache.setdefault("published", {}).get(candidate)
+    if isinstance(known, str):
+        BINDING["latest"] = known
+    elif not known or now - known.get("failed_at", 0) >= 86400:
+        try:
+            log(f"Looking into neonize {candidate} on PyPI to see which whatsmeow it brings...")
+            BINDING["latest"] = cache["published"][candidate] = published_whatsmeow(candidate)
+            log(f"neonize {candidate} brings whatsmeow {BINDING['latest']} "
+                f"(installed: {BINDING['installed'] or '?'}).")
+        except Exception as error:
+            log(f"(Could not tell which whatsmeow neonize {candidate} brings: {error})")
+            cache["published"][candidate] = {"failed_at": now}
+
+    mine, theirs = _whatsmeow_key(BINDING["installed"]), _whatsmeow_key(BINDING.get("latest"))
+    if not BINDING.get("latest") or not BINDING["installed"]:
+        BINDING["verdict"] = "unknown"
+    elif BINDING["latest"] == BINDING["installed"]:
+        BINDING["verdict"] = "same"
+    elif mine and theirs:
+        BINDING["verdict"] = "newer" if theirs > mine else "older"
+    else:
+        BINDING["verdict"] = "different"
+
+
 def update_hint(package, latest):
-    """One sentence for the message about a refusal: is there something newer?"""
+    """One sentence for the message about a refusal: is there something newer
+    - and for neonize: would it help at all?"""
     installed = installed_version(package)
+    if package == "neonize" and newer(latest.get(package), installed):
+        verdict = BINDING.get("verdict")
+        if verdict in ("same", "older"):
+            return _f("neonize {latest} auf PyPI bringt keine neuere WhatsApp-Anbindung "
+                      "mit (whatsmeow vom {date}, wie installiert) – ein Wechsel hilft "
+                      "dagegen nicht. Es braucht eine Fassung mit neuerer whatsmeow.",
+                      latest=latest[package],
+                      date=whatsmeow_date(BINDING.get("latest")))
+        if verdict in ("newer", "different"):
+            return _f("Auf PyPI gibt es neonize {latest} mit neuerer WhatsApp-Anbindung "
+                      "(whatsmeow vom {theirs}, installiert: vom {mine}) – das ist "
+                      "der Kandidat.",
+                      latest=latest[package], theirs=whatsmeow_date(BINDING.get("latest")),
+                      mine=whatsmeow_date(BINDING.get("installed")))
+        return _f("Auf PyPI gibt es neonize {latest} (installiert: {installed}); ob sie "
+                  "eine neuere WhatsApp-Anbindung mitbringt, ließ sich nicht prüfen.",
+                  latest=latest[package], installed=installed)
     if newer(latest.get(package), installed):
         return _f("Auf PyPI gibt es {package} {latest} (installiert: {installed}).",
                   package=package, latest=latest[package], installed=installed)
@@ -553,6 +698,8 @@ def check_disk(now):
 
 def evaluate(state, now):
     latest = latest_versions(state, now)
+    if UPDATE_CHECK:
+        binding_status(state, now, latest)
     findings = []
     if TICKER_IN_USE or os.path.exists(TICKER_HEALTH):
         findings += check_ticker(state, now, latest)
@@ -570,12 +717,31 @@ def new_releases(state, latest):
     for package in WATCHED_PACKAGES:
         installed = installed_version(package)
         candidate = latest.get(package)
-        if newer(candidate, installed) and announced.get(package) != candidate:
+        if not newer(candidate, installed) or announced.get(package) == candidate:
+            continue
+        if package == "neonize":
+            verdict = BINDING.get("verdict")
+            if verdict == "unknown":
+                continue          # not yet known what it brings - ask again tomorrow
+            if verdict in ("same", "older"):
+                # Same WhatsApp underneath: nothing to tell, only to remember.
+                notes.append((package, candidate, None))
+                continue
             notes.append((package, candidate, _f(
-                "ℹ️ Neue Fassung: {package} {latest} (installiert: {installed}). "
-                "Nicht ungeprüft wechseln – erst mit SKYRELAY_DRY_RUN=1 testen, "
-                "siehe UPGRADE-TEST.md. Solange alles läuft, besteht kein Anlass.",
-                package=package, latest=candidate, installed=installed)))
+                "ℹ️ Neue Fassung: neonize {latest} mit neuerer WhatsApp-Anbindung "
+                "(whatsmeow vom {theirs}, installiert: neonize {installed} mit "
+                "whatsmeow vom {mine}). Das ist die Fassung, die bei der nächsten "
+                "Abweisung durch WhatsApp („Client outdated“) helfen dürfte. Nicht "
+                "ungeprüft wechseln – erst mit SKYRELAY_DRY_RUN=1 testen, siehe "
+                "UPGRADE-TEST.md.",
+                latest=candidate, theirs=whatsmeow_date(BINDING.get("latest")),
+                installed=installed, mine=whatsmeow_date(BINDING.get("installed")))))
+            continue
+        notes.append((package, candidate, _f(
+            "ℹ️ Neue Fassung: {package} {latest} (installiert: {installed}). "
+            "Nicht ungeprüft wechseln – erst mit SKYRELAY_DRY_RUN=1 testen, "
+            "siehe UPGRADE-TEST.md. Solange alles läuft, besteht kein Anlass.",
+            package=package, latest=candidate, installed=installed)))
     return notes
 
 
@@ -619,7 +785,8 @@ def compose(new, reminders, recovered, releases):
                         title=recovered_label(entry.get("key"), entry.get("title", "?")))
                      + "\n" + _f("Gestört seit {since}", since=when(entry.get("since"))))
     for _package, _version, text in releases:
-        parts.append(text)
+        if text:
+            parts.append(text)
     return parts
 
 
@@ -759,7 +926,21 @@ def run_check():
             print(f"\n⚠️ {finding.title}\n{finding.body}\n"
                   + _f("seit {since}", since=when(finding.since)))
         for _package, _version, text in releases:
-            print("\n" + text)
+            if text:
+                print("\n" + text)
+        if BINDING.get("installed"):
+            line = (f"\nneonize {installed_version('neonize')}: whatsmeow "
+                    f"{whatsmeow_date(BINDING['installed'])}")
+            if BINDING.get("version"):
+                line += (f"  ·  PyPI: neonize {BINDING['version']}, whatsmeow "
+                         f"{whatsmeow_date(BINDING.get('latest'))}")
+            print(line)
+        # What was looked up on PyPI is kept, so the next look costs nothing.
+        saved = read_state()
+        for key in ("pypi", "whatsmeow"):
+            if key in state:
+                saved[key] = state[key]
+        write_state(saved)
         print(f"\nBluesky: {'@' + RECIPIENT if RECIPIENT else '-'}  ·  "
               f"Kuma: {'yes' if KUMA_PUSH_URL else '-'}  ·  "
               f"enabled: {'yes' if ENABLED else 'no'}")

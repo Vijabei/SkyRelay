@@ -370,7 +370,9 @@ feed_stale_hours = 3
 disk_min_mb = 500
 # Einmal am Tag bei PyPI nachsehen, ob es neue Fassungen von neonize und
 # instaloader gibt. Neue Fassungen haben SkyRelay bisher jedes Mal wieder
-# flottgemacht - der Wächter nennt sie in seinen Meldungen.
+# flottgemacht - der Wächter nennt sie in seinen Meldungen. Bei neonize lädt
+# er jede neue Fassung einmal herunter (rund 20 MB) und meldet sie nur, wenn
+# sie eine neuere whatsmeow mitbringt - nur die hilft gegen "Client outdated".
 update_check = true
 # Was der Wächter sich merkt (was schon gemeldet ist), und sein Protokoll.
 state = skyrelay_heartbeat_state.json

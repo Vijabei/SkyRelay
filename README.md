@@ -578,6 +578,14 @@ Once a day the heartbeat looks on PyPI for new versions of **neonize** and
 has been the fix every time. It installs nothing: a new WhatsApp client wants
 checking first (see [UPGRADE-TEST.md](UPGRADE-TEST.md)).
 
+For neonize what counts is not the version number but the **whatsmeow** it
+brings along: whatsmeow decides which client version WhatsApp sees. neonize
+0.6.1 to 0.10.0, for instance, carry exactly the whatsmeow of 0.5.2
+(21.09.2026), so switching does not help against a refusal. The heartbeat
+therefore downloads each new neonize version once (about 20 MB), reads which
+whatsmeow it carries, and only reports one that really brings something newer.
+`--status` shows the comparison.
+
 **The daily WhatsApp probe.** On days without a match the ticker opens no
 connection, so it would notice a rejected client version only on the morning
 of the next match. With the heartbeat switched on it connects briefly instead,
