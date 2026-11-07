@@ -26,6 +26,8 @@ FREE_SECTIONS = {"team_codes", "league_hashtags"}
 # that is right to be without them. The value names what replaced them.
 DEPRECATED_KEYS = {
     ("team", "league_prefixes"): "[team] league_shortcuts",
+    ("heartbeat", "kuma_push_url"): "[heartbeat] ping_url",
+    ("heartbeat", "kuma_mode"): "[heartbeat] ping_mode",
 }
 
 SOURCE_FILES = {

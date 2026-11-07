@@ -292,18 +292,21 @@ def bereiche():
                            "Direktnachrichten“ anlegen – es gehört in "
                            "BLUESKY_HEARTBEAT_APP_PASSWORD."),
                          platzhalter="ich.bsky.social"),
-                    Feld("heartbeat", "kuma_push_url", _("Uptime Kuma"),
-                         _("Die Push-Adresse eines Kuma-Monitors vom Typ "
-                           "„Push“. Kuma schlägt Alarm, wenn die Meldungen "
-                           "ausbleiben – so erfährst du auch, dass der Pi "
-                           "selbst aus ist. Im Monitor 1200 Sekunden als "
-                           "Intervall einstellen. Leer = kein Kuma."),
-                         platzhalter="https://kuma.example.org/api/push/…"),
-                    Feld("heartbeat", "kuma_mode", _("Was Kuma erfährt"),
-                         _("„Probleme“: Kuma steht auf „down“, solange etwas "
-                           "nicht stimmt, und meldet es über seine eigenen "
-                           "Wege. „Nur Lebenszeichen“: Kuma wacht nur darüber, "
-                           "dass der Pi läuft."),
+                    Feld("heartbeat", "ping_url", _("Wächter von außen"),
+                         _("Die Ping-Adresse eines Checks bei healthchecks.io "
+                           "(https://hc-ping.com/…) oder eines Uptime-Kuma-"
+                           "Monitors vom Typ „Push“. Er schlägt Alarm, wenn die "
+                           "Pings ausbleiben – so erfährst du auch, dass der Pi "
+                           "selbst aus ist.\n"
+                           "healthchecks.io: Zeitraum 15 Minuten, Karenz 30 "
+                           "Minuten. Kuma: Intervall 1200 Sekunden. "
+                           "Leer = keiner."),
+                         platzhalter="https://hc-ping.com/…"),
+                    Feld("heartbeat", "ping_mode", _("Was er erfährt"),
+                         _("„Probleme“: Der Check steht auf Fehler, solange "
+                           "etwas nicht stimmt, und meldet es zusätzlich über "
+                           "seine eigenen Wege. „Nur Lebenszeichen“: Er wacht "
+                           "nur darüber, dass der Pi läuft."),
                          art="auswahl",
                          optionen=[("problems", N_("Probleme")),
                                    ("alive", N_("Nur Lebenszeichen"))]),
@@ -318,7 +321,8 @@ def bereiche():
                          _("Solange ein Problem besteht. 0 = nur einmal melden."),
                          art="zahl"),
                     Feld(None, None, _("Testmeldung senden"),
-                         _("Schickt eine Testnachricht über Bluesky und Kuma – "
+                         _("Schickt eine Testnachricht an Bluesky und einen "
+                           "Ping an den Wächter von außen – "
                            "mit den Einstellungen, wie sie gerade hier stehen, "
                            "auch ungespeichert."),
                          art="aktion", aktion="testmeldung"),
@@ -1142,11 +1146,11 @@ class Assistent(App):
     async def tue_testmeldung(self):
         empfaenger = self.helfer.read_value(self.zeilen, "heartbeat",
                                             "bluesky_recipient")
-        kuma = self.helfer.read_value(self.zeilen, "heartbeat", "kuma_push_url")
-        if not empfaenger and not kuma:
+        ping = self.helfer.read_value(self.zeilen, "heartbeat", "ping_url")
+        if not empfaenger and not ping:
             await self.push_screen_wait(Hinweis(
                 _("Wohin?"),
-                _("Trage zuerst dein Bluesky-Konto oder eine Kuma-Adresse "
+                _("Trage zuerst dein Bluesky-Konto oder eine Ping-Adresse "
                   "ein.")))
             return
         self.push_screen(Warten(_("Sende die Testmeldung …")))
