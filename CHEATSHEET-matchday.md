@@ -230,7 +230,8 @@ It is created from the template: `cp skyrelay.conf.example skyrelay.conf`, or by
 
 | Symptom | Cause / remedy |
 |---|---|
-| `Wire format was corrupt` | A bug in neonize 0.4.0/0.4.1 (NUL bytes truncated, [#199](https://github.com/krypton-byte/neonize/issues/199)) — fixed upstream in **0.4.2** (PR #198). We run `0.4.3.post0`, checked in full on 08.08.2026. |
+| `Wire format was corrupt` | A bug in neonize 0.4.0/0.4.1 (NUL bytes truncated, [#199](https://github.com/krypton-byte/neonize/issues/199)) — fixed upstream in **0.4.2** (PR #198). |
+| `Client outdated (405) connect failure` | WhatsApp no longer accepts the client version of the bundled whatsmeow (0.4.3.post0 since 07.11.2026). **Do not** delete the session — a newer neonize is needed: raise the pin in `requirements.txt`, then `./update.sh`. We run `0.5.2`. |
 | `panic: required field neonize.NewsletterMessage.Message not set` | A Go crash when fetching messages catches an invisible **meta message** (a post being edited or deleted). Affects **replay and catch-up** only (pick a smaller `N`); live operation has listened for events since 13.07.2026 and is immune. |
 | `VersionError: gencode … runtime …` | protobuf too old → `pip install -U protobuf` (**never** downgrade). |
 | Trouble after changing the neonize version | Delete `skyrelay_session.sqlite3` and pair again (the database schema). |
