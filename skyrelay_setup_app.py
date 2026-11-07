@@ -285,13 +285,21 @@ def bereiche():
                            "WhatsApp-Prüfung."),
                          art="schalter", vorgabe=False),
                     Feld("heartbeat", "bluesky_recipient", _("Meldungen an"),
-                         _("Dein eigenes Bluesky-Konto, ohne @. Der Bot schickt "
-                           "dir eine Direktnachricht.\n"
-                           "Damit sie ankommt: dem Bot-Konto folgen, und für den "
-                           "Absender ein App-Passwort mit „Zugriff auf "
-                           "Direktnachrichten“ anlegen – es gehört in "
-                           "BLUESKY_HEARTBEAT_APP_PASSWORD."),
+                         _("Dein eigenes, persönliches Bluesky-Konto, ohne @ – "
+                           "nicht das Bot-Konto, an sich selbst schicken geht "
+                           "bei Bluesky nicht. Der Bot schickt dir eine "
+                           "Direktnachricht; damit sie ankommt, folgst du ihm "
+                           "mit deinem Konto."),
                          platzhalter="ich.bsky.social"),
+                    Feld("heartbeat", "bluesky_sender", _("Absender"),
+                         _("Welches Bot-Konto schreibt. Leer = das Ticker-Konto; "
+                           "das Feed-Konto geht genauso.\n"
+                           "Sein App-Passwort muss „Zugriff auf Direktnachrichten“ "
+                           "erlauben: entweder ein eigenes in "
+                           "BLUESKY_HEARTBEAT_APP_PASSWORD, oder du ersetzt das "
+                           "bisherige Passwort des Bots durch eines mit diesem "
+                           "Recht – posten kann es weiterhin."),
+                         platzhalter=_("leer = Ticker-Konto")),
                     Feld("heartbeat", "ping_url", _("Wächter von außen"),
                          _("Die Ping-Adresse eines Checks bei healthchecks.io "
                            "(https://hc-ping.com/…) oder eines Uptime-Kuma-"
