@@ -544,6 +544,82 @@ times its length. To lift the block:
 To try again before the pause runs out, delete `skyrelay_feed_pause.txt` (or
 the file named in `[feed] pause_file`).
 
+### The heartbeat: a message when something is stuck (`skyrelay-heartbeat.py`)
+
+Most of the time SkyRelay simply runs. When it does not, it is rarely the Pi.
+Usually WhatsApp no longer lets an older client version in, or Instagram has
+changed how it answers. Until now that only showed in the log. The heartbeat
+tells you:
+
+* as a **Bluesky direct message** from the bot account to your own, saying what
+  happened and what to do about it;
+* through an **Uptime Kuma** monitor of the type "Push". Kuma raises the alarm
+  on its own when the pushes stop coming. That is the only way to learn that
+  the Pi itself is down (power, SD card, network).
+
+Only changes are reported: a problem, a reminder every 24 hours while it lasts,
+and the all-clear.
+
+| What | How it is noticed |
+|---|---|
+| WhatsApp no longer lets the client in (`Client outdated`, 405) | an event from neonize, already during the daily probe |
+| device logged out, number banned, no pairing | events from neonize |
+| the ticker crashed or hangs during a match | status file without a sign of life, process gone |
+| the WhatsApp connection is disrupted for a while | keep-alive unanswered, connection dropped |
+| OpenLigaDB does not answer (then the ticker does not start on a matchday) | the fetch fails |
+| Instagram blocks the account the feed reads with (`feedback_required` …) | the kind of error, with the end of the pause |
+| the feed has fetched nothing for hours | last successful query too old |
+| the Bluesky login fails, a post does not go out | errors on login or on posting |
+| ticker or feed no longer start (cron) | last start too old |
+| disk almost full | free space below `disk_min_mb` |
+
+Once a day the heartbeat looks on PyPI for new versions of **neonize** and
+**instaloader** and names them in its messages, because so far a new version
+has been the fix every time. It installs nothing: a new WhatsApp client wants
+checking first (see [UPGRADE-TEST.md](UPGRADE-TEST.md)).
+
+**The daily WhatsApp probe.** On days without a match the ticker opens no
+connection, so it would notice a rejected client version only on the morning
+of the next match. With the heartbeat switched on it connects briefly instead,
+looks for the channel and leaves again. Nothing is posted, and the bio stays as
+it is. This rides along with the ticker's daily cron run and needs no entry of
+its own. By hand: `venv/bin/python skyrelay-matchday.py --probe`.
+
+**Setting it up**, most easily in the assistant under "7 · Heartbeat":
+
+1. `[heartbeat] enabled = true`, plus `bluesky_recipient` (your account) and/or
+   `kuma_push_url`.
+2. **Bluesky:** create an app password of its own for the bot account and tick
+   **"Allow access to your direct messages"**. The ticker's password usually
+   cannot send them. **Follow the bot** with your own account: by default
+   Bluesky only accepts direct messages from accounts you follow.
+3. **Kuma:** create a monitor of the type "Push" with an interval of
+   **1200 seconds**, and enter the push URL it shows. How Kuma notifies you
+   (e-mail, Telegram, Pushover, …) is set up in Kuma itself. Kuma is a Node.js
+   service that runs all the time. Classic web space usually cannot host it,
+   but a host with Node.js or Docker can, and so can any small VPS. What matters
+   is that Kuma does **not run on the Pi**, or it goes down along with it.
+4. Try it: `venv/bin/python skyrelay-heartbeat.py --test` sends a test message
+   both ways. `--status` shows what it would report right now, without sending
+   anything.
+5. Start it from cron every 15 minutes, with the password at the top of the
+   crontab like the others:
+
+```cron
+BLUESKY_HEARTBEAT_APP_PASSWORD=zzzz-zzzz-zzzz-zzzz
+*/15 * * * * /path/to/SkyRelay/venv/bin/python3 /path/to/SkyRelay/skyrelay-heartbeat.py >/dev/null 2>&1
+```
+
+The ticker has to start **daily** for this (as under *Running it* above). If
+its start is missing for 36 hours, the heartbeat reports exactly that.
+
+The bots always record their state (`skyrelay_health.json`,
+`skyrelay_feed_health.json`), heartbeat or not. The heartbeat itself remembers
+what it has reported in `skyrelay_heartbeat_state.json` and logs to
+`skyrelay-heartbeat.log`. If a direct message fails, say because of a wrong
+password, it waits an hour before trying again, then longer each time up to
+six hours. That way it does not use up the bot account's logins.
+
 ---
 
 ## Documentation
@@ -557,6 +633,8 @@ the file named in `[feed] pause_file`).
 | `skyrelay_config.py` | checking, showing and topping up the configuration |
 | `skyrelay_layout.py` | how posts are built, character counting, splitting |
 | `skyrelay_i18n.py` | translations of the interface |
+| `skyrelay-heartbeat.py` | the heartbeat: reports trouble by Bluesky direct message and to Uptime Kuma |
+| `skyrelay_health.py` | the status files both bots write into: what worked and what did not |
 | `tools/i18n.sh` | creating, aligning and compiling the catalogues |
 | `skyrelay-testlauf.py` | plays real channel messages through the ticker pipeline without publishing |
 | `CHEATSHEET-matchday.md` | every environment variable, mode, file and remedy (German: `CHEATSHEET-matchday.de.md`) |

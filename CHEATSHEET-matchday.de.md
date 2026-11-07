@@ -15,6 +15,7 @@ Repostet den **Arminia-Bielefeld-WhatsApp-Kanal** nach Bluesky
 | `BLUESKY_TICKER_APP_PASSWORD` | `xxxx-xxxx-xxxx-xxxx` | **Pflicht** (außer im Trockenlauf). App-Passwort des **Ticker**-Kontos. Der Feed nutzt entsprechend `BLUESKY_FEED_APP_PASSWORD`. |
 | `--show-config` | – | Zeigt jeden gelesenen Wert mit seiner Herkunft (Datei oder Vorgabe). Kein Netz, keine Änderung. |
 | `--check-config` | – | Meldet Schlüssel, die niemand liest, die fehlen oder die in der Vorlage fehlen. |
+| `--probe` | – | Verbindet sich einmal mit WhatsApp, sucht den Kanal und trennt wieder. Nichts wird gepostet, die Bio bleibt. Mit eingeschaltetem Wächter (`[heartbeat]`) läuft das an spielfreien Tagen von selbst. Wird übersprungen, solange ein Ticker verbunden ist. |
 | `SKYRELAY_DRY_RUN` | `1` | Nur protokollieren, **nichts** auf Bluesky posten. Zeigt jeden Beitrag so, wie er auf Bluesky stünde — samt Zeichenzahl. Zum gefahrlosen Prüfen. |
 | `SKYRELAY_FORCE` | `1` | Läuft auch dann, wenn OpenLigaDB für heute **kein** Spiel kennt (Testspiele, manuelle Läufe). Findet OpenLigaDB doch eins, werden Hashtag und Spieltagsinfo trotzdem übernommen. |
 | `SKYRELAY_HASHTAG` | z.B. `DSCGUE` | Spiel-Hashtag **von Hand** setzen (mit oder ohne `#`, Groß- und Kleinschreibung egal). Hat Vorrang vor dem erzeugten. Nötig bei Testspielen, die OpenLigaDB nicht kennt. |
@@ -164,6 +165,8 @@ SKYRELAY_FORCE=1 SKYRELAY_DRY_RUN=1 venv/bin/python skyrelay-matchday.py
 | `skyrelay_posts.json` | ServerID → Bluesky-Beiträge (nur heute, für Bearbeitungen) | Ja → Bearbeitungen können die alten Beiträge dann nicht mehr löschen, nur neu posten |
 | `skyrelay.log` | das Protokoll — das Programm schreibt es **immer** selbst, egal wie es gestartet wurde (samt der Ausgaben der Go-Schicht). Die Konsole zeigt weiterhin alles. | Ja |
 | `skyrelay.log.1` … `.5` | rotierte Protokolle (ab 2 MB wird beim Start rotiert, `.1` = neuestes) | Ja |
+| `skyrelay_health.json` | Zustand für den Wächter: was zuletzt geklappt hat, was nicht, letztes Lebenszeichen | Ja → wird beim nächsten Start neu angelegt |
+| `skyrelay_session.sqlite3.lock` | verhindert, dass Probe und Ticker gleichzeitig mit WhatsApp verbunden sind | Ja |
 | `locales/*/LC_MESSAGES/*.mo` | übersetzte Kataloge | Ja → neu bauen mit `./tools/i18n.sh compile` |
 
 ---
@@ -246,6 +249,8 @@ ins Repository.
 | cron: `/bin/sh: 1: …/bin/python3: not found` | Ein Tippfehler im Pfad (meist die Groß- und Kleinschreibung). Gemeint ist der **Interpreter**, nicht Python. Prüfen mit `ls -l <Pfad>`. |
 | Der Ticker startet an einem spielfreien Tag | Das sollte `league_shortcuts` verhindern. Im Protokoll nach „matches from other leagues ignored" schauen und danach, welche Liga als Spieltag erkannt wurde. |
 | Die Statuszeile bleibt auf „Bot ist an" | Der Prozess wurde hart getötet (`kill -9`, Stromausfall) — dann läuft das `finally` nicht. Von Hand zurücksetzen: `SKYRELAY_PROFILE=off … venv/bin/python skyrelay-matchday.py`. |
+| `another ticker is connected to WhatsApp with this session` | Ein zweiter Ticker läuft schon (`pgrep -af skyrelay-matchday`). Zwei mit derselben Sitzung werfen sich gegenseitig hinaus — erst den anderen beenden. |
+| Der Wächter meldet sich nicht | `venv/bin/python skyrelay-heartbeat.py --status` zeigt, was er melden würde; `--test` schickt eine Testmeldung. Ins Protokoll sehen: `skyrelay-heartbeat.log`. Für Direktnachrichten braucht das App-Passwort „Zugriff auf Direktnachrichten“, und dein Konto muss dem Bot folgen. |
 | Das Programm „postet nichts" | Läuft es im richtigen Modus? Im Protokoll nachsehen: `REPLAY finished…` gegen `Listening for new channel posts…`. Umgebungsvariablen müssen **vor** dem python-Aufruf auf derselben Zeile stehen. |
 | `Error sending close to websocket … EOF` am Ende | Kosmetik beim sauberen Trennen — ignorieren. |
 | `SIGSEGV … signal arrived during cgo execution` **nach** „REPLAY finished" oder dem Tagesende | Ein Aufräumrennen in neonize: Der Go-Socket-Thread schreibt nach Python, während der Interpreter schon herunterfährt. Rein kosmetisch — die Arbeit war zu dem Zeitpunkt erledigt. Seit dem 13.07. wartet das Programm nach dem Trennen 2 s, um das zu vermeiden. |

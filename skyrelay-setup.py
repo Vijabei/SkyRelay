@@ -880,6 +880,9 @@ def naechste_schritte(lines):
                      "  venv/bin/instaloader -l "
                      + (read_value(lines, "feed", "instagram_session_user")
                         or "<Zweitkonto>"), ""]
+    if read_value(lines, "heartbeat", "enabled").lower() == "true":
+        schritte += [_("Wächter ausprobieren und per cron alle 15 Minuten starten:"),
+                     "  venv/bin/python skyrelay-heartbeat.py --test", ""]
     schritte.append(_("Danach cron einrichten - siehe README.md"))
     return "\n".join(schritte)
 

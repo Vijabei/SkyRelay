@@ -540,6 +540,85 @@ Vierfache. Aufheben lässt sie sich so:
 Wer danach nicht bis zum Ende der Pause warten will, löscht
 `skyrelay_feed_pause.txt` (bzw. die Datei aus `[feed] pause_file`).
 
+### Wächter: eine Nachricht, wenn etwas klemmt (`skyrelay-heartbeat.py`)
+
+Meist läuft SkyRelay einfach. Wenn nicht, liegt es selten am Pi, sondern daran,
+dass WhatsApp eine ältere Client-Version nicht mehr einlässt oder Instagram
+anders antwortet. Bisher stand das nur im Protokoll. Der Wächter sagt es dir:
+
+* als **Bluesky-Direktnachricht** vom Bot-Konto an dein eigenes Konto, mit dem,
+  was passiert ist, und dem, was zu tun ist;
+* über einen **Uptime-Kuma**-Monitor vom Typ „Push“. Kuma schlägt von sich aus
+  Alarm, wenn die Meldungen ausbleiben. Nur so erfährst du, dass der Pi selbst
+  aus ist (Strom, SD-Karte, Netz).
+
+Gemeldet wird nur, was sich ändert: ein Problem, solange es anhält alle 24 Stunden
+eine Erinnerung, und die Entwarnung.
+
+| Was | Woran erkannt |
+|---|---|
+| WhatsApp lässt den Client nicht mehr ein (`Client outdated`, 405) | Ereignis von neonize, schon bei der täglichen Probe |
+| Gerät abgemeldet, Nummer gesperrt, Kopplung fehlt | Ereignisse von neonize |
+| Ticker während des Spiels abgestürzt oder hängt | Statusdatei ohne Lebenszeichen, Prozess weg |
+| WhatsApp-Verbindung länger gestört | Keep-alive bleibt aus, Verbindung getrennt |
+| OpenLigaDB antwortet nicht (dann startet der Ticker am Spieltag nicht) | Fehler beim Abruf |
+| Instagram sperrt das Abrufkonto (`feedback_required` …) | Fehlerart, mit Ende der Pause |
+| Feed holt seit Stunden nichts | letzte erfolgreiche Abfrage zu alt |
+| Bluesky-Anmeldung scheitert, ein Beitrag geht nicht raus | Fehler beim Anmelden bzw. Posten |
+| Ticker oder Feed starten nicht mehr (cron) | letzter Start zu alt |
+| Speicher fast voll | freier Platz unter `disk_min_mb` |
+
+Einmal am Tag sieht der Wächter bei PyPI nach neuen Fassungen von **neonize** und
+**instaloader** und nennt sie in seinen Meldungen, denn bisher war genau das
+jedes Mal die Lösung. Installiert wird nichts: Ein neuer WhatsApp-Client gehört
+erst geprüft (siehe [UPGRADE-TEST.md](UPGRADE-TEST.md)).
+
+**Die tägliche WhatsApp-Probe.** An spielfreien Tagen baut der Ticker keine
+Verbindung auf und würde eine abgewiesene Client-Version erst am Morgen des
+nächsten Spiels bemerken. Mit eingeschaltetem Wächter verbindet er sich
+stattdessen einmal kurz, sucht den Kanal und trennt wieder. Es wird nichts
+gepostet, und die Bio bleibt, wie sie ist. Das läuft im täglichen cron-Lauf
+des Tickers mit und braucht keinen eigenen Eintrag. Von Hand:
+`venv/bin/python skyrelay-matchday.py --probe`.
+
+**Einrichten**, am einfachsten im Assistenten unter „7 · Wächter“:
+
+1. `[heartbeat] enabled = true`, dazu `bluesky_recipient` (dein Konto) und/oder
+   `kuma_push_url`.
+2. **Bluesky:** Für das Bot-Konto ein eigenes App-Passwort anlegen und dabei
+   **„Zugriff auf Direktnachrichten erlauben“** ankreuzen. Das Passwort des
+   Tickers kann das meist nicht. Mit deinem Konto **dem Bot folgen**, denn
+   Bluesky nimmt Direktnachrichten in der Vorgabe nur von Konten an, denen du
+   folgst.
+3. **Kuma:** einen Monitor vom Typ „Push“ anlegen, Intervall **1200 Sekunden**,
+   und die angezeigte Push-Adresse eintragen. Wie Kuma dich benachrichtigt
+   (E-Mail, Telegram, Pushover, …), stellst du in Kuma selbst ein. Kuma ist ein
+   dauerhaft laufender Node.js-Dienst: Auf klassischem Webspace geht das meist
+   nicht, wohl aber bei Hostern mit Node.js oder Docker und auf jedem kleinen
+   VPS. Wichtig ist nur, dass Kuma **nicht auf dem Pi** läuft, sonst fällt es mit
+   ihm aus.
+4. Ausprobieren: `venv/bin/python skyrelay-heartbeat.py --test` schickt eine
+   Testmeldung über beide Wege. `--status` zeigt, was er gerade melden würde,
+   ohne etwas zu senden.
+5. Per cron alle 15 Minuten starten, das Passwort wie die anderen oben in der
+   crontab:
+
+```cron
+BLUESKY_HEARTBEAT_APP_PASSWORD=zzzz-zzzz-zzzz-zzzz
+*/15 * * * * /pfad/zu/SkyRelay/venv/bin/python3 /pfad/zu/SkyRelay/skyrelay-heartbeat.py >/dev/null 2>&1
+```
+
+Der Ticker muss dafür **täglich** starten (wie oben unter *Betrieb*). Fehlt sein
+Start 36 Stunden lang, meldet der Wächter genau das.
+
+Die Bots schreiben ihren Zustand immer mit (`skyrelay_health.json`,
+`skyrelay_feed_health.json`), auch ohne Wächter. Der Wächter selbst merkt sich in
+`skyrelay_heartbeat_state.json`, was schon gemeldet ist, und protokolliert nach
+`skyrelay-heartbeat.log`. Scheitert eine Direktnachricht, etwa wegen eines
+falschen Passworts, versucht er es erst nach einer Stunde wieder, dann in
+wachsenden Abständen bis zu sechs Stunden. So verbraucht er nicht die
+Anmeldungen des Bot-Kontos.
+
 ---
 
 ## Dokumentation
@@ -553,6 +632,8 @@ Wer danach nicht bis zum Ende der Pause warten will, löscht
 | `skyrelay_config.py` | Konfiguration prüfen, anzeigen, nachziehen |
 | `skyrelay_layout.py` | Aufbau der Beiträge, Zeichenzählung, Aufteilen |
 | `skyrelay_i18n.py` | Übersetzungen der Bedienoberfläche |
+| `skyrelay-heartbeat.py` | der Wächter: meldet Störungen per Bluesky-Direktnachricht und an Uptime Kuma |
+| `skyrelay_health.py` | Statusdateien, in die beide Bots schreiben, was geklappt hat und was nicht |
 | `tools/i18n.sh` | Kataloge erzeugen, angleichen, übersetzen |
 | `skyrelay-testlauf.py` | spielt echte Kanal-Nachrichten durch die Ticker-Pipeline, ohne zu veröffentlichen |
 | `CHEATSHEET-matchday.de.md` | alle Umgebungsvariablen, Betriebsarten, Dateien, Fehlerbehebung (englisch: `CHEATSHEET-matchday.md`) |

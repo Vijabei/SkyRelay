@@ -41,12 +41,14 @@ if "--check-config" in sys.argv or "--show-config" in sys.argv:
     sys.exit(check_config(_base) if "--check-config" in sys.argv
              else show_config(_base))
 
+import atexit
 import instaloader
 from atproto import models, client_utils
 import time
 import requests
 import traceback
 
+from skyrelay_health import Health, bluesky_error_kind
 from skyrelay_common import (
     log,
     load_config,
@@ -151,6 +153,8 @@ LOG_FILE = os.path.join(BASE_DIR, cfg("feed", "log", "skyrelay-feed.log"))
 # Configurable like the state file: several clubs side by side must not
 # pause each other.
 PAUSE_FILE = os.path.join(BASE_DIR, cfg("feed", "pause_file", "skyrelay_feed_pause.txt"))
+# What the feed knows about its own state, for skyrelay-heartbeat.py.
+HEALTH_FILE = os.path.join(BASE_DIR, cfg("feed", "health", "skyrelay_feed_health.json"))
 TMP_DIR = os.path.join(BASE_DIR, "tmp")
 # The German default stays: it is a folder name on disk, and renaming it would
 # strand videos that a running installation still has waiting in there.
@@ -161,6 +165,12 @@ VIDEO_RETRY_DIR = os.path.join(BASE_DIR,
 if LOG_TO_FILE:
     start_file_logging(LOG_FILE, LOG_MAX_BYTES, LOG_BACKUP_COUNT)
     log(f"--- feed start (log: {LOG_FILE}) ---")
+
+health = Health(HEALTH_FILE, "feed", log)
+health.start("run")
+# Every way out counts as an end - the feed leaves through sys.exit in many
+# places, and only a run that never got here would be a crash.
+atexit.register(health.end, "ended")
 
 # Carry over what earlier versions left behind, so nothing gets posted twice.
 _old_state = os.path.join(BASE_DIR, "posted_shortcodes.txt")
@@ -194,6 +204,7 @@ if not BLUESKY_APP_PASSWORD and not DRY_RUN:
     log('    export BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"')
     log("Careful: cron does not read ~/.bashrc - put the variables above into")
     log("the crontab itself (without quotation marks).")
+    health.fail("bluesky", "password_missing", PASSWORD_VARIABLE)
     sys.exit(1)
 
 _missing = [name for name, value in (("[feed] instagram_profile", INSTA_USER),
@@ -250,8 +261,9 @@ def read_pause():
         return None
 
 
-def pause_for_block(marker):
+def pause_for_block(marker, error=""):
     """Explains the block and, unless switched off, pauses the feed."""
+    _note_block(marker, error)
     log(f"⛔ Instagram is holding the account {INSTA_BOT_USER} back ({marker}).")
     log("   Usually that is a block on the account, and asking again only")
     log("   stretches it. An outdated instaloader gets the same answer, though -")
@@ -279,7 +291,16 @@ def pause_for_block(marker):
         return
     log(f"   The feed leaves Instagram alone for {hours} hours, until "
         f"{time.strftime('%Y-%m-%d %H:%M', time.localtime(until))}.")
+    _note_block(marker, error, until)
     log(f"   To try sooner (after confirming in the app), delete {PAUSE_FILE}")
+
+
+def _note_block(marker, error, until=None):
+    """Tells the heartbeat - with the end of the pause, once it is known."""
+    extra = {"marker": marker}
+    if until:
+        extra["until"] = until
+    health.fail("instagram", "blocked", f"{marker}: {error}"[:300], **extra)
 
 
 def lift_pause():
@@ -316,6 +337,7 @@ try:
     log("Session loaded.")
 except Exception as error:
     log(f"Error while loading the session file: {error}")
+    health.fail("instagram", "session", error)
     sys.exit(1)
 
 # 3. Fetch the Instagram profile and its latest posts
@@ -337,10 +359,13 @@ except Exception as error:
     log(f"The Instagram query failed: {error}")
     marker = instagram_block(error)
     if marker:
-        pause_for_block(marker)
+        pause_for_block(marker, error)
+    else:
+        health.fail("instagram", "error", error)
     sys.exit(1)
 
 lift_pause()
+health.ok("instagram", f"{len(latest_posts)} post(s) of @{INSTA_USER} read")
 
 
 # 4. Helpers
@@ -419,7 +444,8 @@ def ensure_login():
         try:
             log_in_to_bluesky(connection, BLUESKY_HANDLE, BLUESKY_APP_PASSWORD,
                               PASSWORD_VARIABLE)
-        except Exception:
+        except (Exception, SystemExit) as error:
+            health.fail("bluesky", bluesky_error_kind(error), error)
             # Without a login nothing can be published, and further attempts
             # would only use up the login limit (Bluesky allows 10 logins per
             # day and account).
@@ -428,6 +454,7 @@ def ensure_login():
             log("again on the next run.")
             sys.exit(1)
         client = connection
+        health.ok("bluesky", f"logged in as @{BLUESKY_HANDLE}")
 
     if not retries_done:
         retries_done = True
@@ -762,6 +789,7 @@ for post in latest_posts:
                                        filename, video_alt)
 
         log(f"Post {post.shortcode} published on Bluesky.")
+        health.ok("posting", post.shortcode)
 
     except Exception as error:
         log(f"Error on post {post.shortcode}: {error}")
@@ -770,8 +798,9 @@ for post in latest_posts:
         # remaining posts would only knock on the same closed door.
         marker = instagram_block(error)
         if marker:
-            pause_for_block(marker)
+            pause_for_block(marker, error)
             break
+        health.fail("posting", "error", f"{post.shortcode}: {error}")
 
     finally:
         # 11. Clean up (runs on errors as well, and clears subfolders too)

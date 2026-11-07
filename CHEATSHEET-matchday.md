@@ -15,6 +15,7 @@ morning until midnight, steered through environment variables.
 | `BLUESKY_TICKER_APP_PASSWORD` | `xxxx-xxxx-xxxx-xxxx` | **Required** (except in a dry run). App password of the **ticker** account. The feed uses `BLUESKY_FEED_APP_PASSWORD` accordingly. |
 | `--show-config` | – | Shows every value that is read, with where it comes from (file or default). No network, no changes. |
 | `--check-config` | – | Reports keys nobody reads, keys that are missing, and keys missing from the template. |
+| `--probe` | – | Connects to WhatsApp once, looks for the channel and leaves again. Nothing is posted, the bio stays. With the heartbeat switched on (`[heartbeat]`) this happens by itself on days without a match. Skipped while a ticker is connected. |
 | `SKYRELAY_DRY_RUN` | `1` | Only log, post **nothing** to Bluesky. Shows every post as it would stand on Bluesky — with its character count. For checking without consequences. |
 | `SKYRELAY_FORCE` | `1` | Runs even when OpenLigaDB knows **no** match for today (friendlies, manual runs). If OpenLigaDB does find one, the hashtag and the matchday info are used all the same. |
 | `SKYRELAY_HASHTAG` | e.g. `DSCGUE` | Set the match hashtag **by hand** (with or without `#`, case does not matter). Takes precedence over the generated one. Needed for friendlies OpenLigaDB does not know. |
@@ -160,6 +161,8 @@ SKYRELAY_FORCE=1 SKYRELAY_DRY_RUN=1 venv/bin/python skyrelay-matchday.py
 | `skyrelay_posts.json` | server ID → Bluesky posts (today only, for edits) | Yes → edits can then no longer delete the old posts, only post anew |
 | `skyrelay.log` | the log — the program writes it **always**, however it was started (including the output of the Go layer). The console still shows everything. | Yes |
 | `skyrelay.log.1` … `.5` | rotated logs (rotated at startup from 2 MB on, `.1` = newest) | Yes |
+| `skyrelay_health.json` | state for the heartbeat: what last worked, what did not, the last sign of life | Yes → created anew on the next start |
+| `skyrelay_session.sqlite3.lock` | keeps probe and ticker from being connected to WhatsApp at the same time | Yes |
 | `locales/*/LC_MESSAGES/*.mo` | compiled translations | Yes → rebuild with `./tools/i18n.sh compile` |
 
 ---
@@ -240,6 +243,8 @@ It is created from the template: `cp skyrelay.conf.example skyrelay.conf`, or by
 | cron: `/bin/sh: 1: …/bin/python3: not found` | A typo in the path (usually the capitalisation). It means the **interpreter**, not Python. Check with `ls -l <path>`. |
 | The ticker starts on a day without a match | `league_shortcuts` should prevent that. Check the log for "matches from other leagues ignored", and which league was taken for a matchday. |
 | The bio status line stays on "Bot ist an" | The process was killed hard (`kill -9`, a power cut) — then the `finally` never runs. Put it back by hand: `SKYRELAY_PROFILE=off … venv/bin/python skyrelay-matchday.py`. |
+| `another ticker is connected to WhatsApp with this session` | A second ticker is running already (`pgrep -af skyrelay-matchday`). Two with the same session push each other out — end the other one first. |
+| The heartbeat stays silent | `venv/bin/python skyrelay-heartbeat.py --status` shows what it would report; `--test` sends a test message. Look into `skyrelay-heartbeat.log`. Direct messages need an app password with "Allow access to your direct messages", and your account has to follow the bot. |
 | The program "posts nothing" | Is it in the right mode? Check the log: `REPLAY finished…` versus `Listening for new channel posts…`. Environment variables have to stand **before** the python call on the same line. |
 | `Error sending close to websocket … EOF` at the end | Cosmetic, from disconnecting cleanly — ignore it. |
 | `SIGSEGV … signal arrived during cgo execution` **after** "REPLAY finished" or the end of the day | A cleanup race in neonize: the Go socket thread logs into Python while the interpreter is already shutting down. Purely cosmetic — the work was finished at that point. Since 13.07. the program waits 2 s after disconnecting to avoid it. |

@@ -267,6 +267,9 @@ block_pause_hours = 12
 state = skyrelay_feed_posted.txt
 log = skyrelay-feed.log
 pause_file = skyrelay_feed_pause.txt
+# Statusdatei für den Wächter (siehe [heartbeat]): was zuletzt geklappt hat
+# und was nicht. Wird immer geschrieben, auch ohne Wächter.
+health = skyrelay_feed_health.json
 
 
 [profile]
@@ -304,6 +307,74 @@ posts_map = skyrelay_posts.json
 log = skyrelay.log
 # Ordner fuer Videos, deren Upload scheiterte und die nachgereicht werden.
 video_retry_dir = skyrelay_nachreichen
+# Statusdatei des Tickers für den Wächter (siehe [heartbeat]). Wird immer
+# geschrieben, auch ohne Wächter.
+health = skyrelay_health.json
+
+
+[heartbeat]
+# ---------------------------------------------------------------------------
+#  Der Wächter: skyrelay-heartbeat.py meldet, wenn Ticker oder Feed nicht
+#  mehr laufen - meist, weil WhatsApp eine ältere Client-Version nicht mehr
+#  einlässt oder Instagram anders antwortet. Gemeldet wird nur, was sich
+#  ändert: ein Problem, solange es anhält eine Erinnerung, und die Entwarnung.
+#
+#  Per cron alle 15 Minuten starten (siehe README, Abschnitt "Wächter"):
+#      */15 * * * * /pfad/zu/SkyRelay/venv/bin/python3 /pfad/zu/SkyRelay/skyrelay-heartbeat.py
+#  Das App-Passwort (BLUESKY_HEARTBEAT_APP_PASSWORD) steht wie die anderen
+#  oben in der crontab.
+#  Ausprobieren:
+#      venv/bin/python skyrelay-heartbeat.py --status   was er jetzt melden würde
+#      venv/bin/python skyrelay-heartbeat.py --test     Testmeldung senden
+# ---------------------------------------------------------------------------
+# Wächter einschalten. Erst dann gibt es Meldungen - und die tägliche
+# WhatsApp-Prüfung unten.
+enabled = false
+# Dein eigenes Bluesky-Konto (ohne @). Der Wächter schickt dir dorthin eine
+# Direktnachricht. Leer lassen = keine Direktnachrichten.
+# Damit sie ankommen: dem Bot-Konto folgen (Bluesky nimmt Nachrichten in der
+# Vorgabe nur von Konten an, denen man folgt), und das App-Passwort des
+# Absenders mit "Zugriff auf Direktnachrichten erlauben" anlegen - es gehört
+# in BLUESKY_HEARTBEAT_APP_PASSWORD.
+bluesky_recipient =
+# Von welchem Konto die Nachricht kommt. Leer = das Ticker-Konto aus [bluesky].
+bluesky_sender =
+# Push-Adresse eines Uptime-Kuma-Monitors vom Typ "Push", so wie Kuma sie
+# anzeigt, z.B. https://kuma.example.org/api/push/AbCdEf1234?status=up&msg=OK&ping=
+# Kuma schlägt Alarm, wenn die Meldungen ausbleiben - so erfährst du auch,
+# dass der Pi selbst aus ist. Im Monitor ein Intervall von 1200 Sekunden
+# einstellen, zum cron-Takt von 15 Minuten passend. Leer = kein Kuma.
+# Wer die Adresse nicht in der Datei haben will: SKYRELAY_KUMA_PUSH_URL.
+kuma_push_url =
+# Was Kuma erfährt:
+#   problems  "down", solange ein Problem besteht, mit kurzer Beschreibung
+#             (Kuma meldet dann über seine eigenen Wege - E-Mail, Telegram, ...)
+#   alive     immer "up" - Kuma wacht nur darüber, dass der Pi lebt
+kuma_mode = problems
+# Erinnerung, solange ein Problem besteht, alle so viele Stunden. 0 = keine.
+reminder_hours = 24
+# An spielfreien Tagen einmal kurz mit WhatsApp verbinden, den Kanal suchen und
+# wieder trennen - nichts wird gepostet, die Bio bleibt, wie sie ist. So fällt
+# eine abgewiesene Client-Version am Dienstag auf und nicht erst am Spieltag.
+# Läuft im täglichen cron-Lauf des Tickers mit, braucht keinen eigenen Eintrag.
+# Setzt voraus, dass der Ticker wirklich TÄGLICH startet: Fehlt sein Start
+# 36 Stunden lang, meldet der Wächter das.
+whatsapp_probe = true
+# Ab wie vielen Minuten eine gestörte WhatsApp-Verbindung gemeldet wird
+# (whatsmeow verbindet sich meist von selbst neu).
+ticker_stale_minutes = 5
+# Holt der Feed so viele Stunden lang nichts von Instagram, wird das gemeldet.
+# Einzelne gescheiterte Abfragen kommen vor und bleiben still. 0 = nie.
+feed_stale_hours = 3
+# Warnung, wenn weniger Speicher frei ist (MB). 0 = nie.
+disk_min_mb = 500
+# Einmal am Tag bei PyPI nachsehen, ob es neue Fassungen von neonize und
+# instaloader gibt. Neue Fassungen haben SkyRelay bisher jedes Mal wieder
+# flottgemacht - der Wächter nennt sie in seinen Meldungen.
+update_check = true
+# Was der Wächter sich merkt (was schon gemeldet ist), und sein Protokoll.
+state = skyrelay_heartbeat_state.json
+log = skyrelay-heartbeat.log
 
 
 [logging]

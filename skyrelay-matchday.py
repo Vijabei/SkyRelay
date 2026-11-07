@@ -50,6 +50,12 @@ fine):
     file from [files] session; after that SKYRELAY_PAIR_PHONE is no longer
     needed.
 
+The heartbeat (skyrelay-heartbeat.py, [heartbeat] in the configuration): with
+it switched on, the daily start also probes WhatsApp on days without a match -
+a short connection that posts nothing - so that a rejected client version is
+noticed before the next match. By hand, on any day:
+    venv/bin/python skyrelay-matchday.py --probe
+
 Example for cron (a daily start at 6 in the morning, the program decides the
 rest). Paths are case sensitive, and redirecting the output into the log file
 is NOT necessary - the program writes it itself:
@@ -58,6 +64,7 @@ is NOT necessary - the program writes it itself:
 
 import asyncio
 import configparser
+import fcntl
 import hashlib
 import html as html_utils
 import json
@@ -92,6 +99,7 @@ import segno
 from atproto import models, client_utils
 
 from neonize.aioze.client import NewAClient
+from neonize.aioze import events as neonize_events
 from neonize.aioze.events import ConnectedEv, MessageEv, PairStatusEv
 from neonize.types import MessageServerID
 
@@ -125,6 +133,7 @@ from skyrelay_common import (
     GRAPHEME_SOURCE,
     show_preview,
 )
+from skyrelay_health import Health, bluesky_error_kind
 # httpx (the HTTP client of the atproto library) would log every request.
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
@@ -251,6 +260,19 @@ POSTS_MAP_FILE = os.path.join(BASE_DIR, cfg("files", "posts_map", "skyrelay_post
 LOG_FILE = os.path.join(BASE_DIR, cfg("files", "log", "skyrelay.log"))
 VIDEO_RETRY_DIR = os.path.join(BASE_DIR,
                                cfg("files", "video_retry_dir", "skyrelay_nachreichen"))
+# What the ticker knows about its own state, for skyrelay-heartbeat.py.
+HEALTH_FILE = os.path.join(BASE_DIR, cfg("files", "health", "skyrelay_health.json"))
+
+# The daily probe. On days without a match the ticker would otherwise never
+# talk to WhatsApp - and learn of a rejected client version ("Client outdated
+# (405)", as on 07.11.) only on the morning of the next match, too late for an
+# update. With the heartbeat switched on it connects once instead, looks for
+# the channel and leaves again; nothing is posted, the bio stays as it is.
+# "--probe" asks for the same on any day, by hand.
+HEARTBEAT_ENABLED = cfg_bool("heartbeat", "enabled", False)
+WHATSAPP_PROBE = HEARTBEAT_ENABLED and cfg_bool("heartbeat", "whatsapp_probe", True)
+PROBE_REQUESTED = "--probe" in sys.argv
+PROBE_TIMEOUT_SECONDS = 90
 
 
 def env(name, default=None):
@@ -310,10 +332,16 @@ if LOG_TO_FILE:
     start_file_logging(LOG_FILE, LOG_MAX_BYTES, LOG_BACKUP_COUNT)
     log(f"--- ticker start (log: {LOG_FILE}) ---")
 
+health = Health(HEALTH_FILE, "ticker", log)
+health.start("probe" if PROBE_REQUESTED else "start")
+
 # A password of its own for the ticker, otherwise the shared one.
 BLUESKY_APP_PASSWORD, PASSWORD_VARIABLE = get_app_password(
     "BLUESKY_TICKER_APP_PASSWORD", "BLUESKY_APP_PASSWORD")
-if not BLUESKY_APP_PASSWORD and not DRY_RUN:
+# The probe posts nothing, so it does without a password.
+if not BLUESKY_APP_PASSWORD and not DRY_RUN and not PROBE_REQUESTED:
+    health.fail("bluesky", "password_missing", PASSWORD_VARIABLE)
+    health.end("error", f"{PASSWORD_VARIABLE} is not set")
     log(f"Error: no app password set for the ticker account @{BLUESKY_HANDLE}.")
     log('Separate accounts for ticker and feed:')
     log('    export BLUESKY_TICKER_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"')
@@ -742,8 +770,13 @@ def ensure_bsky():
     # Take it over only after a successful login: otherwise an
     # unauthenticated object would stay behind, and every following post
     # would go out unauthenticated ("AuthMissing").
-    log_in_to_bluesky(connection, BLUESKY_HANDLE, BLUESKY_APP_PASSWORD,
-                         PASSWORD_VARIABLE)
+    try:
+        log_in_to_bluesky(connection, BLUESKY_HANDLE, BLUESKY_APP_PASSWORD,
+                          PASSWORD_VARIABLE)
+    except (Exception, SystemExit) as error:
+        health.fail("bluesky", bluesky_error_kind(error), error)
+        raise
+    health.ok("bluesky", f"logged in as @{BLUESKY_HANDLE}")
     bsky_client = connection
 
 
@@ -1143,11 +1176,171 @@ client = NewAClient(SESSION_DB)
 # Newsletter-Methoden aufruft, provoziert einen Segfault im Go-Layer (nil Client).
 # So: wait for the connected event before anything else happens.
 wa_connected = asyncio.Event()
+# Set when WhatsApp says no for good - an outdated client, a device logged out,
+# a banned number. Waiting the full five minutes for a connection would then
+# only hide the reason; whatsmeow does not try again in those cases either.
+wa_refused = asyncio.Event()
+probing = False      # True during the probe: nothing is posted, nobody pairs
+stopping = False     # True once run() closes the connection itself
+
+
+def _neonize_version():
+    try:
+        from importlib.metadata import version
+        return version("neonize")
+    except Exception:
+        return "?"
+
+
+# What to do about each refusal - in the log right away, and the heartbeat
+# says the same in its message.
+REFUSAL_HINTS = {
+    "outdated": [
+        "WhatsApp no longer lets in the client version that neonize "
+        f"{_neonize_version()} brings along (405, 'Client outdated').",
+        "Run ./update.sh. If requirements.txt still pins this version, a newer",
+        "neonize is needed first - see 'Known limitations' in the README.",
+    ],
+    "logged_out": [
+        "WhatsApp has logged this linked device out (removed on the phone,",
+        "or the session expired). Pair it again, interactively:",
+        f"  rm {SESSION_DB}",
+        "  SKYRELAY_FORCE=1 SKYRELAY_DRY_RUN=1 venv/bin/python skyrelay-matchday.py",
+    ],
+    "banned": [
+        "WhatsApp has banned the number for the time being. Nothing in",
+        "SkyRelay can lift that - wait, and check the phone for details.",
+    ],
+    "not_paired": [
+        "There is no paired WhatsApp session. Pair once, interactively:",
+        "  SKYRELAY_FORCE=1 SKYRELAY_DRY_RUN=1 venv/bin/python skyrelay-matchday.py",
+    ],
+    "replaced": [
+        "Another program connected with the same WhatsApp session and pushed",
+        "this one out - a second ticker, or the test run. Only one at a time.",
+    ],
+}
+
+
+def whatsapp_refused(kind, detail):
+    """WhatsApp has said no in a way that waiting will not change."""
+    health.fail("whatsapp", kind, detail)
+    log(f"✗ WhatsApp refused the connection: {detail}")
+    for line in REFUSAL_HINTS.get(kind, []):
+        log(f"   {line}")
+    wa_refused.set()
+
+
+def _on(name):
+    """Registers a handler for a neonize event - if this neonize knows it.
+
+    Looked up by name rather than imported: an older or newer neonize that
+    lacks one of them should cost that one message, not the whole ticker."""
+    event_type = getattr(neonize_events, name, None)
+
+    def register(handler):
+        if event_type is not None:
+            client.event(event_type)(handler)
+        return handler
+    return register
 
 
 @client.event(ConnectedEv)
 async def on_connected(_, __):
+    if wa_connected.is_set():
+        log("✓ WhatsApp connected again.")
     wa_connected.set()
+    health.ok("whatsapp", "connected")
+
+
+@_on("ClientOutdatedEv")
+async def on_client_outdated(_, __):
+    whatsapp_refused("outdated", f"Client outdated (405), neonize {_neonize_version()}")
+
+
+def _failure_reason(event):
+    try:
+        from neonize.proto.Neonize_pb2 import ConnectFailureReason
+        return ConnectFailureReason.Name(event.Reason)
+    except Exception:
+        return str(getattr(event, "Reason", "?"))
+
+
+@_on("ConnectFailureEv")
+async def on_connect_failure(_, event):
+    reason = _failure_reason(event)
+    detail = f"{reason} {getattr(event, 'Message', '')}".strip()
+    if reason == "CLIENT_OUTDATED":
+        whatsapp_refused("outdated", f"Client outdated (405), neonize {_neonize_version()}")
+    elif reason in ("LOGGED_OUT", "MAIN_DEVICE_GONE", "UNKNOWN_LOGOUT"):
+        whatsapp_refused("logged_out", detail)
+    elif reason == "TEMP_BANNED":
+        whatsapp_refused("banned", detail)
+    else:
+        # Server trouble and the like: whatsmeow tries again by itself.
+        log(f"⚠️ WhatsApp connection failed ({detail}) - waiting for the next attempt.")
+        health.fail("whatsapp", "connect_failed", detail)
+
+
+@_on("LoggedOutEv")
+async def on_logged_out(_, event):
+    whatsapp_refused("logged_out", f"logged out ({_failure_reason(event)})")
+
+
+@_on("TemporaryBanEv")
+async def on_temporary_ban(_, event):
+    expire = getattr(event, "Expire", 0)
+    whatsapp_refused("banned", f"temporary ban, code {getattr(event, 'Code', '?')}"
+                               + (f", expires in {expire} s" if expire else ""))
+
+
+@_on("StreamReplacedEv")
+async def on_stream_replaced(_, __):
+    whatsapp_refused("replaced", "the session was taken over by another connection")
+
+
+_keepalive_failing = False
+
+
+@_on("KeepAliveTimeoutEv")
+async def on_keepalive_timeout(_, event):
+    global _keepalive_failing
+    if not _keepalive_failing:
+        _keepalive_failing = True
+        log("⚠️ WhatsApp does not answer the keep-alive - the connection may be "
+            "dead. whatsmeow keeps trying.")
+    health.fail("whatsapp", "keepalive",
+                f"{getattr(event, 'ErrorCount', '?')} keep-alive(s) unanswered")
+
+
+@_on("KeepAliveRestoredEv")
+async def on_keepalive_restored(_, __):
+    global _keepalive_failing
+    _keepalive_failing = False
+    log("✓ WhatsApp answers the keep-alive again.")
+    health.ok("whatsapp", "keep-alive restored")
+
+
+@_on("DisconnectedEv")
+async def on_disconnected(_, __):
+    # Our own goodbye at the end of the day arrives here as well.
+    if stopping or probing:
+        return
+    log("⚠️ The WhatsApp connection dropped - whatsmeow reconnects by itself.")
+    health.fail("whatsapp", "disconnected", "connection dropped")
+
+
+async def wait_for_whatsapp(timeout):
+    """Waits until WhatsApp is connected or has said no. True = connected."""
+    waiting = [asyncio.ensure_future(wa_connected.wait()),
+               asyncio.ensure_future(wa_refused.wait())]
+    try:
+        await asyncio.wait(waiting, timeout=timeout,
+                           return_when=asyncio.FIRST_COMPLETED)
+    finally:
+        for task in waiting:
+            task.cancel()
+    return wa_connected.is_set() and not wa_refused.is_set()
 
 
 @client.event(PairStatusEv)
@@ -1164,8 +1357,13 @@ async def on_qr(_, data_qr):
     instructions appear only when a first pairing is really due - not on every
     ordinary start."""
     global _qr_instructions_shown
+    if probing:
+        # Nobody is looking at a terminal at six in the morning.
+        whatsapp_refused("not_paired", "no paired session - WhatsApp asks for a QR scan")
+        return
     if not _qr_instructions_shown:
         _qr_instructions_shown = True
+        health.fail("whatsapp", "not_paired", "WhatsApp asks for a QR scan")
         log("A first pairing is needed - scan this QR code with the phone that "
             "holds the number:")
         log("(WhatsApp -> Settings -> Linked devices -> Link a device;")
@@ -1216,6 +1414,68 @@ async def with_retries(description, coro_factory, max_attempts=6, wait_seconds=1
             await asyncio.sleep(wait_seconds)
 
 
+_session_lock = None
+
+
+def lock_session(wait_seconds):
+    """Claims the WhatsApp session for this process. True = ours.
+
+    Two connections with the same session push each other out
+    (StreamReplaced) - the daily probe must never do that to a listening
+    ticker. The lock goes with the process, so a crash cannot leave it
+    behind."""
+    global _session_lock
+    try:
+        _session_lock = open(SESSION_DB + ".lock", "w")
+    except OSError as error:
+        log(f"⚠️ Cannot create the session lock ({error}) - carrying on without it.")
+        return True
+    deadline = time.monotonic() + wait_seconds
+    while True:
+        try:
+            fcntl.flock(_session_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return True
+        except BlockingIOError:
+            if time.monotonic() >= deadline:
+                return False
+            time.sleep(2)
+
+
+async def probe_whatsapp():
+    """Connects once, looks for the channel and leaves - nothing else.
+
+    Meant for days without a match: whether WhatsApp still lets this client
+    in is better learnt on a Tuesday than on the morning of the match."""
+    global probing
+    if not lock_session(0):
+        log("WhatsApp probe skipped: a ticker is connected already and reports "
+            "on WhatsApp itself.")
+        return
+    probing = True
+    health.mode("probe")
+    log("WhatsApp probe: connecting once to see whether WhatsApp still lets "
+        "this client in. Nothing is posted, the bio stays as it is.")
+    await client.connect()
+    if not await wait_for_whatsapp(PROBE_TIMEOUT_SECONDS):
+        if not wa_refused.is_set():
+            health.fail("whatsapp", "no_connection",
+                        f"no connection within {PROBE_TIMEOUT_SECONDS} s")
+            log(f"✗ WhatsApp probe: no connection within {PROBE_TIMEOUT_SECONDS} s.")
+        raise SystemExit(1)
+    await asyncio.sleep(3)
+    try:
+        metadata = await with_retries(
+            "resolving the channel",
+            lambda: client.get_newsletter_info_with_invite(CHANNEL_INVITE_LINK),
+            max_attempts=3, wait_seconds=10)
+    except Exception as error:
+        health.fail("whatsapp", "channel", f"channel not found: {error}")
+        log(f"✗ WhatsApp probe: connected, but the channel cannot be resolved: {error}")
+        raise SystemExit(1)
+    health.ok("whatsapp", f"probe: connected, channel {metadata.ID.User} found")
+    log(f"✓ WhatsApp probe: connected, channel found (neonize {_neonize_version()}).")
+
+
 async def main():
     global match_hashtag, match_hashtags_tag, match_info, match_kickoff, channel_user
     global standing_tags
@@ -1231,6 +1491,10 @@ async def main():
         log("The channel link comes from the phone: open the channel -> tap the")
         log("channel name -> Share -> copy link.")
         sys.exit(1)
+
+    if PROBE_REQUESTED:
+        await probe_whatsapp()
+        return
 
     # Profile-only mode "off": needs neither a matchday nor WhatsApp.
     if PROFILE_ONLY == "off":
@@ -1257,8 +1521,10 @@ async def main():
     else:
         try:
             todays_matches = get_todays_matches()
+            health.ok("openligadb", f"{len(todays_matches)} match(es) today")
         except Exception as e:
             log(f"Fehler beim OpenLigaDB-Abruf: {e}")
+            health.fail("openligadb", "error", e)
             if not FORCE_RUN:
                 sys.exit(1)
 
@@ -1298,6 +1564,10 @@ async def main():
                   else "SKYRELAY_FORCE=1 is set - OpenLigaDB knows no match today")
         log(f"{reason}, running anyway{note}.")
     else:
+        if WHATSAPP_PROBE and PROFILE_ONLY != "on":
+            log("No match today - checking on WhatsApp only.")
+            await probe_whatsapp()
+            return
         log("No match today - the program ends here.")
         return
 
@@ -1308,6 +1578,13 @@ async def main():
 
     if DRY_RUN:
         log("SKYRELAY_DRY_RUN=1 is set - NOTHING will be posted on Bluesky.")
+
+    # A probe that happens to be running is done within two minutes.
+    if not lock_session(120):
+        log("Error: another ticker is connected to WhatsApp with this session.")
+        log("Two at a time push each other out - end the other one first:")
+        log("  pgrep -af skyrelay-matchday")
+        sys.exit(1)
 
     log("Connecting to WhatsApp...")
     await client.connect()
@@ -1333,9 +1610,10 @@ async def main():
                 log(f"⚠️ Kopplung per Code nicht möglich ({pair_err}) - "
                     f"falls der QR-Code gescannt wurde, geht es trotzdem weiter.")
 
-    try:
-        await asyncio.wait_for(wa_connected.wait(), timeout=300)
-    except asyncio.TimeoutError:
+    if not await wait_for_whatsapp(300):
+        if wa_refused.is_set():
+            sys.exit(1)       # the reason and what to do are in the log already
+        health.fail("whatsapp", "no_connection", "no connection within 5 minutes")
         log("Error: no logged-in WhatsApp connection within 5 minutes.")
         log("Was the QR code scanned? For a broken session, deleting it and pairing")
         log("again helps:")
@@ -1349,10 +1627,14 @@ async def main():
     await asyncio.sleep(5)
 
     log("Resolving the channel from its invite link...")
-    metadata = await with_retries(
-        "resolving the channel",
-        lambda: client.get_newsletter_info_with_invite(CHANNEL_INVITE_LINK),
-    )
+    try:
+        metadata = await with_retries(
+            "resolving the channel",
+            lambda: client.get_newsletter_info_with_invite(CHANNEL_INVITE_LINK),
+        )
+    except Exception as error:
+        health.fail("whatsapp", "channel", f"channel not found: {error}")
+        raise
     channel_jid = metadata.ID
     # From here on the event handler accepts channel posts.
     channel_user = channel_jid.User
@@ -1439,10 +1721,16 @@ async def main():
     )
     # From here the bot is "on duty" -> switch the bio status line.
     set_profile_status(True)
+    health.mode("listen", until=day_end.timestamp())
 
     log(f"Listening for new channel posts until {day_end.strftime('%H:%M')}...")
 
     while datetime.now(LOCAL_TZ) < day_end:
+        health.beat()
+        if wa_refused.is_set():
+            # Logged out, banned, pushed out: nothing will arrive any more.
+            log("Ending: WhatsApp has closed this connection for good.")
+            sys.exit(1)
         if time.monotonic() >= next_renew:
             try:
                 await client.newsletter_subscribe_live_updates(channel_jid)
@@ -1523,6 +1811,8 @@ async def main():
             log(f"[NEW] channel message with server ID {server_id or '?'}:")
             try:
                 uris = await process_newsletter_message(client, event.Message, server_id)
+                if uris:
+                    health.ok("posting", f"server ID {server_id}")
                 if uris and server_id:
                     posts_map[str(server_id)] = {
                         "uris": uris,
@@ -1532,6 +1822,8 @@ async def main():
             except Exception as post_err:
                 log(f"   ⚠️ Fehler beim Reposten: {post_err}")
                 traceback.print_exc()
+                health.fail("posting", "error",
+                            f"server ID {server_id or '?'}: {post_err}")
             # Advance the dedup even on an error, or the program would keep
             # hanging on the same broken message. In a dry run the position is
             # NOT saved - otherwise a merely tested post would later count as
@@ -1592,9 +1884,25 @@ async def run():
     """A wrapper around main(): it ALWAYS closes the WhatsApp connection cleanly
     at the end - otherwise the Go threads keep the process alive for minutes
     (an executor hang)."""
+    global stopping
+    outcome, detail = "ok", ""
     try:
         await main()
+    except SystemExit as end:
+        if end.code not in (None, 0):
+            outcome, detail = "error", f"exit status {end.code}"
+        raise
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        outcome, detail = "stopped", _beendendes_signal or "Ctrl+C"
+        raise
+    except BaseException as error:
+        outcome, detail = "error", repr(error)
+        raise
     finally:
+        stopping = True
+        # Whatever happens below, the heartbeat must learn that this end was
+        # an end and not a crash.
+        health.end(outcome, detail)
         # Put the bio back to "bot is off" - on Ctrl+C or an error as well.
         # (Not in profile-only mode "on", of course: there "on" is the point.)
         if profile_status_on and PROFILE_ONLY != "on":
