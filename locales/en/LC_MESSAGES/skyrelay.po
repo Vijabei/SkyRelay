@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SkyRelay VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-07 13:22+0000\n"
+"POT-Creation-Date: 2026-11-07 20:29+0000\n"
 "PO-Revision-Date: 2026-09-01 01:27+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -18,21 +18,50 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: skyrelay-heartbeat.py:252
+#: skyrelay-heartbeat.py:382
+#, python-brace-format
+msgid ""
+"neonize {latest} auf PyPI bringt keine neuere WhatsApp-Anbindung mit "
+"(whatsmeow vom {date}, wie installiert) – ein Wechsel hilft dagegen "
+"nicht. Es braucht eine Fassung mit neuerer whatsmeow."
+msgstr ""
+"neonize {latest} on PyPI brings no newer WhatsApp binding (whatsmeow of "
+"{date}, the same as installed) – switching does not help against this. It"
+" takes a version with a newer whatsmeow."
+
+#: skyrelay-heartbeat.py:388
+#, python-brace-format
+msgid ""
+"Auf PyPI gibt es neonize {latest} mit neuerer WhatsApp-Anbindung "
+"(whatsmeow vom {theirs}, installiert: vom {mine}) – das ist der Kandidat."
+msgstr ""
+"PyPI has neonize {latest} with a newer WhatsApp binding (whatsmeow of "
+"{theirs}, installed: of {mine}) – that is the candidate."
+
+#: skyrelay-heartbeat.py:393
+#, python-brace-format
+msgid ""
+"Auf PyPI gibt es neonize {latest} (installiert: {installed}); ob sie eine"
+" neuere WhatsApp-Anbindung mitbringt, ließ sich nicht prüfen."
+msgstr ""
+"PyPI has neonize {latest} (installed: {installed}); whether it brings a "
+"newer WhatsApp binding could not be checked."
+
+#: skyrelay-heartbeat.py:397
 #, python-brace-format
 msgid "Auf PyPI gibt es {package} {latest} (installiert: {installed})."
 msgstr "PyPI has {package} {latest} (installed: {installed})."
 
-#: skyrelay-heartbeat.py:255
+#: skyrelay-heartbeat.py:400
 #, python-brace-format
 msgid "{package} {installed} ist die neueste Fassung auf PyPI."
 msgstr "{package} {installed} is the newest version on PyPI."
 
-#: skyrelay-heartbeat.py:289
+#: skyrelay-heartbeat.py:434
 msgid "WhatsApp-Verbindung gestört"
 msgstr "WhatsApp connection disrupted"
 
-#: skyrelay-heartbeat.py:290
+#: skyrelay-heartbeat.py:435
 #, python-brace-format
 msgid ""
 "Seit {minutes} Minuten: {detail}. whatsmeow versucht es weiter; hält es "
@@ -41,11 +70,11 @@ msgstr ""
 "For {minutes} minutes: {detail}. whatsmeow keeps trying; if it lasts, "
 "restart the ticker."
 
-#: skyrelay-heartbeat.py:296
+#: skyrelay-heartbeat.py:441
 msgid "WhatsApp lässt den Ticker nicht mehr ein"
 msgstr "WhatsApp no longer lets the ticker in"
 
-#: skyrelay-heartbeat.py:297
+#: skyrelay-heartbeat.py:442
 #, python-brace-format
 msgid ""
 "WhatsApp weist die Client-Version ab, die neonize {version} mitbringt "
@@ -58,11 +87,11 @@ msgstr ""
 "→ Run ./update.sh. If requirements.txt still pins the same version, a "
 "newer neonize is needed first."
 
-#: skyrelay-heartbeat.py:304
+#: skyrelay-heartbeat.py:449
 msgid "WhatsApp hat den Ticker abgemeldet"
 msgstr "WhatsApp has logged the ticker out"
 
-#: skyrelay-heartbeat.py:305
+#: skyrelay-heartbeat.py:450
 #, python-brace-format
 msgid ""
 "Das verknüpfte Gerät wurde abgemeldet – am Handy entfernt oder "
@@ -76,11 +105,11 @@ msgstr ""
 "rm {session}\n"
 "SKYRELAY_FORCE=1 SKYRELAY_DRY_RUN=1 venv/bin/python skyrelay-matchday.py"
 
-#: skyrelay-heartbeat.py:311
+#: skyrelay-heartbeat.py:456
 msgid "Der Ticker ist nicht mit WhatsApp gekoppelt"
 msgstr "The ticker is not paired with WhatsApp"
 
-#: skyrelay-heartbeat.py:312
+#: skyrelay-heartbeat.py:457
 msgid ""
 "WhatsApp verlangt einen QR-Scan.\n"
 "→ Einmal interaktiv koppeln:\n"
@@ -90,11 +119,11 @@ msgstr ""
 "→ Pair once, interactively:\n"
 "SKYRELAY_FORCE=1 SKYRELAY_DRY_RUN=1 venv/bin/python skyrelay-matchday.py"
 
-#: skyrelay-heartbeat.py:315
+#: skyrelay-heartbeat.py:460
 msgid "WhatsApp hat die Nummer gesperrt"
 msgstr "WhatsApp has banned the number"
 
-#: skyrelay-heartbeat.py:316
+#: skyrelay-heartbeat.py:461
 #, python-brace-format
 msgid ""
 "Vorübergehende Sperre ({detail}). SkyRelay kann daran nichts ändern – "
@@ -103,11 +132,11 @@ msgstr ""
 "A temporary ban ({detail}). Nothing in SkyRelay can change that – wait, "
 "and check the phone."
 
-#: skyrelay-heartbeat.py:319
+#: skyrelay-heartbeat.py:464
 msgid "Zwei Verbindungen mit derselben WhatsApp-Sitzung"
 msgstr "Two connections with the same WhatsApp session"
 
-#: skyrelay-heartbeat.py:320
+#: skyrelay-heartbeat.py:465
 msgid ""
 "Ein anderes Programm hat sich mit derselben Sitzung angemeldet und den "
 "Ticker verdrängt – ein zweiter Ticker oder der Testlauf. Es darf immer "
@@ -116,11 +145,11 @@ msgstr ""
 "Another program logged in with the same session and pushed the ticker out"
 " – a second ticker, or the test run. Only one may run at a time."
 
-#: skyrelay-heartbeat.py:324
+#: skyrelay-heartbeat.py:469
 msgid "Keine Verbindung zu WhatsApp"
 msgstr "No connection to WhatsApp"
 
-#: skyrelay-heartbeat.py:325
+#: skyrelay-heartbeat.py:470
 #, python-brace-format
 msgid ""
 "{detail}.\n"
@@ -130,11 +159,11 @@ msgstr ""
 "→ Check the Pi's network, otherwise look into the log: tail -50 {log}"
 
 # | msgid "WhatsApp-Kanal des Vereins"
-#: skyrelay-heartbeat.py:328
+#: skyrelay-heartbeat.py:473
 msgid "WhatsApp-Kanal nicht erreichbar"
 msgstr "WhatsApp channel not reachable"
 
-#: skyrelay-heartbeat.py:329
+#: skyrelay-heartbeat.py:474
 #, python-brace-format
 msgid ""
 "Verbunden, aber der Kanal ließ sich nicht auflösen: {detail}\n"
@@ -144,11 +173,11 @@ msgstr ""
 "→ Check the invite link in [source] channel_invite_link."
 
 # | msgid "WhatsApp-Kanal"
-#: skyrelay-heartbeat.py:333
+#: skyrelay-heartbeat.py:478
 msgid "WhatsApp-Störung"
 msgstr "WhatsApp trouble"
 
-#: skyrelay-heartbeat.py:341
+#: skyrelay-heartbeat.py:486
 #, python-brace-format
 msgid ""
 "Handle und App-Passwort passen nicht zusammen ({detail}).\n"
@@ -159,7 +188,7 @@ msgstr ""
 "→ Check the app password in the crontab; if it was revoked on Bluesky, "
 "create a new one."
 
-#: skyrelay-heartbeat.py:344
+#: skyrelay-heartbeat.py:489
 #, python-brace-format
 msgid ""
 "{variable} ist nicht gesetzt.\n"
@@ -169,7 +198,7 @@ msgstr ""
 "→ It belongs at the top of the crontab (crontab -e), without quotation "
 "marks."
 
-#: skyrelay-heartbeat.py:347
+#: skyrelay-heartbeat.py:492
 msgid ""
 "Bluesky lässt heute keine weiteren Anmeldungen zu (Tageslimit). Das gibt "
 "sich von selbst – weitere Versuche bringen nichts."
@@ -177,17 +206,17 @@ msgstr ""
 "Bluesky allows no further logins today (daily limit). That sorts itself "
 "out – more attempts achieve nothing."
 
-#: skyrelay-heartbeat.py:352
+#: skyrelay-heartbeat.py:497
 #, python-brace-format
 msgid "Bluesky-Anmeldung ({who}) scheitert: @{handle}"
 msgstr "Bluesky login ({who}) fails: @{handle}"
 
-#: skyrelay-heartbeat.py:364
+#: skyrelay-heartbeat.py:509
 #, python-brace-format
 msgid "Ein Beitrag ließ sich nicht übertragen ({who})"
 msgstr "A post could not be carried over ({who})"
 
-#: skyrelay-heartbeat.py:365
+#: skyrelay-heartbeat.py:510
 #, python-brace-format
 msgid ""
 "{detail}\n"
@@ -196,11 +225,11 @@ msgstr ""
 "{detail}\n"
 "Details in the log: {log}"
 
-#: skyrelay-heartbeat.py:378
+#: skyrelay-heartbeat.py:523
 msgid "Der Ticker hat noch nie einen Status geschrieben"
 msgstr "The ticker has never written a status"
 
-#: skyrelay-heartbeat.py:379
+#: skyrelay-heartbeat.py:524
 msgid ""
 "Seit der Wächter läuft, ist der Ticker nicht gestartet.\n"
 "→ Stimmt der tägliche cron-Eintrag (crontab -l)?"
@@ -208,20 +237,20 @@ msgstr ""
 "The ticker has not started since the heartbeat began running.\n"
 "→ Is the daily cron entry right (crontab -l)?"
 
-#: skyrelay-heartbeat.py:397
+#: skyrelay-heartbeat.py:542
 msgid "Der Prozess läuft nicht mehr."
 msgstr "The process is gone."
 
-#: skyrelay-heartbeat.py:398
+#: skyrelay-heartbeat.py:543
 msgid "Der Prozess hängt."
 msgstr "The process hangs."
 
 # | msgid "Der Ticker veröffentlicht auf @{handle}."
-#: skyrelay-heartbeat.py:401
+#: skyrelay-heartbeat.py:546
 msgid "Der Ticker ist ausgefallen"
 msgstr "The ticker has gone down"
 
-#: skyrelay-heartbeat.py:402
+#: skyrelay-heartbeat.py:547
 #, python-brace-format
 msgid ""
 "Er sollte bis {until} lauschen, das letzte Lebenszeichen kam um {beat}. "
@@ -238,12 +267,12 @@ msgstr ""
 "SKYRELAY_CATCHUP=5 nohup venv/bin/python skyrelay-matchday.py >/dev/null "
 "2>&1 &"
 
-#: skyrelay-heartbeat.py:417
+#: skyrelay-heartbeat.py:562
 #, python-brace-format
 msgid "Der Ticker ist seit {hours} Stunden nicht gestartet"
 msgstr "The ticker has not started for {hours} hours"
 
-#: skyrelay-heartbeat.py:419
+#: skyrelay-heartbeat.py:564
 msgid ""
 "Damit fehlt auch die tägliche WhatsApp-Prüfung.\n"
 "→ Stimmt der cron-Eintrag (crontab -l)? War der Pi aus?"
@@ -251,11 +280,11 @@ msgstr ""
 "So the daily WhatsApp check is missing as well.\n"
 "→ Is the cron entry right (crontab -l)? Was the Pi off?"
 
-#: skyrelay-heartbeat.py:432
+#: skyrelay-heartbeat.py:577
 msgid "Spielplan nicht abrufbar"
 msgstr "Fixture list unavailable"
 
-#: skyrelay-heartbeat.py:433
+#: skyrelay-heartbeat.py:578
 #, python-brace-format
 msgid ""
 "OpenLigaDB antwortete nicht ({detail}). An einem Spieltag startet der "
@@ -270,15 +299,15 @@ msgstr ""
 "SKYRELAY_FORCE=1 nohup venv/bin/python skyrelay-matchday.py >/dev/null "
 "2>&1 &"
 
-#: skyrelay-heartbeat.py:441 skyrelay-heartbeat.py:446
+#: skyrelay-heartbeat.py:586 skyrelay-heartbeat.py:591
 msgid "Ticker"
 msgstr "ticker"
 
-#: skyrelay-heartbeat.py:455
+#: skyrelay-heartbeat.py:600
 msgid "Der Ticker hat sich mit einem Fehler beendet"
 msgstr "The ticker ended with an error"
 
-#: skyrelay-heartbeat.py:456
+#: skyrelay-heartbeat.py:601
 #, python-brace-format
 msgid ""
 "{detail}\n"
@@ -287,11 +316,11 @@ msgstr ""
 "{detail}\n"
 "→ Look into the log: tail -50 {log}"
 
-#: skyrelay-heartbeat.py:471
+#: skyrelay-heartbeat.py:616
 msgid "Der Feed hat noch nie einen Status geschrieben"
 msgstr "The feed has never written a status"
 
-#: skyrelay-heartbeat.py:472
+#: skyrelay-heartbeat.py:617
 msgid ""
 "Seit der Wächter läuft, ist der Feed nicht gestartet.\n"
 "→ Stimmt der cron-Eintrag (crontab -l)?"
@@ -299,27 +328,27 @@ msgstr ""
 "The feed has not started since the heartbeat began running.\n"
 "→ Is the cron entry right (crontab -l)?"
 
-#: skyrelay-heartbeat.py:484
+#: skyrelay-heartbeat.py:629
 #, python-brace-format
 msgid "Der Feed ist seit {hours} Stunden nicht gelaufen"
 msgstr "The feed has not run for {hours} hours"
 
-#: skyrelay-heartbeat.py:486
+#: skyrelay-heartbeat.py:631
 msgid "→ Stimmt der cron-Eintrag (crontab -l)? War der Pi aus?"
 msgstr "→ Is the cron entry right (crontab -l)? Was the Pi off?"
 
 # | msgid "OpenLigaDB antwortet nicht: {fehler}"
-#: skyrelay-heartbeat.py:493
+#: skyrelay-heartbeat.py:638
 #, python-brace-format
 msgid "Instagram antwortet mit {marker}."
 msgstr "Instagram answers with {marker}."
 
-#: skyrelay-heartbeat.py:495
+#: skyrelay-heartbeat.py:640
 #, python-brace-format
 msgid "Der Feed pausiert bis {until}."
 msgstr "The feed pauses until {until}."
 
-#: skyrelay-heartbeat.py:496
+#: skyrelay-heartbeat.py:641
 #, python-brace-format
 msgid ""
 "→ Meist liegt es am Konto: mit {user} in der App anmelden und bestätigen,"
@@ -332,16 +361,16 @@ msgstr ""
 "→ If a fresh account is turned away as well, instaloader is outdated: "
 "./update.sh"
 
-#: skyrelay-heartbeat.py:505
+#: skyrelay-heartbeat.py:650
 msgid "Instagram sperrt das Abrufkonto"
 msgstr "Instagram is blocking the account the feed reads with"
 
-#: skyrelay-heartbeat.py:509
+#: skyrelay-heartbeat.py:654
 msgid "Instagram-Sitzung fehlt oder ist kaputt"
 msgstr "The Instagram session is missing or broken"
 
 # | msgid "Sitzung anlegen mit: venv/bin/instaloader -l <name>"
-#: skyrelay-heartbeat.py:510
+#: skyrelay-heartbeat.py:655
 #, python-brace-format
 msgid ""
 "{detail}\n"
@@ -350,36 +379,36 @@ msgstr ""
 "{detail}\n"
 "→ Create it anew: venv/bin/instaloader -l {user}"
 
-#: skyrelay-heartbeat.py:517
+#: skyrelay-heartbeat.py:662
 #, python-brace-format
 msgid "Letzter Fehler: {detail}"
 msgstr "Last error: {detail}"
 
-#: skyrelay-heartbeat.py:518
+#: skyrelay-heartbeat.py:663
 msgid "Der Feed läuft, aber keine Abfrage gelang."
 msgstr "The feed runs, but no query succeeded."
 
-#: skyrelay-heartbeat.py:519
+#: skyrelay-heartbeat.py:664
 #, python-brace-format
 msgid "→ Protokoll ansehen: tail -50 {log}"
 msgstr "→ Look into the log: tail -50 {log}"
 
-#: skyrelay-heartbeat.py:525
+#: skyrelay-heartbeat.py:670
 #, python-brace-format
 msgid "Der Feed holt seit {hours} Stunden nichts von Instagram"
 msgstr "The feed has fetched nothing from Instagram for {hours} hours"
 
-#: skyrelay-heartbeat.py:531 skyrelay-heartbeat.py:535
+#: skyrelay-heartbeat.py:676 skyrelay-heartbeat.py:680
 msgid "Feed"
 msgstr "feed"
 
 # | msgid "Speichern"
 # | msgid "Gespeichert"
-#: skyrelay-heartbeat.py:548
+#: skyrelay-heartbeat.py:693
 msgid "Speicher fast voll"
 msgstr "Disk almost full"
 
-#: skyrelay-heartbeat.py:549
+#: skyrelay-heartbeat.py:694
 #, python-brace-format
 msgid ""
 "Nur noch {free} MB frei für {path}.\n"
@@ -388,7 +417,22 @@ msgstr ""
 "Only {free} MB left for {path}.\n"
 "→ Clear out old logs and tmp/; sudo apt clean often helps as well."
 
-#: skyrelay-heartbeat.py:575
+#: skyrelay-heartbeat.py:731
+#, python-brace-format
+msgid ""
+"ℹ️ Neue Fassung: neonize {latest} mit neuerer WhatsApp-Anbindung "
+"(whatsmeow vom {theirs}, installiert: neonize {installed} mit whatsmeow "
+"vom {mine}). Das ist die Fassung, die bei der nächsten Abweisung durch "
+"WhatsApp („Client outdated“) helfen dürfte. Nicht ungeprüft wechseln – "
+"erst mit SKYRELAY_DRY_RUN=1 testen, siehe UPGRADE-TEST.md."
+msgstr ""
+"ℹ️ New version: neonize {latest} with a newer WhatsApp binding (whatsmeow"
+" of {theirs}, installed: neonize {installed} with whatsmeow of {mine}). "
+"This is the version likely to help at the next refusal by WhatsApp "
+"(\"Client outdated\"). Do not switch untested – try it with "
+"SKYRELAY_DRY_RUN=1 first, see UPGRADE-TEST.md."
+
+#: skyrelay-heartbeat.py:741
 #, python-brace-format
 msgid ""
 "ℹ️ Neue Fassung: {package} {latest} (installiert: {installed}). Nicht "
@@ -400,80 +444,80 @@ msgstr ""
 "TEST.md. As long as everything runs, there is no reason to."
 
 # | msgid "WhatsApp-Kanal (Quelle des Tickers)"
-#: skyrelay-heartbeat.py:588
+#: skyrelay-heartbeat.py:754
 msgid "WhatsApp-Verbindung des Tickers"
 msgstr "The ticker's WhatsApp connection"
 
-#: skyrelay-heartbeat.py:589
+#: skyrelay-heartbeat.py:755
 msgid "Der Ticker läuft wieder"
 msgstr "The ticker is running again"
 
 # | msgid "Beiträge des Tickers"
-#: skyrelay-heartbeat.py:590
+#: skyrelay-heartbeat.py:756
 msgid "Täglicher Start des Tickers"
 msgstr "The ticker's daily start"
 
-#: skyrelay-heartbeat.py:591
+#: skyrelay-heartbeat.py:757
 msgid "Der Ticker endet wieder ohne Fehler"
 msgstr "The ticker ends without an error again"
 
-#: skyrelay-heartbeat.py:592
+#: skyrelay-heartbeat.py:758
 msgid "Spielplan von OpenLigaDB"
 msgstr "Fixture list from OpenLigaDB"
 
 # | msgid "Bluesky-Konto FÜR DEN TICKER"
-#: skyrelay-heartbeat.py:593
+#: skyrelay-heartbeat.py:759
 msgid "Bluesky-Anmeldung des Tickers"
 msgstr "The ticker's Bluesky login"
 
 # | msgid "Bluesky-Konto FÜR DEN FEED"
-#: skyrelay-heartbeat.py:594
+#: skyrelay-heartbeat.py:760
 msgid "Bluesky-Anmeldung des Feeds"
 msgstr "The feed's Bluesky login"
 
 # | msgid "Instagram-Profil (Quelle des Feeds)"
-#: skyrelay-heartbeat.py:595
+#: skyrelay-heartbeat.py:761
 msgid "Instagram-Abruf des Feeds"
 msgstr "The feed's Instagram query"
 
-#: skyrelay-heartbeat.py:596
+#: skyrelay-heartbeat.py:762
 msgid "Regelmäßiger Start des Feeds"
 msgstr "The feed's regular start"
 
 # | msgid "Speichern"
 # | msgid "Gespeichert"
-#: skyrelay-heartbeat.py:597
+#: skyrelay-heartbeat.py:763
 msgid "Speicherplatz"
 msgstr "Disk space"
 
-#: skyrelay-heartbeat.py:613 skyrelay-heartbeat.py:616
-#: skyrelay-heartbeat.py:760
+#: skyrelay-heartbeat.py:779 skyrelay-heartbeat.py:782
+#: skyrelay-heartbeat.py:927
 #, python-brace-format
 msgid "seit {since}"
 msgstr "since {since}"
 
-#: skyrelay-heartbeat.py:615
+#: skyrelay-heartbeat.py:781
 #, python-brace-format
 msgid "⏰ Weiterhin: {title}"
 msgstr "⏰ Still: {title}"
 
-#: skyrelay-heartbeat.py:618
+#: skyrelay-heartbeat.py:784
 #, python-brace-format
 msgid "✅ Wieder in Ordnung: {title}"
 msgstr "✅ In order again: {title}"
 
-#: skyrelay-heartbeat.py:620
+#: skyrelay-heartbeat.py:786
 #, python-brace-format
 msgid "Gestört seit {since}"
 msgstr "Disrupted since {since}"
 
-#: skyrelay-heartbeat.py:721
+#: skyrelay-heartbeat.py:888
 msgid ""
 "🧪 Testmeldung: Wenn du das liest, kommen die Meldungen des Wächters bei "
 "dir an."
 msgstr "🧪 Test message: if you can read this, the heartbeat's messages reach you."
 
-#: skyrelay-heartbeat.py:757
+#: skyrelay-heartbeat.py:924
 msgid "Alles in Ordnung."
 msgstr "All in order."
 

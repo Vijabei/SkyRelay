@@ -18,6 +18,11 @@ requests>=2.32.3
 #                 meldet sich als Client 2.3000.1042386815 an
 #   0.5.2         whatsmeow vom 21.09. (Client 2.3000.1047769893); die
 #                 Schnittstellen, die der Ticker nutzt, sind unverändert
+#   0.6.1-0.10.0  (02./03.11.2026) DIESELBE whatsmeow vom 21.09. - gegen eine
+#                 erneute 405 hilft keine davon. Schnittstellen unverändert,
+#                 dazu nur Funktionen, die der Ticker nicht braucht. Welche
+#                 whatsmeow eine neue Fassung mitbringt, prüft der Wächter
+#                 (skyrelay-heartbeat.py --status).
 # WhatsApp weist alte Client-Versionen nach einigen Monaten ab. Kommt die 405
 # wieder, hilft nur eine neonize-Fassung mit neuerer whatsmeow-Anbindung.
 # Vor einem Wechsel die Sitzungsdatei sichern: Das Datenbankschema ändert sich,

@@ -573,6 +573,14 @@ Einmal am Tag sieht der Wächter bei PyPI nach neuen Fassungen von **neonize** u
 jedes Mal die Lösung. Installiert wird nichts: Ein neuer WhatsApp-Client gehört
 erst geprüft (siehe [UPGRADE-TEST.md](UPGRADE-TEST.md)).
 
+Bei neonize zählt dabei nicht die Versionsnummer, sondern die mitgelieferte
+**whatsmeow**: Sie bestimmt, als welche Client-Version WhatsApp den Ticker sieht.
+neonize 0.6.1 bis 0.10.0 bringen zum Beispiel genau die whatsmeow von 0.5.2 mit
+(21.09.2026), ein Wechsel hilft gegen eine Abweisung also nicht. Der Wächter lädt
+deshalb jede neue neonize-Fassung einmal herunter (rund 20 MB), liest die
+whatsmeow-Fassung aus und meldet nur eine, die wirklich Neueres mitbringt.
+`--status` zeigt den Vergleich.
+
 **Die tägliche WhatsApp-Probe.** An spielfreien Tagen baut der Ticker keine
 Verbindung auf und würde eine abgewiesene Client-Version erst am Morgen des
 nächsten Spiels bemerken. Mit eingeschaltetem Wächter verbindet er sich
