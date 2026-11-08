@@ -282,42 +282,96 @@ def _outside_urls(text, cut):
     return cut
 
 
-def split_body(text, budget_for, rounds=8):
+def _usable(budget):
+    """A budget the blocks have used up entirely still leaves the body at least
+    something - otherwise splitting would never end."""
+    graphemes, size = budget
+    return (graphemes, size) if graphemes > 0 and size > 0 else (1, 4)
+
+
+def _split_once(text, budget_for, total, min_total):
+    """One pass: cuts `text` into chunks, measuring each post as one of `total`.
+
+    The last chunk is measured twice. As the post it is in a thread of `total`,
+    and as the post it really becomes: the last one, in a thread of however
+    many there turn out to be. Those are not the same post. The layout puts
+    the hashtags on the last post only, so a first post in a thread of two has
+    room the single post of a thread of one does not - and a text that fits
+    the one but not the other used to swing between one and two posts on every
+    pass, ending on whichever the last pass happened to produce (#8 follow-up:
+    313 graphemes on 30.10.)."""
+    chunks = []
+    rest = text
+    while rest:
+        index = len(chunks)
+        max_graphemes, max_bytes = _usable(budget_for(index, max(total, index + 1)))
+        hard = _fitting_cut(rest, max_graphemes, max_bytes)
+        if hard >= len(rest):
+            final = max(index + 1, min_total)
+            last_graphemes, last_bytes = _usable(budget_for(index, final))
+            if _fitting_cut(rest, last_graphemes, last_bytes) >= len(rest):
+                chunks.append(rest)
+                break
+            # Fits only as a post that something follows - so let something
+            # follow, and cut it to suit both readings.
+            hard = _fitting_cut(rest, min(max_graphemes, last_graphemes),
+                                min(max_bytes, last_bytes))
+        cut = _outside_urls(rest, _nicer_cut(rest, hard))
+        cut = max(cut, 1)
+        chunks.append(rest[:cut].rstrip())
+        rest = rest[cut:].lstrip()
+    return [chunk for chunk in chunks if chunk]
+
+
+def _all_fit(chunks, budget_for, min_total):
+    """Does every chunk fit the post it really becomes?"""
+    total = max(len(chunks), min_total)
+    for index, chunk in enumerate(chunks):
+        graphemes, size = budget_for(index, total)
+        if grapheme_len(chunk) > max(graphemes, 1) or utf8_len(chunk) > max(size, 4):
+            return False
+    return True
+
+
+def split_body(text, budget_for, rounds=8, min_total=1):
     """Splits `text` so that every finished post stays inside both limits.
 
     `budget_for(index, total)` says how many graphemes and bytes are left for
     the body of that post. Since the number of posts decides the width of the
     counter and which post counts as the last one, and that in turn changes the
-    budget, this is settled by iterating: more posts never mean a bigger budget,
-    so the count only ever grows and the loop comes to rest."""
+    budget, this is settled by iterating until the number of posts the chunks
+    were measured for is the number they make.
+
+    `min_total` is for threads that are longer than their text: the feed gives
+    every video a post of its own, and those posts carry the counter too. The
+    text is then measured for a thread of at least that many posts.
+
+    Whatever the iteration ends on is checked once more against the posts the
+    chunks really become. Should that ever fail, every chunk is cut to the
+    smallest budget it could meet - a post one or two words shorter than
+    necessary is the lesser evil next to one Bluesky refuses."""
     text = text.strip()
     if not text:
         return []
+    min_total = max(1, min_total)
 
-    total = 1
+    total = min_total
     chunks = [text]
     for _ in range(rounds):
-        chunks = []
-        rest = text
-        while rest:
-            index = len(chunks)
-            max_graphemes, max_bytes = budget_for(index, max(total, index + 1))
-            if max_graphemes <= 0 or max_bytes <= 0:
-                # The blocks alone fill the post - then the body gets at least
-                # something, otherwise this would never end.
-                max_graphemes, max_bytes = 1, 4
-            hard = _fitting_cut(rest, max_graphemes, max_bytes)
-            if hard >= len(rest):
-                chunks.append(rest)
-                break
-            cut = _outside_urls(rest, _nicer_cut(rest, hard))
-            cut = max(cut, 1)
-            chunks.append(rest[:cut].rstrip())
-            rest = rest[cut:].lstrip()
-        if len(chunks) == total:
+        chunks = _split_once(text, budget_for, total, min_total)
+        made = max(len(chunks), min_total)
+        if made == total:
             break
-        total = len(chunks)
-    return [chunk for chunk in chunks if chunk]
+        total = made
+    if _all_fit(chunks, budget_for, min_total):
+        return chunks
+
+    def cautious(index, guess):
+        options = [budget_for(index, t) for t in
+                   {index + 1, guess, guess + 1, max(index + 1, min_total)}]
+        return min(g for g, _b in options), min(b for _g, b in options)
+
+    return _split_once(text, cautious, total, min_total)
 
 
 
