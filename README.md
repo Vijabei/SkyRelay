@@ -666,6 +666,7 @@ six hours. That way it does not use up the bot account's logins.
 | `tools/i18n.sh` | creating, aligning and compiling the catalogues |
 | `skyrelay-testlauf.py` | plays real channel messages through the ticker pipeline without publishing |
 | `CHEATSHEET-matchday.md` | every environment variable, mode, file and remedy (German: `CHEATSHEET-matchday.de.md`) |
+| `CHANGELOG.md` | what has changed, newest first (in German) |
 | `ISSUE-DRAFT-neonize-newsletter-panic.md` | a prepared bug report for **neonize**: the crash while fetching history |
 | `ISSUE-DRAFT-whatsmeow-newsletter-audio-hmac.md` | a prepared bug report for **whatsmeow**: voice messages cannot be downloaded |
 

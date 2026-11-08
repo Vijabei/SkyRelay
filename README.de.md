@@ -664,6 +664,7 @@ Anmeldungen des Bot-Kontos.
 | `tools/i18n.sh` | Kataloge erzeugen, angleichen, übersetzen |
 | `skyrelay-testlauf.py` | spielt echte Kanal-Nachrichten durch die Ticker-Pipeline, ohne zu veröffentlichen |
 | `CHEATSHEET-matchday.de.md` | alle Umgebungsvariablen, Betriebsarten, Dateien, Fehlerbehebung (englisch: `CHEATSHEET-matchday.md`) |
+| `CHANGELOG.md` | was sich geändert hat, das Neueste oben |
 | `ISSUE-DRAFT-neonize-newsletter-panic.md` | vorbereiteter Fehlerbericht an **neonize**: Absturz beim Verlaufsabruf |
 | `ISSUE-DRAFT-whatsmeow-newsletter-audio-hmac.md` | vorbereiteter Fehlerbericht an **whatsmeow**: Sprachnachrichten nicht ladbar |
 
