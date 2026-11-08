@@ -76,8 +76,7 @@ Babel>=2.16.0
 # noch nicht veroeffentlicht. Bis dahin hier genau dieser Stand des PR, fest
 # auf den Commit, damit sich nichts ungeprueft mitaendert. Er nennt sich
 # weiterhin 4.16.
-# Zurueck auf main, solange main noch 4.16 festlegt - pip tauscht eine
-# gleichnamige Fassung nicht von selbst:
-#   venv/bin/pip install --force-reinstall --no-deps instaloader==4.16
+# Zurueck:  git checkout main && ./update.sh  - pip allein tauschte eine
+# gleichnamige Fassung nicht, tools/pakete_angleichen.py tut es.
 # Siehe BETA.de.md (englisch: BETA.md).
 instaloader @ git+https://github.com/ppdms/instaloader@3e4d5ac0ec545a771a3a4b0b82cb313f32acb29f
