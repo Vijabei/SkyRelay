@@ -24,6 +24,7 @@ import os
 import re
 import sys
 import glob
+import json
 import shutil
 
 # Answers about the configuration, before anything else gets going: both calls
@@ -331,6 +332,26 @@ L = instaloader.Instaloader(
     compress_json=False
 )
 
+def _instaloader_source():
+    """Which instaloader this is - a release, or a state straight from git.
+
+    Both call themselves by the same version number, so only pip's record of
+    where it came from tells them apart. Worth a line in the log: when
+    Instagram turns the feed away, the first question is which code asked."""
+    try:
+        from importlib.metadata import distribution
+        dist = distribution("instaloader")
+        record = json.loads(dist.read_text("direct_url.json") or "{}")
+        vcs = record.get("vcs_info") or {}
+        if vcs:
+            return (f"instaloader {dist.version} from {record.get('url')} "
+                    f"@ {vcs.get('commit_id', '?')[:10]}")
+        return f"instaloader {dist.version}"
+    except Exception:
+        return f"instaloader {getattr(instaloader, '__version__', '?')}"
+
+
+log(f"Using {_instaloader_source()}.")
 log(f"Loading the existing Instagram session for {INSTA_BOT_USER}...")
 try:
     L.load_session_from_file(INSTA_BOT_USER)
