@@ -382,16 +382,21 @@ def post_writers(source_url):
     }
 
 
-def split_caption(caption, source_url):
+def split_caption(caption, source_url, min_total=1):
     """Splits the caption so that every finished post stays inside Bluesky's
-    limits, counting what this very post actually carries (#8)."""
+    limits, counting what this very post actually carries (#8).
+
+    min_total: how many posts the thread has at least, whatever the text -
+    one per video. Those posts carry the counter as well, and the hashtags
+    move to the last of them, so the text has to be measured for that thread
+    and not for a shorter one."""
     writers = post_writers(source_url)
 
     def budget(index, total):
         used_graphemes, used_bytes = post_overhead(index, total, writers, LAYOUT)
         return GRAPHEME_LIMIT - used_graphemes, BYTE_LIMIT - used_bytes
 
-    return split_body(caption, budget)
+    return split_body(caption, budget, min_total=min_total)
 
 
 def natural_sort_key(path):
@@ -641,6 +646,9 @@ for post in latest_posts:
             # As many posts as the real run would create: text chunks against
             # media slots (image groups in the main post, one video each after).
             preview_total = max(len(text_chunks), len(image_chunks) + video_count)
+            if caption and preview_total > len(text_chunks):
+                text_chunks = split_caption(caption, insta_url, preview_total)
+                preview_total = max(len(text_chunks), preview_total)
             log(f"   [DRY_RUN] Would post on @{BLUESKY_HANDLE}: "
                 f"{preview_total} post(s)"
                 + (f", {', '.join(media)}" if media else ", without media"))
@@ -716,6 +724,12 @@ for post in latest_posts:
         media_slots += [("video", embed) for embed in video_embeds]
 
         total_posts = max(len(text_chunks), len(media_slots))
+        # More media than text: the thread is longer than the text was measured
+        # for. Measure again for the thread it really is - otherwise the counter
+        # could push a post that fitted as the only one over the limit.
+        if caption and total_posts > len(text_chunks):
+            text_chunks = split_caption(caption, insta_url, total_posts)
+            total_posts = max(len(text_chunks), total_posts)
         root_ref = None
         parent_ref = None
 

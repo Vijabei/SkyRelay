@@ -5,6 +5,19 @@
 Was sich an SkyRelay geändert hat, das Neueste oben. Die Nummern verweisen auf
 die Pull Requests auf GitHub.
 
+## 08.11.2026
+
+### Behoben
+
+- **Beiträge über 300 Zeichen.** Die Aufteilung langer Texte konnte zwischen einem und zwei Beiträgen hin- und herpendeln. Ein Text, der als erster von zwei Beiträgen passt, als einziger aber nicht (dort stehen die Hashtags mit drin), wurde am Ende mit dem Budget des Zweier-Threads als einzelner Beitrag ausgegeben. Bluesky lehnte ihn ab, am 30.10. einen Instagram-Beitrag mit 313 Zeichen. Betraf Ticker und Feed.
+  - Der letzte Teil wird jetzt auch als der Beitrag gemessen, der er wirklich wird.
+  - Zum Schluss wird jeder Teil noch einmal gegen seinen tatsächlichen Beitrag geprüft. Passt etwas nicht, wird vorsichtiger geteilt.
+- **Feed mit mehr Medien als Text.** Bekommt jedes Video einen eigenen Beitrag, ist der Thread länger als der Text. Die Beschriftung wird jetzt für diesen Thread gemessen (`split_body(..., min_total=...)`); vorher konnte der Zähler einen Beitrag über die Grenze schieben.
+
+### Neu
+
+- **`tools/pruefe_aufteilung.py`** prüft die Aufteilung mit dem Grenzfall vom 30.10. und Zufallstexten über verschiedene `[layout]`-Einstellungen: jeder Beitrag in den Grenzen, kein Text verloren. Rückgabewert 0, solange nichts gefunden wird. Mit dem alten Code: 332 Befunde, mit dem neuen: keiner.
+
 ## 07.11.–08.11.2026
 
 ### Behoben

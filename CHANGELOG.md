@@ -5,6 +5,19 @@
 What has changed in SkyRelay, newest first. The numbers refer to the pull
 requests on GitHub.
 
+## 8 November 2026
+
+### Fixed
+
+- **Posts over 300 graphemes.** Splitting a long text could swing between one post and two. A text that fits as the first of two posts but not as the only one (the hashtags go on that one) ended up as a single post measured with the budget of the two-post thread. Bluesky refused it, on 30 October an Instagram post of 313 graphemes. This affected ticker and feed.
+  - The last part is now also measured as the post it really becomes.
+  - At the end every part is checked once more against its actual post. If something does not fit, the text is split more cautiously.
+- **Feed with more media than text.** When every video gets a post of its own, the thread is longer than the text. The caption is now measured for that thread (`split_body(..., min_total=...)`); before, the counter could push a post over the limit.
+
+### New
+
+- **`tools/pruefe_aufteilung.py`** checks the splitting with the borderline case of 30 October and random texts across different `[layout]` settings: every post within the limits, no text lost. Exit status 0 as long as nothing is found. With the old code: 332 findings, with the new one: none.
+
 ## 7–8 November 2026
 
 ### Fixed
