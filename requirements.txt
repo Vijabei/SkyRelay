@@ -67,4 +67,17 @@ Babel>=2.16.0
 # Requests" abweist (instaloader#2726), nutzt 4.16 mit Anmeldung nicht mehr.
 # Instagram ändert solche Abfragen immer wieder: Vor einem Upgrade erst mit
 # SKYRELAY_DRY_RUN=1 prüfen, ob die neue Version die Beiträge noch findet.
-instaloader==4.16
+#
+# >>> BETA-BRANCH <<<
+# Seit dem 02.11.2026 antwortet Instagram eingeloggten Sitzungen auf
+# graphql/query mit "feedback_required" - auch mit 4.16 und einer Sitzung,
+# die tags zuvor noch lief (instaloader#2792). Der Fix steht in
+# instaloader#2795 (Abfragen ueber api/graphql statt graphql/query), ist aber
+# noch nicht veroeffentlicht. Bis dahin hier genau dieser Stand des PR, fest
+# auf den Commit, damit sich nichts ungeprueft mitaendert. Er nennt sich
+# weiterhin 4.16.
+# Zurueck auf main, solange main noch 4.16 festlegt - pip tauscht eine
+# gleichnamige Fassung nicht von selbst:
+#   venv/bin/pip install --force-reinstall instaloader==4.16
+# Siehe BETA.md.
+instaloader @ git+https://github.com/ppdms/instaloader@3e4d5ac0ec545a771a3a4b0b82cb313f32acb29f
