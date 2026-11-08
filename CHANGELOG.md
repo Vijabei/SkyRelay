@@ -1,115 +1,117 @@
 # Changelog
 
-Was sich an SkyRelay geändert hat, das Neueste oben. Die Nummern verweisen auf
-die Pull Requests auf GitHub.
+***English** · [Deutsch](CHANGELOG.de.md)*
 
-## 07.11.–08.11.2026
+What has changed in SkyRelay, newest first. The numbers refer to the pull
+requests on GitHub.
 
-### Behoben
+## 7–8 November 2026
 
-- **WhatsApp lässt den Ticker wieder ein** ([#31](https://github.com/Vijabei/SkyRelay/pull/31)). Seit dem 07.11. lehnte WhatsApp die Verbindung mit `Client outdated (405)` ab. Der Ticker nutzt jetzt `neonize==0.5.2` mit whatsmeow vom 21.09.2026 statt 0.4.3.post0 mit whatsmeow vom 09.07. Die Schnittstellen, die der Ticker aufruft, sind gleich geblieben. Das Datenbankschema der Sitzung hat sich geändert, deshalb vor dem Wechsel `skyrelay_session.sqlite3` sichern.
-- **Ticker ohne Spielplan startet wieder** ([#36](https://github.com/Vijabei/SkyRelay/pull/36)). Mit leerem `[team] openligadb_filter`, laut Vorlage gedacht für Sportarten ohne Daten bei OpenLigaDB, brach der Ticker mit „still missing“ ab. Der Suchbegriff ist keine Pflichtangabe mehr.
-- **Bio blieb ohne Spielplan auf „Bot ist an“** ([#36](https://github.com/Vijabei/SkyRelay/pull/36)). `get_next_matches()` fragte OpenLigaDB mit leerem Suchbegriff ab, scheiterte, und die Statuszeile wurde nicht zurückgesetzt. Ohne Spielplan (`WITHOUT_SCHEDULE`) wird OpenLigaDB jetzt gar nicht gefragt, und es gilt `line_off_no_match`.
+### Fixed
 
-### Neu: Wächter (`skyrelay-heartbeat.py`)
+- **WhatsApp lets the ticker in again** ([#31](https://github.com/Vijabei/SkyRelay/pull/31)). Since 7 November WhatsApp refused the connection with `Client outdated (405)`. The ticker now uses `neonize==0.5.2` with the whatsmeow of 21.09.2026 instead of 0.4.3.post0 with the whatsmeow of 09.07. The interfaces the ticker calls are unchanged. The session's database schema has changed, so back up `skyrelay_session.sqlite3` before switching.
+- **The ticker starts again without a fixture list** ([#36](https://github.com/Vijabei/SkyRelay/pull/36)). With an empty `[team] openligadb_filter`, which the template offers for sports OpenLigaDB does not carry, the ticker ended with "still missing". The search term is no longer required.
+- **Without a fixture list the bio stayed on "Bot ist an"** ([#36](https://github.com/Vijabei/SkyRelay/pull/36)). `get_next_matches()` queried OpenLigaDB with an empty search term, failed, and the status line was not put back. Without a fixture list (`WITHOUT_SCHEDULE`) OpenLigaDB is no longer asked at all, and `line_off_no_match` applies.
 
-Eingeführt in [#32](https://github.com/Vijabei/SkyRelay/pull/32), ergänzt in [#33](https://github.com/Vijabei/SkyRelay/pull/33) bis [#35](https://github.com/Vijabei/SkyRelay/pull/35).
+### New: the heartbeat (`skyrelay-heartbeat.py`)
 
-#### Statusdateien
+Introduced in [#32](https://github.com/Vijabei/SkyRelay/pull/32), extended in [#33](https://github.com/Vijabei/SkyRelay/pull/33) to [#35](https://github.com/Vijabei/SkyRelay/pull/35).
 
-Neues Modul `skyrelay_health.py`. Ticker und Feed schreiben ihren Zustand nach `skyrelay_health.json` bzw. `skyrelay_feed_health.json`:
+#### Status files
 
-- je Prüfpunkt (`whatsapp`, `instagram`, `bluesky`, `openligadb`, `posting`) das Ergebnis mit Fehlerart, seit wann es so ist und wann es zuletzt geklappt hat;
-- beim lauschenden Ticker ein Lebenszeichen, höchstens einmal pro Minute geschrieben.
+New module `skyrelay_health.py`. Ticker and feed write their state to `skyrelay_health.json` and `skyrelay_feed_health.json`:
 
-Geschrieben wird atomar über eine `.tmp`-Datei. Ein Fehler beim Schreiben bringt keinen Bot zum Stehen. Läuft schon ein zweiter, lebender Prozess desselben Bots, lässt ein weiterer Lauf die Datei in Ruhe.
+- for each check (`whatsapp`, `instagram`, `bluesky`, `openligadb`, `posting`) the result with the kind of error, since when it has been so, and when it last worked;
+- while the ticker listens, a sign of life, written at most once a minute.
 
-#### Ticker hört auf Ablehnungen durch WhatsApp
+Files are written atomically through a `.tmp` file. A failure to write never stops a bot. If a second, living process of the same bot is already running, a further run leaves the file alone.
 
-Er registriert die neonize-Ereignisse `ClientOutdatedEv`, `ConnectFailureEv` (mit Auswertung von `ConnectFailureReason`), `LoggedOutEv`, `TemporaryBanEv`, `StreamReplacedEv`, `KeepAliveTimeoutEv`, `KeepAliveRestoredEv` und `DisconnectedEv`. Die Ereignisse werden über ihren Namen nachgeschlagen, damit eine andere neonize-Fassung ohne einzelne davon nicht scheitert.
+#### The ticker listens for refusals from WhatsApp
 
-- Bei einer endgültigen Ablehnung (veralteter Client, abgemeldet, gesperrt, verdrängt) schreibt er sofort ins Protokoll, was zu tun ist, und beendet sich. Bisher wartete er 5 Minuten bis zur Zeitüberschreitung.
-- Kommt die Ablehnung erst während des Lauschens, endet die Schleife ebenfalls.
+It registers the neonize events `ClientOutdatedEv`, `ConnectFailureEv` (evaluating `ConnectFailureReason`), `LoggedOutEv`, `TemporaryBanEv`, `StreamReplacedEv`, `KeepAliveTimeoutEv`, `KeepAliveRestoredEv` and `DisconnectedEv`. The events are looked up by name, so a different neonize version that lacks one of them does not fail.
 
-#### Tägliche WhatsApp-Probe
+- On a final refusal (outdated client, logged out, banned, pushed out) it writes what to do into the log straight away and ends. Until now it waited 5 minutes for a timeout.
+- If the refusal only comes while it is listening, the loop ends as well.
 
-`skyrelay-matchday.py --probe` verbindet sich einmal, löst den Kanal auf und trennt wieder. Es wird nichts gepostet, die Bio bleibt unberührt.
+#### Daily WhatsApp probe
 
-- Mit `[heartbeat] enabled` und `whatsapp_probe` läuft die Probe an spielfreien Tagen automatisch im täglichen cron-Lauf.
-- Fehlt eine Kopplung, wartet die Probe nicht auf einen QR-Scan, sondern meldet das.
+`skyrelay-matchday.py --probe` connects once, resolves the channel and leaves again. Nothing is posted, the bio is left alone.
 
-#### Sitzungssperre
+- With `[heartbeat] enabled` and `whatsapp_probe`, the probe runs by itself on days without a match, as part of the daily cron run.
+- If there is no pairing, the probe does not wait for a QR scan but reports it.
 
-Eine `flock`-Sperre auf `skyrelay_session.sqlite3.lock` verhindert, dass zwei Prozesse gleichzeitig mit derselben WhatsApp-Sitzung verbunden sind. Die Probe überspringt sich, wenn ein Ticker läuft. Ein Ticker wartet höchstens 120 s auf eine laufende Probe und bricht danach mit Hinweis ab.
+#### Session lock
 
-#### Der Wächter selbst
+An `flock` lock on `skyrelay_session.sqlite3.lock` keeps two processes from being connected with the same WhatsApp session at the same time. The probe skips itself while a ticker runs. A ticker waits at most 120 s for a running probe and then ends with a hint.
 
-Läuft per cron alle 15 Minuten. Er wertet die Statusdateien aus und meldet nur Änderungen: neues Problem, Erinnerung alle `reminder_hours`, Entwarnung.
+#### The heartbeat itself
 
-| Was | Bedingung |
+Runs from cron every 15 minutes. It evaluates the status files and reports changes only: a new problem, a reminder every `reminder_hours`, the all-clear.
+
+| What | Condition |
 |---|---|
-| Ticker abgestürzt | Prozess weg |
-| Ticker hängt | kein Lebenszeichen seit `2 × video_job_timeout + 5 min` |
-| WhatsApp-Verbindung gestört | länger als `ticker_stale_minutes` |
-| WhatsApp lehnt ab | veralteter Client, abgemeldet, gesperrt, nicht gekoppelt, Kanal nicht gefunden |
-| OpenLigaDB nicht erreichbar | Abruf gescheitert |
-| Instagram sperrt | Sperre durch Instagram, mit Ende der Pause |
-| Feed ohne Erfolg | seit `feed_stale_hours` |
-| Bluesky-Anmeldung / Beitrag | gescheitert |
-| cron läuft nicht | Ticker 36 h bzw. Feed `feed_stale_hours` ohne Start |
-| Speicher | unter `disk_min_mb` |
-| Ticker endet mit Fehler | Auffangnetz, wenn keine der Prüfungen oben greift |
+| ticker crashed | process gone |
+| ticker hangs | no sign of life for `2 × video_job_timeout + 5 min` |
+| WhatsApp connection disrupted | for longer than `ticker_stale_minutes` |
+| WhatsApp refuses | outdated client, logged out, banned, not paired, channel not found |
+| OpenLigaDB unreachable | the fetch failed |
+| Instagram blocks | block by Instagram, with the end of the pause |
+| feed without success | for `feed_stale_hours` |
+| Bluesky login / post | failed |
+| cron not running | ticker for 36 h, feed for `feed_stale_hours` without a start |
+| disk space | below `disk_min_mb` |
+| ticker ends with an error | safety net when none of the checks above applies |
 
-Ein einzelner gescheiterter Beitrag wird einmal gemeldet, ohne Erinnerung und ohne Entwarnung.
+A single failed post is reported once, without reminders and without an all-clear.
 
-#### Kanäle
+#### Channels
 
-- **Bluesky-Direktnachricht** vom Bot-Konto (`bluesky_sender`, vorgegeben das Ticker-Konto) an `bluesky_recipient`.
-  - Lange Meldungen werden in Teile unter 1000 Zeichen aufgeteilt.
-  - Nach einem Fehlschlag wird erst nach 1 h wieder versucht, dann in wachsenden Abständen bis zu 6 h. So bleibt das Anmeldelimit des Bot-Kontos verschont.
-  - Ist der Empfänger das sendende Konto selbst, wird das klar gemeldet ([#35](https://github.com/Vijabei/SkyRelay/pull/35)).
-- **Wächter von außen** über `ping_url` ([#34](https://github.com/Vijabei/SkyRelay/pull/34)). Der Dienst wird an der Adresse erkannt:
-  - healthchecks.io: `POST <url>` oder `<url>/fail`, die Beschreibung des Problems im Text;
-  - Uptime Kuma: `/api/push/` mit `status` und `msg`.
-  - `ping_mode` steht auf `problems` (Fehler-Ping, solange ein Problem besteht) oder `alive` (nur Lebenszeichen).
-  - Die alten Namen `kuma_push_url` und `kuma_mode` werden weiter gelesen und von der Konfigurationsprüfung als veraltet gemeldet.
+- **Bluesky direct message** from the bot account (`bluesky_sender`, the ticker account by default) to `bluesky_recipient`.
+  - Long messages are split into parts under 1000 characters.
+  - After a failure it tries again only after 1 h, then at growing intervals up to 6 h. That spares the bot account's login limit.
+  - If the recipient is the sending account itself, this is reported clearly ([#35](https://github.com/Vijabei/SkyRelay/pull/35)).
+- **Outside watcher** through `ping_url` ([#34](https://github.com/Vijabei/SkyRelay/pull/34)). The service is recognised by the URL:
+  - healthchecks.io: `POST <url>` or `<url>/fail`, with the description of the problem as the body;
+  - Uptime Kuma: `/api/push/` with `status` and `msg`.
+  - `ping_mode` is `problems` (failure ping while a problem lasts) or `alive` (signs of life only).
+  - The old names `kuma_push_url` and `kuma_mode` are still read and reported as out of use by the configuration check.
 
-#### Neue Fassungen auf PyPI
+#### New versions on PyPI
 
-Einmal täglich prüft der Wächter `neonize` und `instaloader`. Bei neonize zählt die mitgelieferte whatsmeow, nicht die Versionsnummer ([#33](https://github.com/Vijabei/SkyRelay/pull/33)):
+Once a day the heartbeat checks `neonize` and `instaloader`. For neonize, what counts is the bundled whatsmeow, not the version number ([#33](https://github.com/Vijabei/SkyRelay/pull/33)):
 
-- Er lädt jede neue Fassung einmal herunter (rund 20 MB) und liest die whatsmeow-Fassung aus den Go-Build-Infos der Bibliothek. Das Ergebnis wird je Fassung zwischengespeichert.
-- Hinweise und die Meldung bei einer 405 nennen eine neue neonize nur dann als Ausweg, wenn ihre whatsmeow wirklich neuer ist.
-- Befund: neonize 0.6.1 bis 0.10.0 bringen dieselbe whatsmeow wie 0.5.2 mit und helfen nicht gegen eine erneute 405.
+- It downloads each new version once (about 20 MB) and reads the whatsmeow version from the Go build info of the library. The result is cached per version.
+- Notices, and the message on a 405, only name a new neonize as a way out when its whatsmeow really is newer.
+- Finding: neonize 0.6.1 to 0.10.0 carry the same whatsmeow as 0.5.2 and do not help against another 405.
 
-#### Aufrufe von Hand und Sprache
+#### Manual calls and language
 
-- `--status` zeigt, was er gerade melden würde, und sendet nichts.
-- `--test` schickt eine Testmeldung über alle eingerichteten Wege.
-- Außerdem `--check-config` und `--show-config`.
-- Die Meldungen folgen `[general] language` (de/en). Das Protokoll `skyrelay-heartbeat.log` ist englisch.
+- `--status` shows what it would report right now and sends nothing.
+- `--test` sends a test message through every channel set up.
+- Also `--check-config` and `--show-config`.
+- The messages follow `[general] language` (de/en). The log `skyrelay-heartbeat.log` is in English.
 
-### Geändert
+### Changed
 
-- **Konfiguration:** neuer Abschnitt `[heartbeat]`, standardmäßig ausgeschaltet, dazu `[files] health` und `[feed] health`. `./update.sh` trägt die Schlüssel samt Erklärungen nach. Wer nichts einschaltet, bemerkt keinen Unterschied.
-- **Einrichtungsassistent:** neuer Bereich „7 · Wächter“ mit Testknopf, „Prüfen und nachziehen“ ist jetzt Punkt 8. Ein Schalter zeigt bei fehlendem Schlüssel die Vorgabe des Programms statt pauschal „an“.
-- **Feed:** schreibt Instagram-Sperre (mit Ende der Pause), Sitzungsfehler, Bluesky-Anmeldung und Postingfehler in seine Statusdatei.
-- **Doku:** beide READMEs mit Abschnitt „Wächter“, beide CheatSheets mit `--probe`, den neuen Dateien und Hilfen bei Störungen. `requirements.txt` hält die neonize-Befunde fest. Die englische Übersetzung ist vollständig (403/403).
-- **`.gitignore`:** Statusdateien, Zustand des Wächters und Sitzungssperre.
+- **Configuration:** new section `[heartbeat]`, switched off by default, plus `[files] health` and `[feed] health`. `./update.sh` adds the keys together with their explanations. Whoever switches nothing on notices no difference.
+- **Setup assistant:** new section "7 · Heartbeat" with a test button; "Check and top up" is now item 8. A switch whose key is missing shows the program's default instead of always "on".
+- **Feed:** writes Instagram blocks (with the end of the pause), session errors, the Bluesky login and posting errors into its status file.
+- **Documentation:** both READMEs with a section on the heartbeat, both cheat sheets with `--probe`, the new files and remedies for trouble. `requirements.txt` records the neonize findings. The English translation is complete (403/403).
+- **`.gitignore`:** status files, the heartbeat's state and the session lock.
 
-### Hinweise zum Update
+### Notes for updating
 
-1. `./update.sh` ausführen.
-2. Den Wächter unter `./config.sh` → „7 · Wächter“ einschalten.
-3. Für Direktnachrichten braucht das Absender-Bot-Konto ein App-Passwort mit „Zugriff auf Direktnachrichten erlauben“, entweder anstelle seines bisherigen Passworts oder als `BLUESKY_HEARTBEAT_APP_PASSWORD`. Es gehört in `~/.skyrelay.env`. Mit dem eigenen Konto dem Bot folgen.
-4. cron-Eintrag anlegen:
+1. Run `./update.sh`.
+2. Switch the heartbeat on under `./config.sh` → "7 · Heartbeat".
+3. For direct messages the sending bot account needs an app password with "Allow access to your direct messages", either in place of its existing password or as `BLUESKY_HEARTBEAT_APP_PASSWORD`. It goes into `~/.skyrelay.env`. Follow the bot with your own account.
+4. Add the cron entry:
 
    ```cron
-   */15 * * * * set -a && . $HOME/.skyrelay.env && set +a && /pfad/zu/SkyRelay/venv/bin/python3 /pfad/zu/SkyRelay/skyrelay-heartbeat.py >/dev/null 2>&1
+   */15 * * * * set -a && . $HOME/.skyrelay.env && set +a && /path/to/SkyRelay/venv/bin/python3 /path/to/SkyRelay/skyrelay-heartbeat.py >/dev/null 2>&1
    ```
 
-5. Der Ticker muss weiterhin täglich starten, sonst fehlt die tägliche Probe.
+5. The ticker still has to start daily, or the daily probe is missing.
 
-### Nicht in der Testumgebung geprüft
+### Not checked in the test environment
 
-Die WhatsApp-Ereignisse, die Probe und die Pings wurden nur gegen nachgestellte Gegenstellen getestet, weil die Testumgebung WhatsApp, bsky.social und hc-ping.com nicht erreichte. Direktnachricht über Bluesky und Ping an healthchecks.io sind inzwischen mit `--test` auf dem Pi geprüft.
+The WhatsApp events, the probe and the pings were only tested against simulated counterparts, because the test environment could not reach WhatsApp, bsky.social or hc-ping.com. The Bluesky direct message and the ping to healthchecks.io have since been checked with `--test` on the Pi.
