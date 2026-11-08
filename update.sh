@@ -80,6 +80,16 @@ else
     abort "Die Abhängigkeiten ließen sich nicht installieren." \
         "Vollständige Meldung:  $VENV_PY -m pip install -r requirements.txt"
 fi
+# pip vergleicht nur Versionsnummern. Ein Stand direkt aus git, der sich wie
+# die letzte Veroeffentlichung nennt, kaeme so nie an - und ginge nie wieder.
+if [ -f "$SCRIPT_DIR/tools/pakete_angleichen.py" ]; then
+    if "$VENV_PY" "$SCRIPT_DIR/tools/pakete_angleichen.py" "$SCRIPT_DIR/requirements.txt"; then
+        ok "jedes Paket aus der Quelle, die requirements.txt nennt"
+    else
+        warn "Nicht jedes Paket ließ sich auf seine Quelle bringen."
+        printf '    Nachsehen mit:  %s tools/pakete_angleichen.py requirements.txt\n' "$VENV_PY"
+    fi
+fi
 
 # Uebersetzungen: .mo-Dateien werden gebaut, nicht mitgeliefert. Ohne sie
 # spricht die Oberflaeche Deutsch - die Sprache, in der sie geschrieben ist.
