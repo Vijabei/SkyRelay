@@ -78,6 +78,6 @@ Babel>=2.16.0
 # weiterhin 4.16.
 # Zurueck auf main, solange main noch 4.16 festlegt - pip tauscht eine
 # gleichnamige Fassung nicht von selbst:
-#   venv/bin/pip install --force-reinstall instaloader==4.16
-# Siehe BETA.md.
+#   venv/bin/pip install --force-reinstall --no-deps instaloader==4.16
+# Siehe BETA.de.md (englisch: BETA.md).
 instaloader @ git+https://github.com/ppdms/instaloader@3e4d5ac0ec545a771a3a4b0b82cb313f32acb29f
