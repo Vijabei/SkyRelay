@@ -9,20 +9,36 @@ requests on GitHub.
 
 ### Fixed
 
-- **False alarms during the feed's night rest.** If the feed runs only by day (say `3 7-23 * * *`), the heartbeat reported "has not run for 3 hours" at 2 a.m. and the all-clear at 7. The resting hours no longer count towards `feed_stale_hours`. They come from `[heartbeat] feed_hours` or, when that is empty, from your own crontab entry for `skyrelay-feed.py`. Only a gap of at least three hours counts as rest, so a schedule like `*/2` does not invent one. `--status` shows what applies. A real outage is still reported: if the feed last ran at 23:03, the message comes at about 9:06.
+- **False alarms during the feed's night rest** ([#41](https://github.com/Vijabei/SkyRelay/pull/41)). If the feed runs only by day (say `3 7-23 * * *`), the heartbeat reported "has not run for 3 hours" at 2 a.m. and the all-clear at 7. The resting hours no longer count towards `feed_stale_hours`. They come from `[heartbeat] feed_hours` or, when that is empty, from your own crontab entry for `skyrelay-feed.py`. Only a gap of at least three hours counts as rest, so a schedule like `*/2` does not invent one. `--status` shows what applies. A real outage is still reported: if the feed last ran at 23:03, the message comes at about 9:06.
+
+### Notes
+
+- **If the heartbeat itself rests at night,** the pings to healthchecks.io stop, and the false alarm comes from there. SkyRelay cannot catch that: set the check on healthchecks.io to the schedule type "Cron", with the expression from the crontab and the time zone `Europe/Berlin`. If the heartbeat runs around the clock (`*/15 * * * *`), there is nothing to do.
+- **The `beta` branch is on the state of `main`** and still differs only by the instaloader fix (see 8 November).
 
 ## 8 November 2026
 
 ### Fixed
 
-- **Posts over 300 graphemes.** Splitting a long text could swing between one post and two. A text that fits as the first of two posts but not as the only one (the hashtags go on that one) ended up as a single post measured with the budget of the two-post thread. Bluesky refused it, on 30 October an Instagram post of 313 graphemes. This affected ticker and feed.
+- **Posts over 300 graphemes** ([#39](https://github.com/Vijabei/SkyRelay/pull/39)). Splitting a long text could swing between one post and two. A text that fits as the first of two posts but not as the only one (the hashtags go on that one) ended up as a single post measured with the budget of the two-post thread. Bluesky refused it, on 30 October an Instagram post of 313 graphemes. This affected ticker and feed.
   - The last part is now also measured as the post it really becomes.
   - At the end every part is checked once more against its actual post. If something does not fit, the text is split more cautiously.
-- **Feed with more media than text.** When every video gets a post of its own, the thread is longer than the text. The caption is now measured for that thread (`split_body(..., min_total=...)`); before, the counter could push a post over the limit.
+- **Feed with more media than text** ([#39](https://github.com/Vijabei/SkyRelay/pull/39)). When every video gets a post of its own, the thread is longer than the text. The caption is now measured for that thread (`split_body(..., min_total=...)`); before, the counter could push a post over the limit.
 
 ### New
 
 - **`tools/pruefe_aufteilung.py`** checks the splitting with the borderline case of 30 October and random texts across different `[layout]` settings: every post within the limits, no text lost. Exit status 0 as long as nothing is found. With the old code: 332 findings, with the new one: none.
+- **`tools/pakete_angleichen.py`** ([#40](https://github.com/Vijabei/SkyRelay/pull/40)), called by `update.sh` after `pip install -r requirements.txt`. pip compares version numbers only; a state straight from git that calls itself like the last release would never arrive and never leave again. The tool reads where each installed package came from (`direct_url.json`) and reinstalls only those whose source differs from `requirements.txt`. With PyPI packages only, it changes nothing.
+- **The feed names its instaloader at startup** ([#40](https://github.com/Vijabei/SkyRelay/pull/40)): `Using instaloader 4.16.` or `… from https://github.com/ppdms/instaloader @ 3e4d5ac0ec.`
+
+### Beta branch `beta`: the Instagram feed with the fix from instaloader#2795
+
+Since 2 November 2026 Instagram answers logged-in sessions on `graphql/query` with `feedback_required`, with instaloader 4.16 too ([instaloader/instaloader#2792](https://github.com/instaloader/instaloader/issues/2792)). The fix in [instaloader/instaloader#2795](https://github.com/instaloader/instaloader/pull/2795) moves the queries to `api/graphql` but is not released yet.
+
+- The `beta` branch is `main` plus this fix, pinned to commit `3e4d5ac0ec545a771a3a4b0b82cb313f32acb29f`.
+- Switch with `git checkout beta && ./update.sh`, go back with `git checkout main && ./update.sh`. Instructions in [BETA.md](https://github.com/Vijabei/SkyRelay/blob/beta/BETA.md) (German: [BETA.de.md](https://github.com/Vijabei/SkyRelay/blob/beta/BETA.de.md)).
+- Checked on the Pi: with the fix the feed finds the posts again.
+- As soon as instaloader publishes a newer version, the heartbeat reports it. `main` then raises its pin, and the branch is deleted.
 
 ## 7–8 November 2026
 
