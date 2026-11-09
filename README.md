@@ -641,6 +641,15 @@ its own. By hand: `venv/bin/python skyrelay-matchday.py --probe`.
 The ticker has to start **daily** for this (as under *Running it* above). If
 its start is missing for 36 hours, the heartbeat reports exactly that.
 
+**The feed's night rest.** If the feed runs only by day, say `3 7-23 * * *`, the
+resting hours do not count towards `feed_stale_hours`. Otherwise it would say
+"has not run for 3 hours" at 2 a.m. The heartbeat reads the running hours from
+your own crontab entry for `skyrelay-feed.py`; `[heartbeat] feed_hours = 7-23`
+sets them should that fail. `--status` shows what applies. If the heartbeat
+itself also rests at night, the check on healthchecks.io needs the same
+schedule: choose the type "Cron" there, with the expression from the crontab
+and the time zone `Europe/Berlin`.
+
 The bots always record their state (`skyrelay_health.json`,
 `skyrelay_feed_health.json`), heartbeat or not. The heartbeat itself remembers
 what it has reported in `skyrelay_heartbeat_state.json` and logs to

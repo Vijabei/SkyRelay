@@ -638,6 +638,15 @@ des Tickers mit und braucht keinen eigenen Eintrag. Von Hand:
 Der Ticker muss dafür **täglich** starten (wie oben unter *Betrieb*). Fehlt sein
 Start 36 Stunden lang, meldet der Wächter genau das.
 
+**Nachtruhe des Feeds.** Läuft der Feed nur tagsüber, etwa `3 7-23 * * *`, zählen
+die Ruhestunden nicht für `feed_stale_hours`. Sonst hieße es um 2 Uhr „seit
+3 Stunden nicht gelaufen“. Die Laufzeiten liest der Wächter aus dem eigenen
+crontab-Eintrag für `skyrelay-feed.py`; `[heartbeat] feed_hours = 7-23` legt sie
+fest, falls das nicht klappt. `--status` zeigt, was gilt. Ruht auch der Wächter
+selbst nachts, braucht der Check bei healthchecks.io denselben Zeitplan: dort den
+Typ „Cron“ mit dem Ausdruck aus der crontab und der Zeitzone `Europe/Berlin`
+wählen.
+
 Die Bots schreiben ihren Zustand immer mit (`skyrelay_health.json`,
 `skyrelay_feed_health.json`), auch ohne Wächter. Der Wächter selbst merkt sich in
 `skyrelay_heartbeat_state.json`, was schon gemeldet ist, und protokolliert nach

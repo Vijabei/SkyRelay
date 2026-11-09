@@ -5,6 +5,12 @@
 What has changed in SkyRelay, newest first. The numbers refer to the pull
 requests on GitHub.
 
+## 9 November 2026
+
+### Fixed
+
+- **False alarms during the feed's night rest.** If the feed runs only by day (say `3 7-23 * * *`), the heartbeat reported "has not run for 3 hours" at 2 a.m. and the all-clear at 7. The resting hours no longer count towards `feed_stale_hours`. They come from `[heartbeat] feed_hours` or, when that is empty, from your own crontab entry for `skyrelay-feed.py`. Only a gap of at least three hours counts as rest, so a schedule like `*/2` does not invent one. `--status` shows what applies. A real outage is still reported: if the feed last ran at 23:03, the message comes at about 9:06.
+
 ## 8 November 2026
 
 ### Fixed

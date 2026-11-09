@@ -374,7 +374,14 @@ whatsapp_probe = true
 ticker_stale_minutes = 5
 # Holt der Feed so viele Stunden lang nichts von Instagram, wird das gemeldet.
 # Einzelne gescheiterte Abfragen kommen vor und bleiben still. 0 = nie.
+# Muss länger sein als der Abstand zweier Feed-Läufe.
 feed_stale_hours = 3
+# Zu welchen Stunden der Feed läuft, geschrieben wie das Stundenfeld von cron,
+# z.B. 7-23. Stunden außerhalb zählen nicht für feed_stale_hours: Ein Feed,
+# der nachts ruht, ist um 2 Uhr nicht "seit 3 Stunden ohne Lauf".
+# Leer = aus dem eigenen crontab-Eintrag für skyrelay-feed.py ablesen. Was
+# gilt, zeigt:  venv/bin/python skyrelay-heartbeat.py --status
+feed_hours =
 # Warnung, wenn weniger Speicher frei ist (MB). 0 = nie.
 disk_min_mb = 500
 # Einmal am Tag bei PyPI nachsehen, ob es neue Fassungen von neonize und

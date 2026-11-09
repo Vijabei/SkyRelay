@@ -5,6 +5,12 @@
 Was sich an SkyRelay geändert hat, das Neueste oben. Die Nummern verweisen auf
 die Pull Requests auf GitHub.
 
+## 09.11.2026
+
+### Behoben
+
+- **Falsche Meldungen während der Nachtruhe des Feeds.** Läuft der Feed nur tagsüber (etwa `3 7-23 * * *`), meldete der Wächter um 2 Uhr „seit 3 Stunden nicht gelaufen“ und um 7 Uhr die Entwarnung. Die Ruhestunden zählen jetzt nicht mehr für `feed_stale_hours`. Sie stammen aus `[heartbeat] feed_hours` oder, wenn das leer ist, aus dem eigenen crontab-Eintrag für `skyrelay-feed.py`. Als Ruhe gilt nur eine Lücke von mindestens drei Stunden, damit ein Takt wie `*/2` keine erfindet. `--status` zeigt, was gilt. Ein echter Ausfall wird weiterhin gemeldet: Lief der Feed zuletzt um 23:03, kommt die Meldung gegen 9:06.
+
 ## 08.11.2026
 
 ### Behoben
