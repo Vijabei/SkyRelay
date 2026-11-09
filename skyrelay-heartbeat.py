@@ -41,6 +41,7 @@ import platform
 import re
 import shutil
 import socket
+import subprocess
 import sys
 import tempfile
 import time
@@ -116,6 +117,11 @@ REMINDER_HOURS = cfg_int("heartbeat", "reminder_hours", 24)
 WHATSAPP_PROBE = cfg_bool("heartbeat", "whatsapp_probe", True)
 TICKER_STALE_MINUTES = cfg_int("heartbeat", "ticker_stale_minutes", 5)
 FEED_STALE_HOURS = cfg_int("heartbeat", "feed_stale_hours", 3)
+# The hours in which the feed runs, written like cron's hour field ("7-23").
+# Empty: read from the crontab line of skyrelay-feed.py. Hours outside do not
+# count towards feed_stale_hours - a feed that rests at night is not "three
+# hours without a run" at two in the morning.
+FEED_HOURS = cfg("heartbeat", "feed_hours", "").strip()
 DISK_MIN_MB = cfg_int("heartbeat", "disk_min_mb", 500)
 UPDATE_CHECK = cfg_bool("heartbeat", "update_check", True)
 STATE_FILE = os.path.join(BASE_DIR, cfg("heartbeat", "state",
@@ -196,6 +202,102 @@ def when(timestamp):
 
 def hours_since(timestamp, now):
     return int((now - (timestamp or 0)) / 3600)
+
+
+# ------------------------------------------------- when is the feed meant to run?
+def cron_hours(field):
+    """The hours a cron hour field names - "7-23", "*/2", "8,12,18", "6-22/2".
+    None for anything this does not understand; then every hour counts."""
+    hours = set()
+    try:
+        for part in field.split(","):
+            step = 1
+            if "/" in part:
+                part, step_text = part.split("/", 1)
+                step = int(step_text)
+                if step < 1:
+                    return None
+            if part in ("*", ""):
+                low, high = 0, 23
+            elif "-" in part:
+                low, high = (int(x) for x in part.split("-", 1))
+            else:
+                low = int(part)
+                high = 23 if step > 1 else low
+            if not (0 <= low <= 23 and 0 <= high <= 23):
+                return None
+            hours.update(range(low, high + 1, step) if low <= high
+                         else list(range(low, 24, step)) + list(range(0, high + 1, step)))
+    except ValueError:
+        return None
+    return hours or None
+
+
+def resting_hours(hours):
+    """The night in a set of run hours: the longest stretch without a run, if it
+    is long enough to be a rest rather than the spacing of "every two hours".
+
+    7-23 rests from 0 to 6. */2 does not rest at all - between two runs there
+    is always just one hour, and a feed silent for three active hours there is
+    still worth reporting."""
+    if not hours or len(hours) == 24:
+        return set()
+    ordered = sorted(hours)
+    best = set()
+    for index, start in enumerate(ordered):
+        following = ordered[(index + 1) % len(ordered)]
+        gap = {(start + k) % 24 for k in range(1, (following - start) % 24 or 24)}
+        if len(gap) > len(best):
+            best = gap
+    return best if len(best) >= 3 else set()
+
+
+def feed_schedule():
+    """(resting hours, where they come from) - from [heartbeat] feed_hours,
+    else from the crontab line that starts skyrelay-feed.py."""
+    if FEED_HOURS:
+        hours = cron_hours(FEED_HOURS)
+        return (resting_hours(hours), "from [heartbeat] feed_hours") if hours \
+            else (set(), f"[heartbeat] feed_hours = {FEED_HOURS!r} not understood")
+    try:
+        crontab = subprocess.run(["crontab", "-l"], capture_output=True, text=True,
+                                 timeout=10).stdout
+    except (OSError, subprocess.SubprocessError):
+        return set(), "no crontab readable"
+    found = set()
+    for line in crontab.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "skyrelay-feed.py" not in line:
+            continue
+        fields = line.split()
+        if fields[0].startswith("@"):
+            found.update(range(24))           # @hourly and friends: no rest
+            continue
+        hours = cron_hours(fields[1]) if len(fields) > 5 else None
+        found.update(hours or range(24))
+    if not found:
+        return set(), "no crontab line for skyrelay-feed.py"
+    return resting_hours(found), "from the crontab"
+
+
+FEED_REST, FEED_REST_SOURCE = set(), ""
+
+
+def active_seconds(start, now):
+    """Seconds from start to now, leaving out the feed's resting hours."""
+    start = start or 0
+    if not FEED_REST or now <= start:
+        return max(now - start, 0)
+    total = 0.0
+    moment = start
+    while moment < now:
+        local = datetime.fromtimestamp(moment)
+        next_hour = local.replace(minute=0, second=0, microsecond=0).timestamp() + 3600
+        stop = min(next_hour, now)
+        if local.hour not in FEED_REST:
+            total += stop - moment
+        moment = stop
+    return total
 
 
 def installed_version(package):
@@ -617,7 +719,7 @@ def check_feed(state, now, latest):
     stale_seconds = FEED_STALE_HOURS * 3600
     if status is None:
         if FEED_IN_USE and ENABLED and FEED_STALE_HOURS > 0 and \
-                now - state.get("first_run", now) >= stale_seconds:
+                active_seconds(state.get("first_run", now), now) >= stale_seconds:
             findings.append(Finding(
                 "feed_missing", "never",
                 _("Der Feed hat noch nie einen Status geschrieben"),
@@ -629,7 +731,10 @@ def check_feed(state, now, latest):
     run = status.get("run") or {}
     checks = status.get("checks") or {}
 
-    not_running = FEED_STALE_HOURS > 0 and now - (run.get("started") or 0) >= stale_seconds
+    # Counted in the hours the feed is meant to run: last run at 23:03 is not
+    # "three hours without a run" at two in the morning.
+    not_running = (FEED_STALE_HOURS > 0
+                   and active_seconds(run.get("started"), now) >= stale_seconds)
     if not_running:
         findings.append(Finding(
             "feed_missing", "stale",
@@ -663,7 +768,8 @@ def check_feed(state, now, latest):
                detail=instagram.get("detail", ""), user=INSTA_BOT_USER),
             instagram.get("since")))
     elif not not_running and FEED_STALE_HOURS > 0 and instagram and \
-            now - (instagram.get("last_ok") or instagram.get("since") or now) >= stale_seconds:
+            active_seconds(instagram.get("last_ok") or instagram.get("since") or now,
+                           now) >= stale_seconds:
         # Single failed queries happen; only a lasting silence is reported.
         detail = instagram.get("detail", "") if instagram.get("ok") is False else ""
         body = (_f("Letzter Fehler: {detail}", detail=detail) if detail
@@ -704,6 +810,9 @@ def check_disk(now):
 
 
 def evaluate(state, now):
+    global FEED_REST, FEED_REST_SOURCE
+    if FEED_IN_USE or os.path.exists(FEED_HEALTH):
+        FEED_REST, FEED_REST_SOURCE = feed_schedule()
     latest = latest_versions(state, now)
     if UPDATE_CHECK:
         binding_status(state, now, latest)
@@ -983,6 +1092,14 @@ def run_check():
         print(f"\nBluesky: {'@' + RECIPIENT if RECIPIENT else '-'}  ·  "
               f"{ping_service() + ': yes' if PING_URL else 'Ping: -'}  ·  "
               f"enabled: {'yes' if ENABLED else 'no'}")
+        if FEED_REST_SOURCE:
+            # The rest is one stretch, possibly across midnight: 23:00-07:00.
+            first = next((h for h in FEED_REST if (h - 1) % 24 not in FEED_REST), None)
+            last = next((h for h in FEED_REST if (h + 1) % 24 not in FEED_REST), None)
+            print("Feed rests: " + (f"{first:02d}:00-{(last + 1) % 24:02d}:00"
+                                     if first is not None else "never")
+                  + f" ({FEED_REST_SOURCE}) - those hours do not count "
+                    f"towards feed_stale_hours")
         return 0
 
     parts = compose(new, reminders, recovered, releases)
