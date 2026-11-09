@@ -9,20 +9,36 @@ die Pull Requests auf GitHub.
 
 ### Behoben
 
-- **Falsche Meldungen während der Nachtruhe des Feeds.** Läuft der Feed nur tagsüber (etwa `3 7-23 * * *`), meldete der Wächter um 2 Uhr „seit 3 Stunden nicht gelaufen“ und um 7 Uhr die Entwarnung. Die Ruhestunden zählen jetzt nicht mehr für `feed_stale_hours`. Sie stammen aus `[heartbeat] feed_hours` oder, wenn das leer ist, aus dem eigenen crontab-Eintrag für `skyrelay-feed.py`. Als Ruhe gilt nur eine Lücke von mindestens drei Stunden, damit ein Takt wie `*/2` keine erfindet. `--status` zeigt, was gilt. Ein echter Ausfall wird weiterhin gemeldet: Lief der Feed zuletzt um 23:03, kommt die Meldung gegen 9:06.
+- **Falsche Meldungen während der Nachtruhe des Feeds** ([#41](https://github.com/Vijabei/SkyRelay/pull/41)). Läuft der Feed nur tagsüber (etwa `3 7-23 * * *`), meldete der Wächter um 2 Uhr „seit 3 Stunden nicht gelaufen“ und um 7 Uhr die Entwarnung. Die Ruhestunden zählen jetzt nicht mehr für `feed_stale_hours`. Sie stammen aus `[heartbeat] feed_hours` oder, wenn das leer ist, aus dem eigenen crontab-Eintrag für `skyrelay-feed.py`. Als Ruhe gilt nur eine Lücke von mindestens drei Stunden, damit ein Takt wie `*/2` keine erfindet. `--status` zeigt, was gilt. Ein echter Ausfall wird weiterhin gemeldet: Lief der Feed zuletzt um 23:03, kommt die Meldung gegen 9:06.
+
+### Hinweise
+
+- **Ruht auch der Wächter selbst nachts,** bleiben bei healthchecks.io die Pings aus, und von dort kommt die falsche Meldung. Das kann SkyRelay nicht abfangen: Den Check bei healthchecks.io auf den Zeitplan-Typ „Cron“ stellen, mit dem Ausdruck aus der crontab und der Zeitzone `Europe/Berlin`. Läuft der Wächter rund um die Uhr (`*/15 * * * *`), ist nichts zu tun.
+- **Der Branch `beta` ist auf dem Stand von `main`** und unterscheidet sich weiter nur durch den instaloader-Fix (siehe 08.11.).
 
 ## 08.11.2026
 
 ### Behoben
 
-- **Beiträge über 300 Zeichen.** Die Aufteilung langer Texte konnte zwischen einem und zwei Beiträgen hin- und herpendeln. Ein Text, der als erster von zwei Beiträgen passt, als einziger aber nicht (dort stehen die Hashtags mit drin), wurde am Ende mit dem Budget des Zweier-Threads als einzelner Beitrag ausgegeben. Bluesky lehnte ihn ab, am 30.10. einen Instagram-Beitrag mit 313 Zeichen. Betraf Ticker und Feed.
+- **Beiträge über 300 Zeichen** ([#39](https://github.com/Vijabei/SkyRelay/pull/39)). Die Aufteilung langer Texte konnte zwischen einem und zwei Beiträgen hin- und herpendeln. Ein Text, der als erster von zwei Beiträgen passt, als einziger aber nicht (dort stehen die Hashtags mit drin), wurde am Ende mit dem Budget des Zweier-Threads als einzelner Beitrag ausgegeben. Bluesky lehnte ihn ab, am 30.10. einen Instagram-Beitrag mit 313 Zeichen. Betraf Ticker und Feed.
   - Der letzte Teil wird jetzt auch als der Beitrag gemessen, der er wirklich wird.
   - Zum Schluss wird jeder Teil noch einmal gegen seinen tatsächlichen Beitrag geprüft. Passt etwas nicht, wird vorsichtiger geteilt.
-- **Feed mit mehr Medien als Text.** Bekommt jedes Video einen eigenen Beitrag, ist der Thread länger als der Text. Die Beschriftung wird jetzt für diesen Thread gemessen (`split_body(..., min_total=...)`); vorher konnte der Zähler einen Beitrag über die Grenze schieben.
+- **Feed mit mehr Medien als Text** ([#39](https://github.com/Vijabei/SkyRelay/pull/39)). Bekommt jedes Video einen eigenen Beitrag, ist der Thread länger als der Text. Die Beschriftung wird jetzt für diesen Thread gemessen (`split_body(..., min_total=...)`); vorher konnte der Zähler einen Beitrag über die Grenze schieben.
 
 ### Neu
 
 - **`tools/pruefe_aufteilung.py`** prüft die Aufteilung mit dem Grenzfall vom 30.10. und Zufallstexten über verschiedene `[layout]`-Einstellungen: jeder Beitrag in den Grenzen, kein Text verloren. Rückgabewert 0, solange nichts gefunden wird. Mit dem alten Code: 332 Befunde, mit dem neuen: keiner.
+- **`tools/pakete_angleichen.py`** ([#40](https://github.com/Vijabei/SkyRelay/pull/40)), aufgerufen von `update.sh` nach `pip install -r requirements.txt`. pip vergleicht nur Versionsnummern; ein Stand direkt aus git, der sich wie die letzte Veröffentlichung nennt, käme so nie an und ginge nie wieder. Das Werkzeug liest, woher jedes installierte Paket stammt (`direct_url.json`), und installiert nur die neu, deren Quelle nicht zu `requirements.txt` passt. Mit reinen PyPI-Paketen ändert es nichts.
+- **Der Feed nennt beim Start sein instaloader** ([#40](https://github.com/Vijabei/SkyRelay/pull/40)): `Using instaloader 4.16.` oder `… from https://github.com/ppdms/instaloader @ 3e4d5ac0ec.`
+
+### Beta-Branch `beta`: Instagram-Feed mit dem Fix aus instaloader#2795
+
+Seit dem 02.11.2026 antwortet Instagram eingeloggten Sitzungen auf `graphql/query` mit `feedback_required`, auch mit instaloader 4.16 ([instaloader/instaloader#2792](https://github.com/instaloader/instaloader/issues/2792)). Der Fix in [instaloader/instaloader#2795](https://github.com/instaloader/instaloader/pull/2795) stellt die Abfragen auf `api/graphql` um, ist aber noch nicht veröffentlicht.
+
+- Der Branch `beta` ist `main` plus diesen Fix, fest auf den Commit `3e4d5ac0ec545a771a3a4b0b82cb313f32acb29f`.
+- Umsteigen mit `git checkout beta && ./update.sh`, zurück mit `git checkout main && ./update.sh`. Anleitung in [BETA.de.md](https://github.com/Vijabei/SkyRelay/blob/beta/BETA.de.md) (englisch: [BETA.md](https://github.com/Vijabei/SkyRelay/blob/beta/BETA.md)).
+- Auf dem Pi geprüft: Mit dem Fix findet der Feed die Beiträge wieder.
+- Sobald instaloader eine neuere Fassung veröffentlicht, meldet der Wächter sie. Dann hebt `main` die Festlegung an, und der Branch wird gelöscht.
 
 ## 07.11.–08.11.2026
 
