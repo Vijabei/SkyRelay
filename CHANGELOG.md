@@ -28,7 +28,7 @@ requests on GitHub.
 
 ### Notes on updating
 
-1. Tried on the Pi first through the short-lived branch `develop` (`beta` plus this switch), not right before a matchday. Steps and checklist in `UPGRADE-TEST.md`.
+1. Tried on the Pi first through the short-lived branch `develop` (`beta` plus this switch), checklist and result in `UPGRADE-TEST.md`: everything passed on 21 November, the voice message included. Do not update right before a matchday.
 2. Before switching: `cp ~/SkyRelay/skyrelay_session.sqlite3 ~/skyrelay_session_052.sqlite3.bak`
 3. After the merge `beta` is brought up to `main`, the Pi goes back to `beta` with `git checkout beta && git pull && ./update.sh`, and `develop` is deleted.
 

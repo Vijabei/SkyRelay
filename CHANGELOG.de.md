@@ -28,7 +28,7 @@ die Pull Requests auf GitHub.
 
 ### Hinweise zum Update
 
-1. Vorher auf dem Pi über den kurzlebigen Branch `develop` (`beta` plus dieser Wechsel) erprobt, nicht kurz vor einem Spieltag. Schritte und Prüfliste in `UPGRADE-TEST.md`.
+1. Vorher auf dem Pi über den kurzlebigen Branch `develop` (`beta` plus dieser Wechsel) erprobt, Prüfliste und Ergebnis in `UPGRADE-TEST.md`: am 21.11. alles bestanden, die Sprachnachricht eingeschlossen. Nicht kurz vor einem Spieltag aktualisieren.
 2. Vor dem Umstieg: `cp ~/SkyRelay/skyrelay_session.sqlite3 ~/skyrelay_session_052.sqlite3.bak`
 3. Nach dem Merge wird `beta` auf `main` nachgezogen, der Pi geht mit `git checkout beta && git pull && ./update.sh` zurück auf `beta`, und `develop` wird gelöscht.
 

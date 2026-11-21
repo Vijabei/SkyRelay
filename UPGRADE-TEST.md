@@ -76,21 +76,21 @@ auch der cron-Betrieb mit 0.12.4. An einem Spieltag wäre das schon der Ernstfal
 Die Tests im Trockenlauf (`SKYRELAY_DRY_RUN=1`, beim Ticker an spielfreien Tagen
 mit `SKYRELAY_FORCE=1`), es wird nichts veröffentlicht.
 
-- [ ] **Installation**: `./update.sh` holt neonize 0.12.4 und protobuf ≥ 7.36,
+- [x] **Installation**: `./update.sh` holt neonize 0.12.4 und protobuf ≥ 7.36,
       der Import gelingt
-- [ ] **Sitzung**: die bestehende Kopplung gilt weiter, kein QR-Code, kein Code
-- [ ] **Probe**: `venv/bin/python skyrelay-matchday.py --probe` ohne 405
-- [ ] **Kanal-Auflösung**: `get_newsletter_info_with_invite` liefert die Kennung
-- [ ] **Live-Ereignisse**: neue Kanalbeiträge kommen an und werden verarbeitet
-- [ ] **Nachrichtenabruf**: `SKYRELAY_REPLAY=5` läuft durch. Hier stürzte bis
+- [x] **Sitzung**: die bestehende Kopplung gilt weiter, kein QR-Code, kein Code
+- [x] **Probe**: `venv/bin/python skyrelay-matchday.py --probe` ohne 405
+- [x] **Kanal-Auflösung**: `get_newsletter_info_with_invite` liefert die Kennung
+- [x] **Live-Ereignisse**: neue Kanalbeiträge kommen an und werden verarbeitet
+- [x] **Nachrichtenabruf**: `SKYRELAY_REPLAY=5` läuft durch. Hier stürzte bis
       0.4.3 alles ab; leere Einträge erscheinen jetzt als
       `the message is completely empty … skipped`
-- [ ] **Sprachnachricht**: `venv/bin/python3 skyrelay-testlauf.py --type audio`
+- [x] **Sprachnachricht**: `venv/bin/python3 skyrelay-testlauf.py --type audio`
       lädt sie beim ersten Versuch, und es entsteht das Video mit Wellenform
-- [ ] **Medien**: Bild, Video und Sticker aus dem Kanal
+- [x] **Medien**: Bild, Video und Sticker aus dem Kanal
       (`skyrelay-testlauf.py --type image,video,sticker`)
-- [ ] **Beenden**: Tagesende bzw. Strg+C ohne Absturz
-- [ ] **Wächter**: `venv/bin/python skyrelay-heartbeat.py --status` zeigt
+- [x] **Beenden**: Tagesende bzw. Strg+C ohne Absturz
+- [x] **Wächter**: `venv/bin/python skyrelay-heartbeat.py --status` zeigt
       neonize 0.12.4 mit whatsmeow vom 16.11.2026
 
 Schlägt die Sprachnachricht fehl, fehlt der Umweg ohne `mediaKey` doch noch: dann
@@ -130,7 +130,33 @@ Im schlimmsten Fall hilft eine neue Kopplung — sie dauert zwei Minuten.
 
 ## Ergebnis
 
-*Noch offen.*
+**Getestet am 21.11.2026** auf dem Pi (`aarch64`) über `develop`, mit der
+bestehenden Sitzung, gegen den echten Kanal im Trockenlauf.
+
+| Prüfpunkt | Ergebnis |
+|---|---|
+| Installation | ✅ `./update.sh` grün, Import gelingt, die Probe meldet neonize 0.12.4 |
+| Sitzung | ✅ die bestehende Kopplung gilt weiter, kein QR-Code; Schemawechsel auf v16 unauffällig |
+| Probe | ✅ `Successfully authenticated`, keine 405, Kanal gefunden |
+| Kanal-Auflösung | ✅ `120363246785630110@newsletter` |
+| Nachrichtenabruf | ✅ `REPLAY=5` lieferte ServerID 8135–8139: Text, Bild, zwei Videos (2,5 MB und 25,5 MB), Linkkarte |
+| Sprachnachricht | ✅ ServerID 8127 trägt einen `mediaKey` und lud trotzdem beim ersten Versuch, genau `fileLength` (17613 Bytes); Video mit Wellenform erzeugt |
+| Abruf älterer Nachrichten | ✅ `skyrelay-testlauf.py` holte 30 Nachrichten (8139 bis 8110) in Blöcken zu 3 ohne Absturz |
+| Sticker, Live-Ereignisse, Beenden, Wächter | ✅ laut Rückmeldung; die Ausgabe ist hier nicht festgehalten |
+
+Beim Trennen erscheint jedes Mal
+`Error sending close to websocket: … failed to read frame header: EOF`. Das ist
+die bekannte, harmlose Warnung, die es schon mit 0.4.3 gab.
+
+**Nicht gezielt geprüft:** eine leere Meta-Nachricht im Abruffenster. Unter
+8135–8139 war keine, und ob unter den 30 Nachrichten des Testlaufs eine war,
+zeigt die Ausgabe nicht. Der Fix steckt seit 0.5.2 im Go-Teil
+(neonize#210/#211), und der Ticker überspringt solche Einträge.
+
+### Bewertung
+
+**Der Wechsel wird übernommen.** Der Umweg für Sprachnachrichten ist
+überflüssig: whatsmeow übergeht den `mediaKey` jetzt selbst.
 
 ---
 
