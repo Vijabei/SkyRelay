@@ -706,12 +706,6 @@ six hours. That way it does not use up the bot account's logins.
   4.16 sends the same query as the Instagram website. Before switching, check
   with `SKYRELAY_DRY_RUN=1` that the new version still finds the posts.
 * **Polls** are skipped: Bluesky has no such format.
-* **Voice messages need a detour to download.** Channel media sit unencrypted
-  behind `directPath` — images and videos therefore carry no `mediaKey` at all.
-  Voice messages drag one along, whereupon whatsmeow tries to decrypt and fails
-  with `invalid media hmac`. On exactly that error SkyRelay downloads a second
-  time without the key. Measured on 19.08.2026: **none** of 5 voice messages
-  downloaded the regular way, **all five** did without the key, byte for byte.
 * **Animated stickers** lose their movement — the first frame is carried over,
   because Bluesky plays no animations.
 * **Voice messages** appear as video and therefore have no sensible image

@@ -1007,38 +1007,14 @@ def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None,
 
 
 # 4. Kanal-Nachricht verarbeiten
-MEDIA_FIELDS = ("audioMessage", "videoMessage", "imageMessage",
-                "stickerMessage", "documentMessage")
-
-
 async def download_channel_media(client, msg):
     """Downloads the media file of a channel message.
 
-    Channel media sit unencrypted behind `directPath` - images and videos
-    therefore carry no `mediaKey` at all and download without complaint.
-    Voice messages, however, drag a `mediaKey` along from the ordinary chat
-    flow. whatsmeow then turns into the decryption path and fails there with
-    "invalid media hmac", even though the file could be fetched.
-    Measured on 19.08.2026: 0 of 5 voice messages downloaded the regular way,
-    all 5 downloaded without the key - byte for byte the announced length.
-
-    So the regular way comes first, and only an hmac error triggers a second
-    attempt without the `mediaKey`. Should WhatsApp one day serve channel
-    audio encrypted after all, the regular way still applies."""
-    try:
-        return await client.download_any(msg)
-    except Exception as error:
-        if "hmac" not in str(error).lower():
-            raise
-        log("   ℹ️ The download fails on the checksum - trying again without "
-            "the mediaKey (channel media are unencrypted).")
-        without_key = type(msg)()
-        without_key.CopyFrom(msg)
-        for field in MEDIA_FIELDS:
-            if without_key.HasField(field):
-                getattr(without_key, field).ClearField("mediaKey")
-                break
-        return await client.download_any(without_key)
+    Channel media sit unencrypted behind `directPath`, yet voice messages
+    carry a `mediaKey`. whatsmeow used to try decrypting them and failed with
+    "invalid media hmac"; since whatsmeow#1229 (in neonize 0.5.2 and later)
+    it ignores a `mediaKey` that comes without `FileEncSHA256`."""
+    return await client.download_any(msg)
 
 
 async def process_newsletter_message(client, raw_msg, server_id):

@@ -18,6 +18,7 @@ die Pull Requests auf GitHub.
 
 ### Entfernt
 
+- **Der zweite Download von Sprachnachrichten ohne `mediaKey`.** whatsmeow wollte Sprachnachrichten aus Kanälen wegen ihres `mediaKey` entschlüsseln und scheiterte mit `invalid media hmac`; SkyRelay lud dann ein zweites Mal ohne den Schlüssel. Seit whatsmeow#1229 (in neonize 0.5.2 und später) übergeht whatsmeow so einen Schlüssel selbst. Scheitert eine Sprachnachricht doch mit `invalid media hmac`, bitte melden.
 - Die Issue-Entwürfe `ISSUE-DRAFT-neonize-newsletter-panic.md` und `ISSUE-DRAFT-whatsmeow-newsletter-audio-hmac.md`. Beide sind eingereicht, beide Fehler upstream behoben: neonize#210/#211 und whatsmeow#1229.
 
 ### Doku

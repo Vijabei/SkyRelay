@@ -18,6 +18,7 @@ requests on GitHub.
 
 ### Removed
 
+- **The second download of voice messages without the `mediaKey`.** whatsmeow tried to decrypt channel voice messages because of their `mediaKey` and failed with `invalid media hmac`; SkyRelay then downloaded once more without the key. Since whatsmeow#1229 (in neonize 0.5.2 and later) whatsmeow ignores such a key itself. If a voice message now fails with `invalid media hmac` after all, please report it.
 - The issue drafts `ISSUE-DRAFT-neonize-newsletter-panic.md` and `ISSUE-DRAFT-whatsmeow-newsletter-audio-hmac.md`. Both were filed, and both bugs are fixed upstream: neonize#210/#211 and whatsmeow#1229.
 
 ### Docs
