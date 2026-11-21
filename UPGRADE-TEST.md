@@ -1,7 +1,9 @@
 # Erprobung: neonize 0.5.2 → 0.12.4
 
-Der Zweig mit diesem Wechsel wird **vor dem Merge** geprüft. `main` bleibt
-bis dahin auf 0.5.2 und ist die Fassung, die im Produktivbetrieb läuft.
+Der Wechsel wird **vor dem Merge** auf dem Pi geprüft, über den Branch
+`develop`: `beta` (also `main` plus der instaloader-Fix, auf dem der Pi läuft)
+plus dieser Wechsel. `main` und `beta` bleiben bis dahin auf 0.5.2.
+`develop` gibt es nur für diesen Test und wird danach gelöscht.
 
 ## Warum überhaupt umsteigen?
 
@@ -52,23 +54,31 @@ Auf x86_64; die Testumgebung erreichte WhatsApp nicht.
   Ereignisse, Anlegen einer Sitzungsdatei (Schema v16) und sauberes Ende bei
   SIGTERM. Mit protobuf 7.34.1 scheitert der Import wie erwartet.
 
-## Testumgebung
+## Umstieg auf dem Pi
 
-Auf einer **eigenen Maschine mit derselben Architektur wie das Zielsystem**
-(hier: EC2 mit `aarch64`, wie der Raspberry Pi). Wichtig, weil neonize
-architekturspezifische Pakete ausliefert.
+Getestet wird mit der vorhandenen Sitzung, eine zweite Kopplung braucht es
+nicht. Die Sitzungssperre verhindert, dass zwei Prozesse zugleich mit ihr
+verbunden sind. Erst die Sitzung sichern, dann umsteigen:
 
-Die WhatsApp-Sitzung des Produktivsystems darf **nicht kopiert** werden — zwei
-Clients mit derselben Sitzung streiten um die Verbindung. Stattdessen dort
-einmalig neu koppeln; WhatsApp erlaubt bis zu vier verknüpfte Geräte je Nummer.
+```bash
+cp ~/SkyRelay/skyrelay_session.sqlite3 ~/skyrelay_session_052.sqlite3.bak
+```
+
+```bash
+cd ~/SkyRelay && git fetch && git checkout develop && ./update.sh
+```
+
+**Nicht kurz vor einem Spieltag:** Solange der Pi auf `develop` steht, läuft
+auch der cron-Betrieb mit 0.12.4. An einem Spieltag wäre das schon der Ernstfall.
 
 ## Prüfpunkte
 
-Alle Tests im Trockenlauf (`SKYRELAY_DRY_RUN=1`), es wird nichts veröffentlicht.
+Die Tests im Trockenlauf (`SKYRELAY_DRY_RUN=1`, beim Ticker an spielfreien Tagen
+mit `SKYRELAY_FORCE=1`), es wird nichts veröffentlicht.
 
 - [ ] **Installation**: `./update.sh` holt neonize 0.12.4 und protobuf ≥ 7.36,
       der Import gelingt
-- [ ] **Kopplung**: Code oder QR-Code erscheint, Anmeldung funktioniert
+- [ ] **Sitzung**: die bestehende Kopplung gilt weiter, kein QR-Code, kein Code
 - [ ] **Probe**: `venv/bin/python skyrelay-matchday.py --probe` ohne 405
 - [ ] **Kanal-Auflösung**: `get_newsletter_info_with_invite` liefert die Kennung
 - [ ] **Live-Ereignisse**: neue Kanalbeiträge kommen an und werden verarbeitet
@@ -89,28 +99,34 @@ Ergebnis hier festhalten.
 
 ## Übernehmen
 
-Laufen alle Punkte durch, wird der Zweig nach `main` übernommen, danach `beta`
-auf `main` nachgezogen (der Branch unterscheidet sich weiter nur durch den
-instaloader-Fix). Auf dem Produktivsystem, **nicht kurz vor einem Spieltag**:
+Laufen alle Punkte durch:
 
-```bash
-cp ~/SkyRelay/skyrelay_session.sqlite3 ~/skyrelay_session_052.sqlite3.bak
-```
+1. PR [#43](https://github.com/Vijabei/SkyRelay/pull/43) nach `main` mergen.
+2. `main` nach `beta` mergen (`beta` unterscheidet sich danach weiter nur durch
+   den instaloader-Fix).
+3. Den Pi zurück auf `beta`, jetzt mit 0.12.4:
 
-```bash
-cd ~/SkyRelay && git pull && ./update.sh
-```
+   ```bash
+   cd ~/SkyRelay && git fetch && git checkout beta && git pull && ./update.sh
+   ```
 
-```bash
-venv/bin/python skyrelay-matchday.py --probe
-```
+4. `develop` löschen.
 
 ## Rückweg
 
-Den vorigen Stand auschecken und `./update.sh` ausführen. Das neue Schema ist
-laut whatsmeow mit Programmen ab Schema v8 lesbar, 0.5.2 (v15) sollte die
-Sitzungsdatei also weiter öffnen. Geht das schief, die Sicherung zurückspielen;
-im schlimmsten Fall hilft eine neue Kopplung — sie dauert zwei Minuten.
+```bash
+cd ~/SkyRelay && git checkout beta && ./update.sh
+```
+
+Damit kommt neonize 0.5.2 zurück. Das neue Schema ist laut whatsmeow mit
+Programmen ab Schema v8 lesbar, 0.5.2 (v15) sollte die Sitzungsdatei also
+weiter öffnen. Geht das schief, die Sicherung zurückspielen:
+
+```bash
+cp ~/skyrelay_session_052.sqlite3.bak ~/SkyRelay/skyrelay_session.sqlite3
+```
+
+Im schlimmsten Fall hilft eine neue Kopplung — sie dauert zwei Minuten.
 
 ## Ergebnis
 
@@ -130,7 +146,7 @@ mit 0.5.2 nicht. Danach auf dem Pi in Betrieb genommen
 
 ### 0.3.18.post0 → 0.4.3.post0 (08.08.2026)
 
-Getestet auf EC2 (Debian, `aarch64`) gegen den echten Kanal im Trockenlauf.
+Getestet auf `aarch64` gegen den echten Kanal im Trockenlauf.
 0.4.0/0.4.1 waren unbrauchbar gewesen („Wire format was corrupt“,
 [neonize#199](https://github.com/krypton-byte/neonize/issues/199)), 0.4.2+
 enthielt den Fix (PR #198).

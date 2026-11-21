@@ -28,10 +28,9 @@ requests on GitHub.
 
 ### Notes on updating
 
-1. Not right before a matchday. First check the branch on the test machine (`UPGRADE-TEST.md`).
-2. `cp ~/SkyRelay/skyrelay_session.sqlite3 ~/skyrelay_session_052.sqlite3.bak`
-3. `git pull && ./update.sh`, then `venv/bin/python skyrelay-matchday.py --probe`.
-4. Afterwards bring `beta` up to `main`.
+1. Tried on the Pi first through the short-lived branch `develop` (`beta` plus this switch), not right before a matchday. Steps and checklist in `UPGRADE-TEST.md`.
+2. Before switching: `cp ~/SkyRelay/skyrelay_session.sqlite3 ~/skyrelay_session_052.sqlite3.bak`
+3. After the merge `beta` is brought up to `main`, the Pi goes back to `beta` with `git checkout beta && git pull && ./update.sh`, and `develop` is deleted.
 
 ## 9 November 2026
 
