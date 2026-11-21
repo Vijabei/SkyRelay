@@ -100,8 +100,8 @@ SKYRELAY_CATCHUP=5 SKYRELAY_FORCE=1 SKYRELAY_HASHTAG=DSCGUE venv/bin/python skyr
   the watermark, so after a longer gap that can be a whole week of posts. Pick
   `N` to match what really needs fetching, and remember the watermark may be
   days old.
-- The same neonize caveat as replay (see below): a message without content among
-  the last `N` → a crash. Pick a small `N`.
+- `N` counts server IDs, not posts: invisible messages without content among
+  them are skipped (see replay below).
 
 ### 3b. Replay (testing a single post)
 
@@ -121,13 +121,14 @@ SKYRELAY_REPLAY=3 ...
 - Does **not** touch the watermark → automatic operation is unaffected.
 - Careful without a dry run: replay does **not** check for duplicates — running it
   twice posts twice.
-- ⚠️ A known neonize bug: if among the **last N** channel messages there is a
-  **meta message without content** (invisible in the channel, but holding a
-  server ID of its own — an edit or a deletion, say), the program crashes hard
-  (a Go `panic: required field … Message not set`). Such messages cannot be
-  inspected with neonize — on a crash simply reduce `N` step by step until the
-  window ends before the meta message. This affects replay and catch-up only;
-  live operation is immune.
+- The **last N** server IDs can include a **meta message without content**
+  (invisible in the channel, but holding a server ID of its own — an edit or a
+  deletion, say). It is logged as `the message is completely empty … skipped`,
+  so fewer than `N` posts may come through. (Up to neonize 0.4.3 such a message
+  crashed the program.)
+- To try a particular kind of message, a voice message say, search the history
+  for it instead: `venv/bin/python3 skyrelay-testlauf.py --type audio` (always a
+  dry run).
 
 ---
 
@@ -234,10 +235,10 @@ It is created from the template: `cp skyrelay.conf.example skyrelay.conf`, or by
 | Symptom | Cause / remedy |
 |---|---|
 | `Wire format was corrupt` | A bug in neonize 0.4.0/0.4.1 (NUL bytes truncated, [#199](https://github.com/krypton-byte/neonize/issues/199)) — fixed upstream in **0.4.2** (PR #198). |
-| `Client outdated (405) connect failure` | WhatsApp no longer accepts the client version of the bundled whatsmeow (0.4.3.post0 since 07.11.2026). **Do not** delete the session — a newer neonize is needed: raise the pin in `requirements.txt`, then `./update.sh`. We run `0.5.2`. |
-| `panic: required field neonize.NewsletterMessage.Message not set` | A Go crash when fetching messages catches an invisible **meta message** (a post being edited or deleted). Affects **replay and catch-up** only (pick a smaller `N`); live operation has listened for events since 13.07.2026 and is immune. |
-| `VersionError: gencode … runtime …` | protobuf too old → `pip install -U protobuf` (**never** downgrade). |
-| Trouble after changing the neonize version | Delete `skyrelay_session.sqlite3` and pair again (the database schema). |
+| `Client outdated (405) connect failure` | WhatsApp no longer accepts the client version of the bundled whatsmeow (0.4.3.post0 since 07.11.2026). **Do not** delete the session — a newer neonize is needed: raise the pin in `requirements.txt`, then `./update.sh`. We run `0.12.4`. |
+| `panic: required field neonize.NewsletterMessage.Message not set` | Only with neonize up to 0.4.3: a Go crash when fetching messages catches an invisible **meta message**. Fixed since 0.5.2 — run `./update.sh`. |
+| `VersionError: gencode … runtime …` | protobuf too old → `pip install -U protobuf` (**never** downgrade). neonize 0.12.4 needs at least 7.36.0. |
+| Trouble after changing the neonize version | Put the backed-up `skyrelay_session.sqlite3` back; if that does not help, delete it and pair again (the database schema). |
 | Hangs or errors right after the first pairing | Normal (the server forces a reconnect); the program waits and retries by itself. Just start it again if it does give up. |
 | `⚠️ No DFL code on file for "XY"` in the log | A cup or otherwise unknown opponent → add the correct code under `[team_codes]`. |
 | cron: `/bin/sh: 1: …/bin/python3: not found` | A typo in the path (usually the capitalisation). It means the **interpreter**, not Python. Check with `ls -l <path>`. |

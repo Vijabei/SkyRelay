@@ -3,28 +3,24 @@
 SkyRelay - test run: push real channel messages through the pipeline without
 publishing anything.
 
-Why this is needed: the built-in REPLAY mode fetches the LATEST N messages
-(`MessageServerID(0)`). If a meta message without content sits among them, the
-Go layer crashes hard - see ISSUE-DRAFT-neonize-newsletter-panic.md. As of
-19.08.2026 that is exactly the situation: `count=1` works, from `count=2` it
-blows up.
+Why this is useful: the built-in REPLAY mode plays the LATEST N messages
+through, whatever they are. To try a particular kind - a voice message, a
+sticker - this tool pages BACKWARDS through the history in small blocks and
+plays through only the messages of the wanted types.
 
-This tool instead pages BACKWARDS through the history in small blocks from an
-explicit starting point, which reaches older messages without touching the
-broken spot.
+(It was written when a fetch that caught a meta message without content
+crashed neonize's Go layer, up to neonize 0.4.3. Since 0.5.2 such entries
+just come back empty, and fetching from the newest message is safe.)
 
 NOTHING is posted: SKYRELAY_DRY_RUN is forced before the ticker is loaded. The
 watermark and the bookkeeping files stay untouched.
 
-Server IDs differ per channel - find the starting point first, then search
-backwards from there.
-
 Examples:
-    # 1. Find the starting point: print the latest server ID (the only fetch
-    #    that is safe at the newest message)
-    venv/bin/python3 skyrelay-testlauf.py --latest
+    # search backwards from the newest message for voice messages and stickers
+    venv/bin/python3 skyrelay-testlauf.py --type audio,sticker
 
-    # 2. From there, search backwards for voice messages and stickers
+    # print the latest server ID, then search below a given one
+    venv/bin/python3 skyrelay-testlauf.py --latest
     venv/bin/python3 skyrelay-testlauf.py --before <serverID> --type audio,sticker
 
     # anything at all, the first 5 hits
@@ -84,11 +80,13 @@ async def run(args, md):
     print(f"✓ Channel {jid.User}@{jid.Server}\n")
 
     if args.latest:
-        # count=1 is the only fetch that is safe at the newest message.
         messages = await md.client.get_newsletter_messages(jid, 1, MessageServerID(0))
+        if not messages:
+            print("The channel returned no message.")
+            return
         for nm in messages:
             print(f"Latest server ID: {nm.MessageServerID}")
-        print("\nStart from that with --before, e.g.:  --before",
+        print("\nSearch below it with --before, e.g.:  --before",
               messages[0].MessageServerID)
         return
 
@@ -140,16 +138,15 @@ def main():
         description="Plays real channel messages through the ticker pipeline "
                     "without publishing.")
     p.add_argument("--before", type=int, default=0,
-                   help="Server ID to search below. 0 = from the newest one - "
-                        "CAREFUL, that can crash the Go layer (see the issue "
-                        "draft). Better to set a value.")
+                   help="Server ID to search below. 0 (default) = from the "
+                        "newest one.")
     p.add_argument("--type", default="audio,sticker",
                    help="Comma separated list of " + ", ".join(TYPES) +
                         " or 'all'. Default: audio,sticker")
     p.add_argument("--count", type=int, default=2,
                    help="How many hits are played through (default 2).")
     p.add_argument("--block", type=int, default=3,
-                   help="Messages per fetch (default 3, keep it small).")
+                   help="Messages per fetch (default 3).")
     p.add_argument("--rounds", type=int, default=10,
                    help="How many blocks are searched at most.")
     p.add_argument("--latest", action="store_true",

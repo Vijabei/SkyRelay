@@ -5,6 +5,33 @@
 Was sich an SkyRelay geändert hat, das Neueste oben. Die Nummern verweisen auf
 die Pull Requests auf GitHub.
 
+## 21.11.2026
+
+### Geändert
+
+- **neonize 0.12.4 statt 0.5.2.** Es bringt whatsmeow vom 16.11.2026 mit (Client 2.3000.1054751086 statt 2.3000.1047769893). Das ist Vorsorge: WhatsApp weist alte Client-Versionen nach einigen Monaten ab, so mit 0.4.3.post0 am 07.11. Die Schnittstellen, die der Ticker aufruft, sind gleich geblieben. 0.11.0 bis 0.12.4 bringen alle dieselbe whatsmeow mit.
+  - `protobuf>=7.36.0`: Die Wheels von 0.12.4 sind damit gebaut, mit älterem protobuf scheitert der Import mit einem `VersionError`.
+  - Neue Abhängigkeiten sind `cryptography` und `pycryptodome`; pip installiert sie selbst.
+  - Das Datenbankschema der Sitzung geht von v15 auf v16. Vor dem Wechsel `skyrelay_session.sqlite3` sichern. Laut whatsmeow kann 0.5.2 das neue Schema weiter lesen.
+- **Wiederholen und Nachholen überspringen leere Nachrichten sofort.** Ein bearbeiteter oder gelöschter Kanalbeitrag hinterlässt eine unsichtbare Nachricht ohne Inhalt. Seit neonize 0.5.2 liefert ein Verlaufsabruf sie als leeren Eintrag, statt abzustürzen (neonize#210/#211). Der Ticker überspringt ihn jetzt, bevor er sich bei Bluesky anmeldet; `SKYRELAY_REPLAY=N` kann deshalb weniger als `N` Beiträge durchspielen.
+- **`skyrelay-testlauf.py`** sucht standardmäßig ab der neuesten Nachricht; `--before` braucht es nicht mehr.
+
+### Entfernt
+
+- **Der zweite Download von Sprachnachrichten ohne `mediaKey`.** whatsmeow wollte Sprachnachrichten aus Kanälen wegen ihres `mediaKey` entschlüsseln und scheiterte mit `invalid media hmac`; SkyRelay lud dann ein zweites Mal ohne den Schlüssel. Seit whatsmeow#1229 (in neonize 0.5.2 und später) übergeht whatsmeow so einen Schlüssel selbst. Scheitert eine Sprachnachricht doch mit `invalid media hmac`, bitte melden.
+- Die Issue-Entwürfe `ISSUE-DRAFT-neonize-newsletter-panic.md` und `ISSUE-DRAFT-whatsmeow-newsletter-audio-hmac.md`. Beide sind eingereicht, beide Fehler upstream behoben: neonize#210/#211 und whatsmeow#1229.
+
+### Doku
+
+- READMEs und CheatSheets: keine Warnung mehr vor dem Absturz beim Wiederholen und Nachholen, Festlegung jetzt 0.12.4, und nach einem missglückten Wechsel zuerst die gesicherte Sitzungsdatei zurückspielen.
+- `UPGRADE-TEST.md` ist jetzt die Prüfliste für diesen Wechsel. Das Ergebnis vom 08.08. bleibt darin erhalten.
+
+### Hinweise zum Update
+
+1. Vorher auf dem Pi über den kurzlebigen Branch `develop` (`beta` plus dieser Wechsel) erprobt, Prüfliste und Ergebnis in `UPGRADE-TEST.md`: am 21.11. alles bestanden, die Sprachnachricht eingeschlossen. Nicht kurz vor einem Spieltag aktualisieren.
+2. Vor dem Umstieg: `cp ~/SkyRelay/skyrelay_session.sqlite3 ~/skyrelay_session_052.sqlite3.bak`
+3. Nach dem Merge wird `beta` auf `main` nachgezogen, der Pi geht mit `git checkout beta && git pull && ./update.sh` zurück auf `beta`, und `develop` wird gelöscht.
+
 ## 09.11.2026
 
 ### Behoben

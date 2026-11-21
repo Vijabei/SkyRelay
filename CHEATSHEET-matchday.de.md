@@ -103,8 +103,8 @@ SKYRELAY_CATCHUP=5 SKYRELAY_FORCE=1 SKYRELAY_HASHTAG=DSCGUE venv/bin/python skyr
   der neuer ist als das Wasserzeichen — nach einer längeren Pause also unter
   Umständen eine ganze Woche. `N` so wählen, wie viel wirklich nachzuholen ist,
   und daran denken, dass das Wasserzeichen Tage alt sein kann.
-- Derselbe neonize-Vorbehalt wie beim Wiederholen (siehe unten): eine
-  inhaltslose Nachricht unter den letzten `N` → Absturz. Kleines `N` wählen.
+- `N` zählt ServerIDs, nicht Beiträge: unsichtbare Nachrichten ohne Inhalt
+  darunter werden übersprungen (siehe Wiederholen unten).
 
 ### 3b. Wiederholen (einen einzelnen Beitrag prüfen)
 
@@ -124,13 +124,15 @@ SKYRELAY_REPLAY=3 …
 - Fasst das Wasserzeichen **nicht** an → der Automatikbetrieb bleibt unberührt.
 - Vorsicht ohne Trockenlauf: Wiederholen prüft **nicht** auf Duplikate — zweimal
   ausgeführt heißt zweimal gepostet.
-- ⚠️ Ein bekannter neonize-Fehler: Ist unter den **letzten N** Kanalnachrichten
-  eine **inhaltslose Meta-Nachricht** (im Kanal unsichtbar, hat aber eine eigene
-  ServerID — etwa eine Bearbeitung oder Löschung), stürzt das Programm hart ab
-  (Go-`panic: required field … Message not set`). Solche Nachrichten lassen sich
-  mit neonize nicht ansehen — bei einem Absturz einfach `N` schrittweise
-  verkleinern, bis das Fenster vor der Meta-Nachricht endet. Betrifft nur
-  Wiederholen und Nachholen; der Live-Betrieb ist immun.
+- Unter den **letzten N** ServerIDs kann eine **inhaltslose Meta-Nachricht**
+  sein (im Kanal unsichtbar, hat aber eine eigene ServerID — etwa eine
+  Bearbeitung oder Löschung). Sie erscheint im Protokoll als
+  `the message is completely empty … skipped`, es kommen dann weniger als `N`
+  Beiträge durch. (Bis neonize 0.4.3 brachte so eine Nachricht das Programm zum
+  Absturz.)
+- Um eine bestimmte Art Nachricht zu prüfen, etwa eine Sprachnachricht, lieber
+  gezielt im Verlauf danach suchen: `venv/bin/python3 skyrelay-testlauf.py
+  --type audio` (immer ein Trockenlauf).
 
 ---
 
@@ -240,10 +242,10 @@ ins Repository.
 | Symptom | Ursache / Abhilfe |
 |---|---|
 | `Wire format was corrupt` | Ein Fehler in neonize 0.4.0/0.4.1 (NUL-Bytes abgeschnitten, [#199](https://github.com/krypton-byte/neonize/issues/199)) — upstream in **0.4.2** behoben (PR #198). |
-| `Client outdated (405) connect failure` | WhatsApp nimmt die Client-Version des mitgelieferten whatsmeow nicht mehr an (0.4.3.post0 seit 07.11.2026). Die Sitzung **nicht** löschen — es braucht ein neueres neonize: die Version in `requirements.txt` anheben, dann `./update.sh`. Wir fahren `0.5.2`. |
-| `panic: required field neonize.NewsletterMessage.Message not set` | Ein Go-Absturz, wenn der Nachrichtenabruf eine unsichtbare **Meta-Nachricht** erwischt (ein bearbeiteter oder gelöschter Beitrag). Betrifft nur **Wiederholen und Nachholen** (kleineres `N` wählen); der Live-Betrieb lauscht seit 13.07.2026 auf Ereignisse und ist immun. |
-| `VersionError: gencode … runtime …` | protobuf zu alt → `pip install -U protobuf` (**niemals** herunterstufen). |
-| Ärger nach einem Wechsel der neonize-Fassung | `skyrelay_session.sqlite3` löschen und neu koppeln (Datenbankschema). |
+| `Client outdated (405) connect failure` | WhatsApp nimmt die Client-Version des mitgelieferten whatsmeow nicht mehr an (0.4.3.post0 seit 07.11.2026). Die Sitzung **nicht** löschen — es braucht ein neueres neonize: die Version in `requirements.txt` anheben, dann `./update.sh`. Wir fahren `0.12.4`. |
+| `panic: required field neonize.NewsletterMessage.Message not set` | Nur mit neonize bis 0.4.3: ein Go-Absturz, wenn der Nachrichtenabruf eine unsichtbare **Meta-Nachricht** erwischt. Seit 0.5.2 behoben — `./update.sh` ausführen. |
+| `VersionError: gencode … runtime …` | protobuf zu alt → `pip install -U protobuf` (**niemals** herunterstufen). neonize 0.12.4 braucht mindestens 7.36.0. |
+| Ärger nach einem Wechsel der neonize-Fassung | Die gesicherte `skyrelay_session.sqlite3` zurückspielen; hilft das nicht, löschen und neu koppeln (Datenbankschema). |
 | Hänger oder Fehler direkt nach der ersten Kopplung | Normal (der Server erzwingt eine neue Verbindung); das Programm wartet und versucht es selbst erneut. Einfach neu starten, falls es doch aufgibt. |
 | `⚠️ No DFL code on file for "XY"` im Protokoll | Ein Pokalgegner oder sonst unbekannt → das richtige Kürzel unter `[team_codes]` nachtragen. |
 | cron: `/bin/sh: 1: …/bin/python3: not found` | Ein Tippfehler im Pfad (meist die Groß- und Kleinschreibung). Gemeint ist der **Interpreter**, nicht Python. Prüfen mit `ls -l <Pfad>`. |

@@ -578,7 +578,8 @@ erst geprüft (siehe [UPGRADE-TEST.md](UPGRADE-TEST.md)).
 Bei neonize zählt dabei nicht die Versionsnummer, sondern die mitgelieferte
 **whatsmeow**: Sie bestimmt, als welche Client-Version WhatsApp den Ticker sieht.
 neonize 0.6.1 bis 0.10.0 bringen zum Beispiel genau die whatsmeow von 0.5.2 mit
-(21.09.2026), ein Wechsel hilft gegen eine Abweisung also nicht. Der Wächter lädt
+(21.09.2026), 0.11.0 bis 0.12.4 alle die vom 16.11.2026. Ein Wechsel innerhalb
+einer solchen Gruppe hilft gegen eine Abweisung also nicht. Der Wächter lädt
 deshalb jede neue neonize-Fassung einmal herunter (rund 20 MB), liest die
 whatsmeow-Fassung aus und meldet nur eine, die wirklich Neueres mitbringt.
 `--status` zeigt den Vergleich.
@@ -674,39 +675,29 @@ Anmeldungen des Bot-Kontos.
 | `skyrelay-testlauf.py` | spielt echte Kanal-Nachrichten durch die Ticker-Pipeline, ohne zu veröffentlichen |
 | `CHEATSHEET-matchday.de.md` | alle Umgebungsvariablen, Betriebsarten, Dateien, Fehlerbehebung (englisch: `CHEATSHEET-matchday.md`) |
 | `CHANGELOG.de.md` | was sich geändert hat, das Neueste oben (englisch: `CHANGELOG.md`) |
-| `ISSUE-DRAFT-neonize-newsletter-panic.md` | vorbereiteter Fehlerbericht an **neonize**: Absturz beim Verlaufsabruf |
-| `ISSUE-DRAFT-whatsmeow-newsletter-audio-hmac.md` | vorbereiteter Fehlerbericht an **whatsmeow**: Sprachnachrichten nicht ladbar |
+| `UPGRADE-TEST.md` | was vor dem Wechsel auf eine neue neonize zu prüfen ist, und wie der letzte Wechsel lief |
 
 ## Bekannte Einschränkungen
 
-* **`neonize` ist auf `0.5.2` festgelegt.** `0.4.3.post0` (am 08.08.2026
-  vollständig geprüft, siehe [UPGRADE-TEST.md](UPGRADE-TEST.md)) weist WhatsApp
-  seit dem 07.11.2026 mit `Client outdated (405)` ab: neonize bringt whatsmeow
-  mit und damit die Client-Version, mit der es sich anmeldet. 0.5.2 enthält
-  whatsmeow vom 21.09.; die Schnittstellen, die der Ticker nutzt, sind
-  unverändert. Vor einem Wechsel die Sitzungsdatei sichern — das Datenbankschema
-  ändert sich.
+* **`neonize` ist auf `0.12.4` festgelegt.** neonize bringt whatsmeow mit und
+  damit die Client-Version, mit der es sich bei WhatsApp anmeldet. Alte
+  Client-Versionen weist WhatsApp nach einigen Monaten mit
+  `Client outdated (405)` ab, so geschehen mit `0.4.3.post0` am 07.11.2026.
+  0.12.4 enthält whatsmeow vom 16.11.2026; die Schnittstellen, die der Ticker
+  nutzt, sind dieselben wie in 0.5.2. Vor einem Wechsel die Sitzungsdatei
+  sichern — das Datenbankschema ändert sich (siehe
+  [UPGRADE-TEST.md](UPGRADE-TEST.md)).
 * **Strg+C kann gelegentlich vom Go-Anteil abgefangen werden** (ab 0.4.x): Dann
   endet das Programm mit `Quit`, ohne aufzuräumen, und die Profil-Statuszeile
   bleibt auf „Bot ist an" stehen. Beobachtet wurde das einmal; im Regelfall läuft
   das Aufräumen normal. Zurücksetzen notfalls mit `SKYRELAY_PROFILE=off`. Im
   cron-Betrieb ohne Bedeutung — dort endet der Ticker regulär zum Tagesende.
-* **Absturz bei inhaltslosen Kanalbeiträgen:** Löscht der Kanal einen Beitrag, bleibt
-  eine leere Nachricht zurück, an der der zugrundeliegende Go-Programmteil abstürzt.
-  Betrifft **nur** die Nachhol-Betriebsarten, nicht den Dauerbetrieb — dieser lauscht
-  auf Ereignisse und ist davon nicht betroffen.
-  Wie sehr dich das trifft, hängt vom Kanal ab: Liegt so eine Nachricht weit
-  hinten, genügt ein kleinerer Wert. Liegt sie **direkt hinter dem neuesten
-  Beitrag**, ist `SKYRELAY_REPLAY` unbrauchbar — dann stürzt schon der Abruf von
-  zwei Nachrichten ab und nur `1` läuft durch. (Im hier gespiegelten Kanal war
-  das am 19.08.2026 der Fall.) Zum Prüfen an echtem Material dient dann
-  `skyrelay-testlauf.py`; es blättert mit einem ausdrücklichen Startpunkt
-  rückwärts an der kaputten Stelle vorbei:
-
-  ```
-  venv/bin/python3 skyrelay-testlauf.py --latest
-  venv/bin/python3 skyrelay-testlauf.py --before <ServerID> --type audio,sticker
-  ```
+* **Wiederholen und Nachholen können weniger Beiträge liefern als verlangt.**
+  Bearbeitet oder löscht der Kanal einen Beitrag, bleibt eine unsichtbare
+  Nachricht ohne Inhalt unter einer eigenen ServerID zurück.
+  `SKYRELAY_REPLAY=5` holt die letzten fünf ServerIDs, überspringt solche leeren
+  und spielt deshalb womöglich weniger als fünf Beiträge durch. (Bis neonize
+  0.4.3 brachte so eine Nachricht das Programm zum Absturz.)
 * **`instaloader` ist auf 4.16 festgelegt.** Instagram ändert immer wieder,
   wie Profile und Beiträge abgefragt werden, und nur wenige Versionen passen
   jeweils. Seit Anfang Oktober 2026 beantwortet Instagram die Abfrage älterer
@@ -715,13 +706,6 @@ Anmeldungen des Bot-Kontos.
   4.16 stellt dieselbe Abfrage wie die Instagram-Website. Vor einem Wechsel mit
   `SKYRELAY_DRY_RUN=1` prüfen, ob die neue Version die Beiträge noch findet.
 * **Umfragen** werden übersprungen: Bluesky kennt dieses Format nicht.
-* **Sprachnachrichten brauchen einen Umweg beim Download.** Kanalmedien liegen
-  unverschlüsselt hinter `directPath` — Bilder und Videos bringen deshalb gar
-  keinen `mediaKey` mit. Sprachnachrichten schleppen einen mit, woraufhin
-  whatsmeow zu entschlüsseln versucht und mit `invalid media hmac` scheitert.
-  SkyRelay lädt bei genau diesem Fehler ein zweites Mal ohne den Schlüssel.
-  Nachgemessen am 19.08.2026: regulär lud **keine** von 5 Sprachnachrichten,
-  ohne Schlüssel **alle fünf** byte-genau.
 * **Animierte Sticker** verlieren ihre Bewegung — übertragen wird das erste
   Einzelbild, weil Bluesky keine Animationen abspielt.
 * **Sprachnachrichten** erscheinen als Video und haben damit keine sinnvolle
