@@ -45,14 +45,16 @@ TARGET = os.environ.get("SKYRELAY_CONFIG") or os.path.join(BASE_DIR, "skyrelay.c
 # The leagues asked for most often come first - everything else through
 # "search for another league".
 # (leagueShortcut, season start year, label)
+# N_ and not _: this list is built at import, before the language is set.
+# The labels are translated where they are shown.
 SUGGESTED_LEAGUES = [
-    ("bl1", "2026", _("Fußball · 1. Bundesliga")),
-    ("bl2", "2026", _("Fußball · 2. Bundesliga")),
-    ("bl3", "2026", _("Fußball · 3. Liga")),
-    ("dfb", "2026", _("Fußball · DFB-Pokal")),
-    ("fbl1", "2025", _("Frauenfußball · 1. Bundesliga")),
-    ("del", "2026", "Eishockey · DEL"),
-    ("del2", "2026", "Eishockey · DEL2"),
+    ("bl1", "2026", N_("Fußball · 1. Bundesliga")),
+    ("bl2", "2026", N_("Fußball · 2. Bundesliga")),
+    ("bl3", "2026", N_("Fußball · 3. Liga")),
+    ("dfb", "2026", N_("Fußball · DFB-Pokal")),
+    ("fbl1", "2025", N_("Frauenfußball · 1. Bundesliga")),
+    ("del", "2026", N_("Eishockey · DEL")),
+    ("del2", "2026", N_("Eishockey · DEL2")),
 ]
 
 # The codes in common use per OpenLigaDB team number, as they appear in
@@ -170,7 +172,7 @@ def ask(text, default="", required=False, validator=None):
 
 
 def confirm(text, default=True):
-    hint = "J/n" if default else "j/N"
+    hint = _("J/n") if default else _("j/N")
     while True:
         try:
             entry = input(f"  {text} [{hint}]: ").strip().lower()
@@ -186,8 +188,8 @@ def confirm(text, default=True):
 
 def choose(entries, text, default_index=None):
     """Shows a numbered list and returns the entry that was picked."""
-    # Nicht "_" als Wegwerfname: das ist die Uebersetzungsfunktion, und
-    # hier drin waere sie damit ueberschrieben.
+    # Not "_" as a throwaway name: that is the translation function, and it
+    # would be overwritten in here.
     for number, (_schluessel, label) in enumerate(entries, 1):
         marker = " ←" if default_index == number - 1 else ""
         print(f"    {number:2}) {label}{marker}")
@@ -332,11 +334,11 @@ def set_league_hashtags(lines, table):
         # configuration, not something the interface says.
         lines[where:where] = [
             "[league_hashtags]\n",
-            "# Ein eigener Dauer-Hashtag je Liga - für Vereine, die ihre\n",
-            "# Mannschaften unterschiedlich kennzeichnen (#arminia für die\n",
-            "# Männer, #arminiafrauen für die Frauen).\n",
-            "# Format:  <Ligakürzel> = <Hashtag ohne #>\n",
-            "# Ohne passenden Eintrag gilt [post] standing_hashtag.\n",
+            "# Ein eigener Dauer-Hashtag je Liga - für Vereine, die ihre\n",  # lang: de
+            "# Mannschaften unterschiedlich kennzeichnen (#arminia für die\n",  # lang: de
+            "# Männer, #arminiafrauen für die Frauen).\n",  # lang: de
+            "# Format:  <Ligakürzel> = <Hashtag ohne #>\n",  # lang: de
+            "# Ohne passenden Eintrag gilt [post] standing_hashtag.\n",  # lang: de
         ] + entries + ["\n"]
         return True
 
@@ -389,7 +391,7 @@ def fetch_current_leagues():
 def check_channel_link(value):
     if "whatsapp.com/channel/" not in value:
         return _("Das sieht nicht nach einem Kanal-Link aus (erwartet: https://whatsapp.com/channel/…).")
-    if "HIER-DEN" in value:
+    if "HIER-DEN" in value:  # lang: de (template placeholder)
         return _("Das ist noch der Platzhalter.")
     return None
 
@@ -427,7 +429,7 @@ def test_bluesky(handle, password_variable="BLUESKY_APP_PASSWORD"):
 
 # ------------------------------------------------------------------- flow
 def main():
-    print("\n\033[1mSkyRelay - Einrichtung\033[0m")
+    print(_("\n\033[1mSkyRelay - Einrichtung\033[0m"))
     print(_("Mit [Enter] wird jeweils der Wert in eckigen Klammern übernommen."))
     print(_("Abbruch jederzeit mit Strg+C - dann wird nichts geschrieben."))
 
@@ -468,7 +470,7 @@ def main():
     ticker_handle = feed_handle = ""
 
     if does_matchday:
-        program_banner(parts, "SPIELTAGS-TICKER",
+        program_banner(parts, _("SPIELTAGS-TICKER"),
                        _("WhatsApp-Kanal  ──►  Bluesky"), _("läuft nur an Spieltagen"))
 
     # ------------------------------------------------------ what it is for
@@ -502,31 +504,32 @@ def main():
         heading(_("Bluesky-Konto FÜR DEN TICKER"))
         note(_("Auf dieses Konto werden die Beiträge aus dem WhatsApp-Kanal"))
         note(_("veröffentlicht - ohne führendes @."))
-        ticker_handle = ask("Handle", current_value("bluesky", "handle") or "mein-ticker.bsky.social",
+        ticker_handle = ask(_("Handle"), current_value("bluesky", "handle")
+                            or _("mein-ticker.bsky.social"),
                             required=True, validator=check_handle)
         set_value(lines, "bluesky", "handle", ticker_handle)
 
         heading(_("WhatsApp-Kanal (Quelle des Tickers)"))
         note(_("Im Handy: Kanal öffnen → Kanalnamen antippen → Teilen → Link kopieren."))
-        link = ask("Einladungslink", current_value("source", "channel_invite_link"),
+        link = ask(_("Einladungslink"), current_value("source", "channel_invite_link"),
                    required=True, validator=check_channel_link)
         set_value(lines, "source", "channel_invite_link", link)
 
         league = season = None
-        choice = "ohne"
+        choice = "none"
         if purpose == "sport_plan":
             heading(_("Liga und Verein"))
             note(_("Daraus erkennt der Ticker, an welchen Tagen er überhaupt laufen muss,"))
             note(_("und bildet den Spiel-Hashtag. Grundlage ist OpenLigaDB."))
             choice = choose(
-                [(k, b) for k, _, b in SUGGESTED_LEAGUES]
-                + [("suchen", _("andere Liga aus OpenLigaDB wählen …")),
-                   ("ohne", _("doch kein Spielplan – Ticker läuft an jedem Starttag"))],
+                [(k, _(label)) for k, _season, label in SUGGESTED_LEAGUES]
+                + [("search", _("andere Liga aus OpenLigaDB wählen …")),
+                   ("none", _("doch kein Spielplan – Ticker läuft an jedem Starttag"))],
                 _("Liga"), 1,
             )
 
-        if choice == "ohne":
-            heading("Ohne Spielplan")
+        if choice == "none":
+            heading(_("Ohne Spielplan"))
             note(_("Es findet keine automatische Prüfung statt, ob heute etwas ansteht:"))
             note(_("Der Ticker läuft an jedem Tag, an dem er gestartet wird."))
             note(_f("Ein wechselnder {event}-Hashtag lässt sich beim Start über",
@@ -535,11 +538,11 @@ def main():
             note(_("einrichten, an denen etwas läuft - oder von Hand starten."))
             set_value(lines, "team", "openligadb_filter", "")
             set_value(lines, "team", "openligadb_team_id", "0")
-        elif choice == "suchen":
+        elif choice == "search":
             try:
                 leagues = fetch_current_leagues()
             except Exception as error:
-                print(f"  ✗ Abruf fehlgeschlagen: {error}")
+                print(_f("  ✗ Abruf fehlgeschlagen: {error}", error=error))
                 leagues = []
             if leagues:
                 note(_f("{n} Ligen mit laufender Saison:", n=len(leagues)))
@@ -555,7 +558,7 @@ def main():
                 season = ask(_("Saison (Startjahr)"), "2026", required=True)
         else:
             league = choice
-            season = next(s for k, s, _ in SUGGESTED_LEAGUES if k == choice)
+            season = next(s for k, s, _label in SUGGESTED_LEAGUES if k == choice)
             season = ask(_("Saison (Startjahr)"), season, required=True)
 
         teams = []
@@ -563,10 +566,11 @@ def main():
             try:
                 teams = fetch_teams(league, season)
             except Exception as error:
-                print(f"  ✗ Abruf fehlgeschlagen: {error}")
+                print(_f("  ✗ Abruf fehlgeschlagen: {error}", error=error))
 
         if teams:
-            print(f"\n  {len(teams)} Mannschaften in {league}/{season}:")
+            print(_f("\n  {n} Mannschaften in {league}/{season}:",
+                     n=len(teams), league=league, season=season))
             by_name = sorted(teams, key=lambda t: t.get("shortName") or "")
             old_id = current_value("team", "openligadb_team_id")
             default = next((i for i, t in enumerate(by_name) if str(t["teamId"]) == old_id), None)
@@ -626,10 +630,10 @@ def main():
             set_team_codes(lines, codes)
 
         heading(_("Beiträge des Tickers"))
-        note("Es gibt zwei Sorten Hashtags:")
+        note(_("Es gibt zwei Sorten Hashtags:"))
         note(_("  · Dauer-Hashtag - steht unter JEDEM Beitrag (z.B. der Vereinsname)"))
         note(_f("  · {event}-Hashtag - wechselt je Termin", event=W["event"])
-             + (_(" und wird aus dem Spielplan gebildet") if choice != "ohne"
+             + (_(" und wird aus dem Spielplan gebildet") if choice != "none"
                    else _(", kommt aus SKYRELAY_HASHTAG")))
         mark = ask(_("Dauer-Hashtag (ohne #, leer = keiner)"),
                    current_value("post", "standing_hashtag"))
@@ -637,7 +641,7 @@ def main():
         note(_("Mehrere Mannschaften mit eigenen Hashtags? Später im Menü "
                "unter „Beiträge und Profil“ → „Hashtag je Liga“."))
         set_value(lines, "post", "prefix", current_value("post", "prefix") or W["prefix"])
-        label = ask("Beschriftung des Quell-Links",
+        label = ask(_("Beschriftung des Quell-Links"),
                     current_value("post", "source_label") or W["source"])
         set_value(lines, "post", "source_label", label)
 
@@ -647,10 +651,12 @@ def main():
                 handle=ticker_handle))
         note(_("ob der Bot gerade läuft - beim Beenden wird sie zurückgestellt."))
         was_on = current_value("profile", "enabled")
-        if confirm("Statuszeile verwenden?", was_on.lower() != "false" if was_on else True):
+        if confirm(_("Statuszeile verwenden?"), was_on.lower() != "false" if was_on else True):
             set_value(lines, "profile", "enabled", "true")
-            note("Platzhalter: {hashtag}" + (", {info} (z.B. '1. Spieltag'), {date}, {time}"
-                                             if choice != "ohne" else ""))
+            # The braces are shown as they are, so _() and not _f().
+            note(_("Platzhalter: {hashtag}")
+                 + (_(", {info} (z.B. '1. Spieltag'), {date}, {time}")
+                    if choice != "none" else ""))
             line_on = ask(_("Text während des Betriebs"),
                           current_value("profile", "line_on") or W["line_on"], required=True)
             line_off = ask(_("Text nach dem Beenden"),
@@ -669,12 +675,12 @@ def main():
         heading(_("Zeitfenster"))
         note(_("Bis zu dieser Uhrzeit lauscht der Ticker, danach beendet er sich selbst."))
         set_value(lines, "schedule", "day_end",
-                  ask("Betriebsende (HH:MM)", current_value("schedule", "day_end") or "23:59",
+                  ask(_("Betriebsende (HH:MM)"), current_value("schedule", "day_end") or "23:59",
                        required=True))
 
     # ------------------------------------------------------------- feed
     if does_feed:
-        program_banner(_("2 von 2: ") if picked_programs == "both" else "", "INSTAGRAM-SPIEGELUNG",
+        program_banner(_("2 von 2: ") if picked_programs == "both" else "", _("INSTAGRAM-SPIEGELUNG"),
                        "Instagram  ──►  Bluesky", _("läuft im Dauerbetrieb"))
 
         heading(_("Instagram-Profil (Quelle des Feeds)"))
@@ -684,7 +690,8 @@ def main():
 
         note(_("Zweitkonto für den Abruf - NICHT das gespiegelte Profil."))
         note(_("Sitzung anlegen mit: venv/bin/instaloader -l <name>"))
-        secondary_account = ask("Instagram-Zweitkonto", current_value("feed", "instagram_session_user"),
+        secondary_account = ask(_("Instagram-Zweitkonto"),
+                                current_value("feed", "instagram_session_user"),
                                 required=True)
         set_value(lines, "feed", "instagram_session_user", secondary_account)
 
@@ -699,8 +706,9 @@ def main():
             own = True
         if own:
             note(_("Auf dieses Konto werden die Instagram-Beiträge veröffentlicht."))
-            feed_handle = ask("Handle", own_account or current_value("bluesky", "handle")
-                              or "mein-feed.bsky.social", required=True, validator=check_handle)
+            feed_handle = ask(_("Handle"), own_account or current_value("bluesky", "handle")
+                              or _("mein-feed.bsky.social"), required=True,
+                              validator=check_handle)
             if does_matchday:
                 set_value(lines, "feed", "bluesky_handle", feed_handle)
                 note(_("Dessen App-Passwort gehört in SKYRELAY_FEED_APP_PASSWORD,"))
@@ -714,7 +722,7 @@ def main():
             set_value(lines, "feed", "bluesky_handle", "")
 
     # ---------------------------------------------------------- summary
-    heading("Zusammenfassung")
+    heading(_("Zusammenfassung"))
     note(_("Bitte prüfen, ob Quellen und Konten richtig zugeordnet sind:"))
     if does_matchday:
         print(_f("  Spieltags-Ticker:  WhatsApp-Kanal  ──►  @{handle}",
@@ -731,7 +739,7 @@ def main():
 
     # ---------------------------------------------------------- writing
     heading(_("Speichern"))
-    print(f"  Ziel: {TARGET}")
+    print(_f("  Ziel: {path}", path=TARGET))
     if os.path.exists(TARGET):
         if not confirm(_("Vorhandene Konfiguration überschreiben? (Sicherung wird angelegt)"), True):
             print(_("\nAbgebrochen - es wurde nichts geändert."))
@@ -740,13 +748,13 @@ def main():
         try:
             with open(backup, "w", encoding="utf-8") as handle:
                 handle.writelines(old_lines)
-            print(f"  ✓ Sicherung: {os.path.basename(backup)}")
+            print(_f("  ✓ Sicherung: {file}", file=os.path.basename(backup)))
         except Exception as error:
-            print(f"  ⚠️ Sicherung fehlgeschlagen: {error}")
+            print(_f("  ⚠️ Sicherung fehlgeschlagen: {error}", error=error))
 
     with open(TARGET, "w", encoding="utf-8") as handle:
         handle.writelines(lines)
-    print(f"  ✓ Geschrieben: {os.path.basename(TARGET)}")
+    print(_f("  ✓ Geschrieben: {file}", file=os.path.basename(TARGET)))
 
     # Check each account with the password variable that applies in operation.
     if does_matchday:
@@ -759,12 +767,12 @@ def main():
 
     print(_("\n\033[1mFertig.\033[0m Nächste Schritte:\n"))
     if does_matchday:
-        print(f"  SPIELTAGS-TICKER (postet auf @{ticker_handle})")
+        print(_f("  SPIELTAGS-TICKER (postet auf @{handle})", handle=ticker_handle))
         print(_("    Erste WhatsApp-Kopplung, interaktiv im Terminal:"))
         print("      SKYRELAY_FORCE=1 SKYRELAY_DRY_RUN=1 venv/bin/python skyrelay-matchday.py")
     if does_feed:
-        print(f"\n  INSTAGRAM-FEED (postet auf @{feed_handle})")
-        print("    Instagram-Sitzung einmalig anlegen:")
+        print(_f("\n  INSTAGRAM-FEED (postet auf @{handle})", handle=feed_handle))
+        print(_("    Instagram-Sitzung einmalig anlegen:"))
         print(f"      venv/bin/instaloader -l {secondary_account}")
     print(_("\n  Danach den Dauerbetrieb per cron einrichten - siehe README.md.\n"))
 
@@ -775,9 +783,9 @@ def main():
 
 
 # German labels for the layout matrix - interface, so German until #14.
-# N_ statt _: Der Text steht hier, uebersetzt wird beim Benutzen. Mit _() an
-# dieser Stelle staende die Sprache schon beim Import fest - also bevor die
-# Konfiguration ueberhaupt gelesen wurde.
+# N_ instead of _: the text stands here, it is translated where it is used.
+# With _() here the language would be fixed at import already - before the
+# configuration has even been read.
 BLOCK_LABELS = {
     "prefix": N_("Kopfzeile"),
     "source": N_("Quelle"),
@@ -936,8 +944,8 @@ def add_missing_without_menu():
     return 0
 
 
-# Sprachnamen in der jeweiligen Sprache - so findet sich auch jemand zurecht,
-# der die gerade eingestellte nicht versteht.
+# Each language named in itself - so that someone who does not understand the
+# one set right now still finds their way.
 LANGUAGE_NAMES = {"de": "Deutsch", "en": "English"}
 
 
@@ -965,10 +973,6 @@ if __name__ == "__main__":
         # SKYRELAY_SETUP_TEXT=1 forces the line by line questions - for a
         # connection where a full screen application is more trouble than it
         # is worth, and for anyone who prefers being asked.
-        # Das Fenster, wenn Textual da ist und ein Terminal daranhängt.
-        # SKYRELAY_SETUP_TEXT=1 erzwingt die zeilenweise Abfrage - für eine
-        # Verbindung, auf der ein Vollbild mehr stört als hilft, und für
-        # jeden, der lieber gefragt wird.
         fenster = False
         if (sys.stdin.isatty()
                 and os.environ.get("SKYRELAY_SETUP_TEXT") != "1"):
@@ -976,9 +980,9 @@ if __name__ == "__main__":
                 import textual  # noqa: F401
                 fenster = True
             except ImportError:
-                print("Hinweis: Das Paket 'textual' fehlt - die Einrichtung "
-                      "läuft zeilenweise.\n"
-                      "Nachinstallieren mit:  venv/bin/pip install textual\n",
+                print(_("Hinweis: Das Paket 'textual' fehlt - die Einrichtung "
+                        "läuft zeilenweise.\n"
+                        "Nachinstallieren mit:  venv/bin/pip install textual\n"),
                       file=sys.stderr)
 
         if fenster:
