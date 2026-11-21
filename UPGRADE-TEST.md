@@ -1,9 +1,13 @@
 # Erprobung: neonize 0.5.2 → 0.12.4
 
-Der Wechsel wird **vor dem Merge** auf dem Pi geprüft, über den Branch
-`develop`: `beta` (also `main` plus der instaloader-Fix, auf dem der Pi läuft)
-plus dieser Wechsel. `main` und `beta` bleiben bis dahin auf 0.5.2.
-`develop` gibt es nur für diesen Test und wird danach gelöscht.
+Der Wechsel wurde **vor dem Merge** auf dem Pi geprüft, über den Branch
+`develop`: damals `beta` (also `main` plus der instaloader-Fix, auf dem der Pi
+läuft) plus dieser Wechsel. `main` und `beta` blieben bis dahin auf 0.5.2.
+
+Seitdem ist `develop` der ständige Entwicklungszweig, und `beta` baut auf ihm
+auf (siehe [CONTRIBUTING.md](CONTRIBUTING.md#branches)). Ein künftiger Wechsel
+kommt über einen Pull Request nach `develop`, wird nach `beta` gemergt und auf
+dem Pi erprobt, ohne dass der Pi den Branch wechseln muss.
 
 ## Warum überhaupt umsteigen?
 
@@ -110,7 +114,8 @@ Laufen alle Punkte durch:
    cd ~/SkyRelay && git fetch && git checkout beta && git pull && ./update.sh
    ```
 
-4. `develop` löschen.
+4. ~~`develop` löschen.~~ Entfallen: `develop` ist seitdem der
+   Entwicklungszweig.
 
 ## Rückweg
 
