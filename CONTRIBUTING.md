@@ -98,11 +98,21 @@ und die Oberfläche bleibt an dieser Stelle deutsch.
 * Kommentare erklären das **Warum**, nicht das Was — besonders bei den
   Eigenheiten von WhatsApp und Bluesky, von denen es reichlich gibt.
 * Gemeinsam genutzte Funktionen gehören nach `skyrelay_common.py`.
-* Vor einem Pull Request bitte prüfen, dass beide Programme starten:
+* Vor einem Pull Request bitte prüfen, dass beide Programme starten, dass
+  jeder Aufruf zu seiner Funktion passt und dass nichts Deutsches an der
+  Übersetzung vorbeiläuft:
 
 ```bash
 venv/bin/python -m py_compile skyrelay-matchday.py skyrelay-feed.py skyrelay_common.py
+venv/bin/python tools/pruefe_aufrufe.py .
+venv/bin/python tools/check_language.py
 ```
+
+* `tools/check_language.py` meldet deutschen Text in Code, Kommentaren und
+  Protokoll, Bedientexte des Assistenten ohne `_()`, und `_()`, das schon beim
+  Import läuft (dort gehört `N_()` hin). Absichtlich Deutsches – Vorgaben für
+  Beiträge und Bio, Kommentare für die `skyrelay.conf` – bekommt am Zeilenende
+  `# lang: de`.
 
 * Änderungen am Ticker möglichst mit `SKYRELAY_DRY_RUN=1` testen, dann wird
   nichts veröffentlicht.
@@ -113,7 +123,7 @@ venv/bin/python -m py_compile skyrelay-matchday.py skyrelay-feed.py skyrelay_com
 |---|---|
 | `main` | der veröffentlichte Stand. Wer SkyRelay einsetzt, bleibt hier. Hierher kommt nur, was sich auf `develop` bewährt hat. |
 | `develop` | die Entwicklung. **Pull Requests gehen nach `develop`**, nicht nach `main`. |
-| `beta` | vorübergehend: `develop` plus der instaloader-Fix aus [instaloader#2795](https://github.com/instaloader/instaloader/pull/2795). Auf diesem Stand läuft der Pi, weil der Feed ohne den Fix nicht anmelden kann. |
+| `beta` | der Workaround-Zweig: `develop` plus Workarounds für Abhängigkeiten, deren Fix noch nicht veröffentlicht ist. Auf diesem Stand läuft der Pi. Derzeit ist es einer: instaloader aus [instaloader#2795](https://github.com/instaloader/instaloader/pull/2795), ohne den der Feed nicht anmelden kann (siehe `BETA.md` auf `beta`). |
 
 Der Weg einer Änderung:
 
@@ -122,10 +132,15 @@ Der Weg einer Änderung:
    erproben.
 3. Hat sich der Stand bewährt, `develop` per Pull Request nach `main`.
 
-`beta` wird nie zurück nach `develop` oder `main` gemergt: Der instaloader-Fix
-ist ein unveröffentlichter Stand und gehört nicht in `main`. Sobald instaloader
-eine neuere Fassung veröffentlicht, wird `beta` gelöscht, und der Pi läuft
-direkt auf `develop`.
+`beta` wird nie zurück nach `develop` oder `main` gemergt: Ein Workaround ist
+ein unveröffentlichter Stand und gehört nicht in `main`.
+
+* **Ein neuer Workaround** ist ein weiterer Commit auf `beta`, kein neuer
+  Branch, und bekommt einen Abschnitt in `BETA.md`.
+* **Hat die Abhängigkeit veröffentlicht,** hebt `develop` die Festlegung in
+  `requirements.txt` an, und der Workaround fliegt aus `beta` wieder heraus.
+* **Ist kein Workaround mehr übrig,** wird `beta` gelöscht, und der Pi läuft
+  direkt auf `develop`.
 
 ## Lizenz und Rechte an Beiträgen
 

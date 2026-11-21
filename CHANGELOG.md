@@ -17,6 +17,12 @@ requests on GitHub.
 - **`skyrelay-testlauf.py`** searches from the newest message by default; `--before` is no longer needed.
 - **The ticker's log is English throughout now**, like those of the feed and the heartbeat. About 45 lines were still German, such as `Würde posten`, `Video geladen`, `Kanal-Nachricht mit ServerID` or `Fehler beim Reposten`. Searching the log for them now finds `Would post`, `Video downloaded`, `Channel message with server ID` and `Reposting failed`. Posts and the bio's status line stay as configured.
 - **The raw preview in the log only for the unknown.** An image, video, sticker or voice message without a caption wrote the whole message into the log as bytes, checksums and `mediaKey` included. Now the preview comes only when a message has neither text nor a known kind of medium, a poll for instance.
+- **The setup assistant in English without German leftovers.** With `language = en`, a good 20 texts stayed German because they bypassed the translation: headings such as "Zusammenfassung" and "Ohne Spielplan", questions such as "Statuszeile verwenden?", messages such as `✗ Abruf fehlgeschlagen` and `✓ Geschrieben`, the closing overview, the example handles and `[J/n]` (now `[Y/n]`).
+- **The suggested leagues appear in the configured language.** The list was translated at import, before the language was set, and so always stayed German although the catalogue had the translations.
+
+### New
+
+- **`tools/check_language.py`** finds what bypasses the translation: German text in code, comments and logs (A), interface text of the assistant without `_()` (B), and `_()` that runs at import (C). Exit code 0 as long as nothing is found. Intentional German is marked with `# lang: de`. It reports 43 spots in the ticker as it was before [#44](https://github.com/Vijabei/SkyRelay/pull/44), and 79 in the assistant as it was before these changes. The tool is English, as all scripts are to be.
 
 ### Removed
 
@@ -27,7 +33,8 @@ requests on GitHub.
 
 - READMEs and cheat sheets: no more warning about the crash in replay and catch-up, the pin is now 0.12.4, and after a failed switch restore the backed-up session file first.
 - `UPGRADE-TEST.md` is now the checklist for this switch. The result of 8 August is kept in it.
-- **Branches** (`CONTRIBUTING.md`): `develop` is the development branch, and pull requests go there. `beta` is now `develop` plus the instaloader fix and is what the Pi runs; what has proved itself goes from `develop` to `main`.
+- **Branches** (`CONTRIBUTING.md`): `develop` is the development branch, and pull requests go there. `beta` is the workaround branch: `develop` plus workarounds for dependencies whose fix is not released yet, instaloader at the moment. The Pi runs it; what has proved itself goes from `develop` to `main`. A new workaround is one more commit on `beta`, not a new branch.
+- Comments and docstrings in the setup assistant are English.
 
 ### Notes on updating
 
