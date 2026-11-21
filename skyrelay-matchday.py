@@ -561,7 +561,7 @@ def load_watermark():
         if saved_date == date.today().isoformat():
             return int(server_id)
     except Exception as e:
-        log(f"⚠️ Konnte Wasserzeichen-Datei nicht lesen ({e}) - baseline neu.")
+        log(f"⚠️ Could not read the watermark file ({e}) - starting from a new baseline.")
     return None
 
 
@@ -582,7 +582,7 @@ def load_posts_map():
         if data.get("date") == date.today().isoformat():
             return data.get("posts", {})
     except Exception as e:
-        log(f"⚠️ Konnte Post-Zuordnung nicht lesen ({e}) - starte mit leerer Zuordnung.")
+        log(f"⚠️ Could not read the post map ({e}) - starting with an empty one.")
     return {}
 
 
@@ -720,7 +720,7 @@ def fetch_og_data(url):
             img_resp.raise_for_status()
             thumb_bytes = compress_image_for_bluesky(img_resp.content)
         except Exception as thumb_err:
-            log(f"   ⚠️ Vorschaubild nicht ladbar ({thumb_err}) - Karte ohne Bild.")
+            log(f"   ⚠️ The preview image could not be loaded ({thumb_err}) - card without an image.")
     return title, description, thumb_bytes
 
 
@@ -733,7 +733,7 @@ def build_external_embed(url):
         thumb_blob = None
         if thumb_bytes:
             thumb_blob = bsky_client.upload_blob(thumb_bytes).blob
-        log(f"   ✓ Link-Vorschau erzeugt: {title[:60]!r}")
+        log(f"   ✓ Link preview built: {title[:60]!r}")
         return models.AppBskyEmbedExternal.Main(
             external=models.AppBskyEmbedExternal.External(
                 uri=url,
@@ -743,7 +743,7 @@ def build_external_embed(url):
             )
         )
     except Exception as e:
-        log(f"   ⚠️ Link-Vorschau fehlgeschlagen ({e}) - poste ohne Karte.")
+        log(f"   ⚠️ The link preview failed ({e}) - posting without a card.")
         return None
 
 
@@ -831,11 +831,11 @@ def set_profile_status(on):
         # Empty placeholders would otherwise leave double spaces behind.
         line = " ".join(line.split())
     except Exception as e:
-        log(f"⚠️ Konnte Profil-Statuszeile nicht bauen: {e}")
+        log(f"⚠️ Could not build the profile status line: {e}")
         return
 
     if DRY_RUN:
-        log(f"   [DRY_RUN] Würde Profil-Statuszeile setzen: {line!r}")
+        log(f"   [DRY_RUN] Would set the profile status line: {line!r}")
         profile_status_on = on
         return
 
@@ -865,9 +865,9 @@ def set_profile_status(on):
             )
         )
         profile_status_on = on
-        log(f"✓ Profil-Statuszeile gesetzt: {line}")
+        log(f"✓ Profile status line set: {line}")
     except Exception as e:
-        log(f"⚠️ Profil-Statuszeile konnte nicht aktualisiert werden: {e}")
+        log(f"⚠️ The profile status line could not be updated: {e}")
 
 
 # --- Video-Upload: portiert aus skyrelay-feed.py ---------------------------
@@ -914,9 +914,9 @@ def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None,
     if DRY_RUN:
         card = (f", link card for {card_url_match.group(0)}"
                 if card_url_match else "")
-        video = f", 1 Video ({len(video_bytes)} Bytes)" if video_bytes else ""
-        log(f"   [DRY_RUN] Würde posten ({len(text_chunks)} Beitrag/Beiträge, "
-            f"{len(image_blobs)} Bild(er){video}{card}):")
+        video = f", 1 video ({len(video_bytes)} bytes)" if video_bytes else ""
+        log(f"   [DRY_RUN] Would post ({len(text_chunks)} post(s), "
+            f"{len(image_blobs)} image(s){video}{card}):")
         show_preview([build_post_text(chunk, i, len(text_chunks), match_hashtag)
                         for i, chunk in enumerate(text_chunks)])
         return []
@@ -934,7 +934,7 @@ def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None,
                                                   MAX_VIDEO_BYTES,
                                                   VIDEO_JOB_TIMEOUT_SECONDS)
         except Exception as video_err:
-            log(f"   ⚠️ Video-Upload fehlgeschlagen: {video_err}")
+            log(f"   ⚠️ The video upload failed: {video_err}")
             # The post goes out with the thumbnail right away - on a live
             # ticker, time is what counts. The video stays behind and is
             # handed in later.
@@ -944,7 +944,7 @@ def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None,
                     image_blobs = [compress_image_for_bluesky(video_thumb)]
                     log("   Using the video thumbnail as a fallback.")
                 except Exception as thumb_err:
-                    log(f"   ⚠️ Auch Vorschaubild-Fallback fehlgeschlagen: {thumb_err}")
+                    log(f"   ⚠️ The thumbnail fallback failed as well: {thumb_err}")
 
     # A link preview card only when no other media are present (one post = one embed).
     external_embed = None
@@ -1006,7 +1006,11 @@ def post_to_bluesky(text, image_blobs, video_bytes=None, video_thumb=None,
     return created_uris
 
 
-# 4. Kanal-Nachricht verarbeiten
+# 4. Processing a channel message
+# The kinds of media the ticker carries over (polls and the like are skipped).
+MEDIA_KINDS = ("imageMessage", "videoMessage", "audioMessage", "stickerMessage")
+
+
 async def download_channel_media(client, msg):
     """Downloads the media file of a channel message.
 
@@ -1035,9 +1039,12 @@ async def process_newsletter_message(client, raw_msg, server_id):
         log("   [DEBUG] the message is completely empty "
             "(probably a deleted post or a reaction update) - skipped.")
         return []
-    if not text:
+    if not text and not any(msg.HasField(kind) for kind in MEDIA_KINDS):
+        # Neither text nor a medium the ticker knows: a poll, say, or a kind of
+        # message WhatsApp has newly introduced. Only here does the raw form
+        # help; for a picture without a caption it is just checksums and keys.
         preview = str(msg)[:300].replace("\n", " | ")
-        log(f"   [DEBUG] Kein Text extrahierbar, Roh-Vorschau: {preview}")
+        log(f"   [DEBUG] No text and no known medium, raw preview: {preview}")
 
     image_blobs = []
     video_bytes = None
@@ -1050,16 +1057,16 @@ async def process_newsletter_message(client, raw_msg, server_id):
         except Exception as dl_err:
             # Channel media partly run through different endpoints than
             # ordinary chats - if the download fails, only the text is posted.
-            log(f"   ⚠️ Bild-Download fehlgeschlagen ({dl_err}) - poste nur Text.")
+            log(f"   ⚠️ The image download failed ({dl_err}) - posting the text only.")
     elif msg.HasField("videoMessage"):
         video_thumb = msg.videoMessage.JPEGThumbnail or None
         try:
             log("   Downloading the video from the channel...")
             video_bytes = await download_channel_media(client, msg)
-            log(f"   ✓ Video geladen ({len(video_bytes)} Bytes).")
+            log(f"   ✓ Video downloaded ({len(video_bytes)} bytes).")
         except Exception as dl_err:
-            log(f"   ⚠️ Video-Download fehlgeschlagen ({dl_err}) - poste Text"
-                f"{' + Vorschaubild' if video_thumb else ''}.")
+            log(f"   ⚠️ The video download failed ({dl_err}) - posting the text"
+                f"{' and the thumbnail' if video_thumb else ''}.")
             if video_thumb:
                 try:
                     image_blobs.append(compress_image_for_bluesky(video_thumb))
@@ -1075,14 +1082,14 @@ async def process_newsletter_message(client, raw_msg, server_id):
         try:
             log("   Downloading the voice message from the channel...")
             audio = await download_channel_media(client, msg)
-            log(f"   ✓ Sprachnachricht geladen ({len(audio)} Bytes, {seconds}s).")
+            log(f"   ✓ Voice message downloaded ({len(audio)} bytes, {seconds}s).")
             log("   Building the video with a waveform...")
             video_bytes = audio_to_video(audio, AUDIO_SIZE, AUDIO_WAVE_COLOR,
                                          AUDIO_BG_COLOR, AUDIO_FRAMERATE)
             video_thumb = video_still(video_bytes)
-            log(f"   ✓ Video erzeugt ({len(video_bytes)} Bytes).")
+            log(f"   ✓ Video built ({len(video_bytes)} bytes).")
         except Exception as audio_err:
-            log(f"   ⚠️ Sprachnachricht nicht übertragbar: {audio_err}")
+            log(f"   ⚠️ The voice message cannot be carried over: {audio_err}")
             if not text:
                 log("   (without text there is nothing to post - skipped)")
                 return []
@@ -1094,14 +1101,14 @@ async def process_newsletter_message(client, raw_msg, server_id):
             log("   Downloading the sticker from the channel...")
             raw_sticker = await download_channel_media(client, msg)
             image_blobs.append(sticker_to_image(raw_sticker, STICKER_BACKGROUND))
-            log(f"   ✓ Sticker umgewandelt ({len(raw_sticker)} Bytes Ausgangsmaterial).")
+            log(f"   ✓ Sticker converted ({len(raw_sticker)} bytes of source material).")
         except Exception as sticker_err:
-            log(f"   ⚠️ Sticker nicht übertragbar: {sticker_err}")
+            log(f"   ⚠️ The sticker cannot be carried over: {sticker_err}")
             if not text:
                 log("   (without text there is nothing to post - skipped)")
                 return []
 
-    log(f"   Text ({len(text)} Zeichen): {text[:100]!r}...")
+    log(f"   Text ({len(text)} characters): {text[:100]!r}...")
     return post_to_bluesky(text, image_blobs, video_bytes, video_thumb,
                            media_name=f"{MEDIA_PREFIX}_{server_id}",
                            placeholder=placeholder)
@@ -1113,26 +1120,25 @@ async def handle_edit(client, event, server_id, posts_map):
     unchanged redeliveries are ignored."""
     msg = unwrap_message(event.Message)
     new_text = extract_text(msg)
-    has_media = any(msg.HasField(field) for field in
-                    ("imageMessage", "videoMessage", "audioMessage", "stickerMessage"))
+    has_media = any(msg.HasField(kind) for kind in MEDIA_KINDS)
 
     if not new_text and not has_media:
-        log(f"   (ServerID {server_id}: Meta-Nachricht ohne Inhalt - übersprungen)")
+        log(f"   (server ID {server_id}: meta message without content - skipped)")
         return
 
     entry = posts_map.get(str(server_id))
     if entry and entry.get("hash") == text_hash(new_text):
-        log(f"   (ServerID {server_id}: unveränderte Wiederzustellung - übersprungen)")
+        log(f"   (server ID {server_id}: unchanged redelivery - skipped)")
         return
 
     if not entry:
         # An edit to a post this bot did not publish today (or cannot trace) -
         # old ticker posts are of no interest, so ignore it.
-        log(f"   (Bearbeitung zu ServerID {server_id} ohne gespeicherte Bluesky-Posts - "
-            f"alter/unbekannter Post, wird ignoriert)")
+        log(f"   (edit of server ID {server_id} without stored Bluesky posts - "
+            f"an old or unknown post, ignored)")
         return
 
-    log(f"[EDIT] Kanal-Post {server_id} wurde bearbeitet - ersetze Bluesky-Post(s).")
+    log(f"[EDIT] Channel post {server_id} was edited - replacing the Bluesky post(s).")
 
     if DRY_RUN:
         log(f"   [DRY_RUN] would delete {len(entry['uris'])} old Bluesky post(s) "
@@ -1147,8 +1153,8 @@ async def handle_edit(client, event, server_id, posts_map):
             bsky_client.delete_post(uri)
             deleted += 1
         except Exception as del_err:
-            log(f"   ⚠️ Konnte {uri} nicht löschen: {del_err}")
-    log(f"   ✓ {deleted} alte(n) Bluesky-Post(s) gelöscht.")
+            log(f"   ⚠️ Could not delete {uri}: {del_err}")
+    log(f"   ✓ {deleted} old Bluesky post(s) deleted.")
 
     uris = await process_newsletter_message(client, event.Message, server_id)
     if uris:
@@ -1156,7 +1162,7 @@ async def handle_edit(client, event, server_id, posts_map):
         save_posts_map(posts_map)
 
 
-# 5. Hauptablauf
+# 5. The main flow
 client = NewAClient(SESSION_DB)
 
 # connect() returns immediately - login and pairing run asynchronously. Acting
@@ -1375,7 +1381,7 @@ incoming_events: asyncio.Queue = asyncio.Queue()
 
 @client.event(MessageEv)
 async def on_message(_, event):
-    # Bewusst ALLE Newsletter-Events annehmen: Die Offline-Nachlieferung kommt
+    # Deliberately accept ALL newsletter events: the offline redelivery comes
     # right on connecting - that is, BEFORE main() has resolved the channel
     # JID. The channel filter therefore happens later, during processing.
     if event.Info.MessageSource.Chat.Server == "newsletter":
@@ -1385,16 +1391,16 @@ async def on_message(_, event):
 async def with_retries(description, coro_factory, max_attempts=6, wait_seconds=15):
     """Runs a WhatsApp query with retries. Needed because whatsmeow reconnects
     several times right after a first pairing in particular (code 515, history
-    Prekey-Upload) - Abfragen in dieser Phase scheitern oder liefern kaputte Antworten
-    (z.B. protobuf 'Wire format was corrupt')."""
+    sync, prekey upload) - queries in that phase fail or return broken answers
+    (protobuf 'Wire format was corrupt', for instance)."""
     for attempt in range(1, max_attempts + 1):
         try:
             return await coro_factory()
         except Exception as e:
-            log(f"⚠️ {description} fehlgeschlagen (Versuch {attempt}/{max_attempts}): {e}")
+            log(f"⚠️ {description} failed (attempt {attempt}/{max_attempts}): {e}")
             if attempt == max_attempts:
                 raise
-            log(f"   Warte {wait_seconds}s (Verbindung stabilisiert sich vermutlich noch)...")
+            log(f"   Waiting {wait_seconds}s (the connection is probably still settling)...")
             await asyncio.sleep(wait_seconds)
 
 
@@ -1489,7 +1495,7 @@ async def main():
 
     if MANUAL_HASHTAG:
         match_hashtag = MANUAL_HASHTAG
-        log(f"Manueller Spiel-Hashtag gesetzt: #{match_hashtag}")
+        log(f"Match hashtag set by hand: #{match_hashtag}")
 
     # The matchday check comes BEFORE connecting to WhatsApp - on days without
     # a match no connection is opened at all (which keeps both the runtime and
@@ -1510,7 +1516,7 @@ async def main():
             todays_matches = get_todays_matches()
             health.ok("openligadb", f"{len(todays_matches)} match(es) today")
         except Exception as e:
-            log(f"Fehler beim OpenLigaDB-Abruf: {e}")
+            log(f"The OpenLigaDB query failed: {e}")
             health.fail("openligadb", "error", e)
             if not FORCE_RUN:
                 sys.exit(1)
@@ -1537,10 +1543,10 @@ async def main():
             # Several teams on one day sharing one channel: a message does not
             # reveal which match it belongs to. Better no match hashtag than
             # the wrong one.
-            log(f"ℹ️ {len(todays_matches)} Spiele an einem Tag - die Beiträge bekommen "
-                f"statt der Spiel-Hashtags "
-                + (f"#{OVERLAP_HASHTAG}." if OVERLAP_HASHTAG else "gar keinen.")
-                + " Die Profilzeile nennt beide Partien.")
+            log(f"ℹ️ {len(todays_matches)} matches on one day - instead of the match "
+                f"hashtags the posts get "
+                + (f"#{OVERLAP_HASHTAG}." if OVERLAP_HASHTAG else "none at all.")
+                + " The profile line names both matches.")
             if not match_hashtag:
                 match_hashtag = OVERLAP_HASHTAG or None
         elif not match_hashtag:
@@ -1594,8 +1600,8 @@ async def main():
                 # Not fatal: this fails when the QR code has already been
                 # scanned in parallel (a race between the two pairing paths) -
                 # the connection then stands anyway. The wait below sorts it out.
-                log(f"⚠️ Kopplung per Code nicht möglich ({pair_err}) - "
-                    f"falls der QR-Code gescannt wurde, geht es trotzdem weiter.")
+                log(f"⚠️ Pairing by code is not possible ({pair_err}) - "
+                    f"if the QR code was scanned, it carries on anyway.")
 
     if not await wait_for_whatsapp(300):
         if wa_refused.is_set():
@@ -1652,18 +1658,18 @@ async def main():
     if REPLAY_COUNT > 0 or CATCHUP_COUNT > 0:
         mode = "REPLAY" if REPLAY_COUNT > 0 else "CATCHUP"
         count = REPLAY_COUNT or CATCHUP_COUNT
-        log(f"{mode}-Modus: Verarbeite die letzten {count} Kanal-Post(s)...")
+        log(f"{mode} mode: processing the last {count} channel post(s)...")
         messages = await with_retries(
-            f"{mode}-Abruf",
+            f"{mode} fetch",
             lambda: client.get_newsletter_messages(
                 channel_jid, count, MessageServerID(0)
             ),
         )
         for nm in sorted(messages, key=lambda nm: nm.MessageServerID)[-count:]:
             if mode == "CATCHUP" and nm.MessageServerID <= watermark:
-                log(f"[CATCHUP] ServerID {nm.MessageServerID} bereits verarbeitet - übersprungen.")
+                log(f"[CATCHUP] Server ID {nm.MessageServerID} already processed - skipped.")
                 continue
-            log(f"[{mode}] Kanal-Nachricht mit ServerID {nm.MessageServerID}:")
+            log(f"[{mode}] Channel message with server ID {nm.MessageServerID}:")
             try:
                 uris = await process_newsletter_message(client, nm.Message, nm.MessageServerID)
                 if mode == "CATCHUP" and uris:
@@ -1673,7 +1679,7 @@ async def main():
                     }
                     save_posts_map(posts_map)
             except Exception as post_err:
-                log(f"   ⚠️ Fehler beim Verarbeiten: {post_err}")
+                log(f"   ⚠️ Processing failed: {post_err}")
                 traceback.print_exc()
             if mode == "CATCHUP":
                 watermark = nm.MessageServerID
@@ -1690,10 +1696,10 @@ async def main():
     # (Followed channels usually push without it - this is a safety net.)
     try:
         await client.newsletter_subscribe_live_updates(channel_jid)
-        log("✓ Live-Updates abonniert.")
+        log("✓ Subscribed to live updates.")
     except Exception as sub_err:
-        log(f"⚠️ Live-Update-Abo fehlgeschlagen ({sub_err}) - weiter ohne, "
-            f"gefolgte Kanäle pushen in der Regel trotzdem.")
+        log(f"⚠️ Subscribing to live updates failed ({sub_err}) - carrying on "
+            f"without; followed channels usually push anyway.")
     next_renew = time.monotonic() + SUBSCRIBE_RENEW_SECONDS
     next_retry_at = time.monotonic() + VIDEO_RETRY_INTERVAL_SECONDS
 
@@ -1719,7 +1725,7 @@ async def main():
             try:
                 await client.newsletter_subscribe_live_updates(channel_jid)
             except Exception as sub_err:
-                log(f"⚠️ Live-Update-Verlängerung fehlgeschlagen: {sub_err}")
+                log(f"⚠️ Renewing the live updates failed: {sub_err}")
             next_renew = time.monotonic() + SUBSCRIBE_RENEW_SECONDS
 
         try:
@@ -1738,8 +1744,8 @@ async def main():
                         post_stashed_videos, bsky_client, VIDEO_RETRY_DIR,
                         VIDEO_RETRY_TEXT, VIDEO_RETRY_MAX_ATTEMPTS,
                         MAX_VIDEO_BYTES, VIDEO_JOB_TIMEOUT_SECONDS)
-                except Exception as nach_err:
-                    log(f"⚠️ Nachreichen offener Videos fehlgeschlagen: {nach_err}")
+                except Exception as retry_err:
+                    log(f"⚠️ Handing in pending videos failed: {retry_err}")
             continue
 
         # A guard around the WHOLE event handling: a single broken event must
@@ -1749,7 +1755,7 @@ async def main():
         try:
             chat = event.Info.MessageSource.Chat
             if chat.User != channel_user:
-                log(f"(Event von fremdem Kanal {chat.User} - ignoriert)")
+                log(f"(event from another channel {chat.User} - ignored)")
                 continue
 
             server_id = event.Info.ServerID
@@ -1804,7 +1810,7 @@ async def main():
                     }
                     save_posts_map(posts_map)
             except Exception as post_err:
-                log(f"   ⚠️ Fehler beim Reposten: {post_err}")
+                log(f"   ⚠️ Reposting failed: {post_err}")
                 traceback.print_exc()
                 health.fail("posting", "error",
                             f"server ID {server_id or '?'}: {post_err}")
@@ -1819,49 +1825,48 @@ async def main():
                     save_watermark(watermark)
             await asyncio.sleep(PAUSE_BETWEEN_POSTS_SECONDS)
         except Exception as event_err:
-            log(f"⚠️ Fehler bei der Event-Verarbeitung ({event_err}) - Event übersprungen, lausche weiter.")
+            log(f"⚠️ Processing the event failed ({event_err}) - event skipped, listening on.")
             traceback.print_exc()
 
     log("End of day reached - the ticker stops. See you next matchday!")
 
 
-# Welches Signal das Ende gebracht hat - nur fuer die Meldung am Schluss.
-_beendendes_signal = None
+# Which signal brought the end - only for the message at the close.
+_ending_signal = None
 
 
-def _signal_wie_strg_c(signum, _rahmen):
-    """Macht aus einem Signal dasselbe wie aus Strg+C.
+def _signal_as_ctrl_c(signum, _frame):
+    """Turns a signal into the same thing as Ctrl+C.
 
-    Ohne das beendet Python sich bei SIGTERM auf der Stelle: kein `finally`,
-    kein `atexit`, und die Statuszeile der Biografie bliebe auf "Bot ist an"
-    stehen - obwohl `kill <PID>` der uebliche Weg ist, den Ticker zu beenden.
-    Strg+C loest dagegen eine Ausnahme aus, und die raeumt auf. Also wird hier
-    dieselbe Ausnahme ausgeloest, und alles laeuft ueber den erprobten Weg."""
-    global _beendendes_signal
-    _beendendes_signal = signal.Signals(signum).name
+    Without this, Python ends at once on SIGTERM: no `finally`, no `atexit`,
+    and the bio's status line would stay on "Bot ist an" - although
+    `kill <PID>` is the usual way to end the ticker. Ctrl+C raises an
+    exception instead, and that one cleans up. So the same exception is
+    raised here, and everything takes the proven path."""
+    global _ending_signal
+    _ending_signal = signal.Signals(signum).name
     raise KeyboardInterrupt
 
 
-def signale_abfangen():
-    """Faengt SIGTERM ab, und SIGHUP nur, wenn es nicht schon ignoriert wird.
+def catch_signals():
+    """Catches SIGTERM, and SIGHUP only if it is not ignored already.
 
-    Die Einschraenkung bei SIGHUP ist wichtig: Unter `nohup` steht es auf
-    "ignorieren", damit der Ticker das Schliessen der SSH-Sitzung uebersteht.
-    Wuerden wir es hier trotzdem abfangen, machten wir nohup zunichte - der
-    Bot ginge beim Abmelden aus."""
-    gefangen = []
+    The restriction on SIGHUP matters: under `nohup` it is set to "ignore" so
+    that the ticker survives the SSH session closing. Catching it here anyway
+    would undo nohup - the bot would go off on logging out."""
+    caught = []
     for name in ("SIGTERM", "SIGHUP"):
         sig = getattr(signal, name, None)
         if sig is None:
             continue
         if name == "SIGHUP" and signal.getsignal(sig) == signal.SIG_IGN:
-            continue          # nohup: absichtlich taub, so lassen
+            continue          # nohup: deaf on purpose, leave it so
         try:
-            signal.signal(sig, _signal_wie_strg_c)
-            gefangen.append(name)
+            signal.signal(sig, _signal_as_ctrl_c)
+            caught.append(name)
         except (ValueError, OSError):
-            pass              # nicht im Hauptthread oder nicht erlaubt
-    return gefangen
+            pass              # not in the main thread, or not allowed
+    return caught
 
 
 async def run():
@@ -1877,7 +1882,7 @@ async def run():
             outcome, detail = "error", f"exit status {end.code}"
         raise
     except (KeyboardInterrupt, asyncio.CancelledError):
-        outcome, detail = "stopped", _beendendes_signal or "Ctrl+C"
+        outcome, detail = "stopped", _ending_signal or "Ctrl+C"
         raise
     except BaseException as error:
         outcome, detail = "error", repr(error)
@@ -1903,9 +1908,9 @@ async def run():
 
 
 if __name__ == "__main__":
-    signale_abfangen()
+    catch_signals()
     try:
         asyncio.run(run())
     except KeyboardInterrupt:
-        log(f"Stopped ({_beendendes_signal or 'Ctrl+C'}) - the WhatsApp "
+        log(f"Stopped ({_ending_signal or 'Ctrl+C'}) - the WhatsApp "
             f"connection was closed and the bio was put back.")
