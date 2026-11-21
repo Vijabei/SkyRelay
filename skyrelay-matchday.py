@@ -748,7 +748,7 @@ def build_external_embed(url):
 
 
 bsky_client = None
-_login_attempts = 0  # begrenzt Wiederholungen, siehe ensure_bsky()
+_login_attempts = 0  # limits the retries, see ensure_bsky()
 match_hashtag = None  # set in main() from the OpenLigaDB data (e.g. "DSCWOB")
 match_hashtags_tag = []  # every match hashtag of the day - the profile line names them
 # The standing hashtag as it will actually be written. Starts as the one
@@ -870,7 +870,7 @@ def set_profile_status(on):
         log(f"⚠️ The profile status line could not be updated: {e}")
 
 
-# --- Video-Upload: portiert aus skyrelay-feed.py ---------------------------
+# --- Video upload: ported from skyrelay-feed.py -----------------------------
 # TODO(extract): resolve_pds_did_web, upload_video_to_bluesky, compressing
 # images and the thread posting logic exist almost identically in the
 # Instagram reposter. Once both programs share common building blocks, these
@@ -1165,8 +1165,9 @@ async def handle_edit(client, event, server_id, posts_map):
 # 5. The main flow
 client = NewAClient(SESSION_DB)
 
-# connect() returns immediately - login and pairing run asynchronously. Acting
-# Newsletter-Methoden aufruft, provoziert einen Segfault im Go-Layer (nil Client).
+# connect() returns immediately - login and pairing run asynchronously. Calling
+# the newsletter methods too early provokes a segfault in the Go layer (a nil
+# client).
 # So: wait for the connected event before anything else happens.
 wa_connected = asyncio.Event()
 # Set when WhatsApp says no for good - an outdated client, a device logged out,
@@ -1476,7 +1477,7 @@ async def main():
     missing = [name for name, value in (
         ("[source] channel_invite_link", CHANNEL_INVITE_LINK),
         ("[bluesky] handle", BLUESKY_HANDLE),
-    ) if not value or "HIER-DEN" in value or value.startswith("dein-bot.")]
+    ) if not value or "HIER-DEN" in value or value.startswith("dein-bot.")]  # lang: de (template placeholders)
     if missing:
         log(f"Error: {os.path.basename(CONFIG_FILE)} is still missing: "
             f"{', '.join(missing)}")
@@ -1731,7 +1732,7 @@ async def main():
         try:
             event = await asyncio.wait_for(incoming_events.get(), timeout=15)
         except asyncio.TimeoutError:
-            # Gerade nichts los - guter Moment, um offene Videos nachzureichen.
+            # Nothing going on - a good moment to hand in pending videos.
             # In a thread, so incoming channel posts keep flowing into the
             # queue, and only while idle, so a live post never has to wait.
             if (not DRY_RUN and time.monotonic() >= next_retry_at
@@ -1772,7 +1773,7 @@ async def main():
                     ts = ts / 1e3
                 try:
                     msg_time = datetime.fromtimestamp(ts, tz=timezone.utc).astimezone(LOCAL_TZ)
-                    when = f" vom {msg_time.strftime('%d.%m. %H:%M')}"
+                    when = f" of {msg_time.strftime('%d.%m. %H:%M')}"
                 except (ValueError, OverflowError, OSError):
                     msg_time = None
             log(f"Channel event received: server ID {server_id or '?'}{when} "

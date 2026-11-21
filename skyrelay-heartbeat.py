@@ -140,7 +140,7 @@ INSTA_BOT_USER = cfg("feed", "instagram_session_user", "")
 # Which bots are in use at all. A bot nobody set up must not be reported
 # missing every day.
 _channel = cfg("source", "channel_invite_link", "")
-TICKER_IN_USE = bool(_channel) and "HIER-DEN" not in _channel
+TICKER_IN_USE = bool(_channel) and "HIER-DEN" not in _channel  # lang: de (template placeholder)
 _profile = cfg("feed", "instagram_profile", "")
 FEED_IN_USE = bool(_profile) and bool(INSTA_BOT_USER) and not INSTA_BOT_USER.startswith("dein")
 
