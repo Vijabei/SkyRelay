@@ -5,6 +5,33 @@
 What has changed in SkyRelay, newest first. The numbers refer to the pull
 requests on GitHub.
 
+## 21 November 2026
+
+### Changed
+
+- **neonize 0.12.4 instead of 0.5.2.** It brings whatsmeow from 16.11.2026 (client 2.3000.1054751086 instead of 2.3000.1047769893). That is a precaution: WhatsApp turns old client versions away after a few months, as it did with 0.4.3.post0 on 7 November. The interfaces the ticker uses are unchanged. 0.11.0 to 0.12.4 all carry the same whatsmeow.
+  - `protobuf>=7.36.0`: the wheels of 0.12.4 are built against it, an older protobuf fails at import with a `VersionError`.
+  - New dependencies are `cryptography` and `pycryptodome`; pip installs them by itself.
+  - The session's database schema goes from v15 to v16. Back up `skyrelay_session.sqlite3` before switching. According to whatsmeow, 0.5.2 can still read the new schema.
+- **Replay and catch-up skip empty messages straight away.** An edited or deleted channel post leaves an invisible message without content behind. Since neonize 0.5.2 a history fetch returns it as an empty entry instead of crashing (neonize#210/#211). The ticker now skips it before logging in to Bluesky, so `SKYRELAY_REPLAY=N` can play through fewer than `N` posts.
+- **`skyrelay-testlauf.py`** searches from the newest message by default; `--before` is no longer needed.
+
+### Removed
+
+- The issue drafts `ISSUE-DRAFT-neonize-newsletter-panic.md` and `ISSUE-DRAFT-whatsmeow-newsletter-audio-hmac.md`. Both were filed, and both bugs are fixed upstream: neonize#210/#211 and whatsmeow#1229.
+
+### Docs
+
+- READMEs and cheat sheets: no more warning about the crash in replay and catch-up, the pin is now 0.12.4, and after a failed switch restore the backed-up session file first.
+- `UPGRADE-TEST.md` is now the checklist for this switch. The result of 8 August is kept in it.
+
+### Notes on updating
+
+1. Not right before a matchday. First check the branch on the test machine (`UPGRADE-TEST.md`).
+2. `cp ~/SkyRelay/skyrelay_session.sqlite3 ~/skyrelay_session_052.sqlite3.bak`
+3. `git pull && ./update.sh`, then `venv/bin/python skyrelay-matchday.py --probe`.
+4. Afterwards bring `beta` up to `main`.
+
 ## 9 November 2026
 
 ### Fixed

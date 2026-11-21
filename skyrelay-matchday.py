@@ -15,10 +15,10 @@ How it works:
      listens for channel events until the configured end of day. New posts go
      to Bluesky immediately, as do posts delivered on connecting that are from
      TODAY - older ones are dropped.
-     (Deliberately no polling during normal operation: get_newsletter_messages
-     crashes in the Go layer as soon as a fetch catches an invisible meta
-     message - an edit or a deletion, say. Only REPLAY and CATCHUP still use
-     that call, where a crash is survivable.)
+     (Deliberately no polling during normal operation: events arrive at once
+     and whatsmeow already drops the invisible meta messages - edits or
+     deletions, say - that a fetch returns as empty entries. Only REPLAY and
+     CATCHUP fetch the history with get_newsletter_messages.)
   3. The match hashtag (#DSCWOB at home, #WOBDSC away) is built from the
      OpenLigaDB data (codes from [team_codes], home team first) - or set by
      hand through SKYRELAY_HASHTAG.
@@ -29,11 +29,9 @@ How it works:
 Setting up (a 64 bit system is required - neonize ships no 32 bit packages):
     ./install.sh
     cp skyrelay.conf.example skyrelay.conf   # and adjust it
-    # neonize is pinned in requirements.txt on purpose: 0.4.0 and 0.4.1
-    # returned corrupted values ("Wire format was corrupt", issue #199). Fixed
-    # in 0.4.2, but untested here - back up the session file before switching
-    # and check with a dry run. The crash on deleted posts is still present in
-    # 0.4.3 as well.
+    # neonize is pinned in requirements.txt on purpose: it bundles whatsmeow,
+    # and that decides which client version WhatsApp sees. Before switching,
+    # back up the session file and check with a dry run (UPGRADE-TEST.md).
 
 First pairing - has to run interactively in a terminal (not from cron; SSH is
 fine):
@@ -1056,9 +1054,12 @@ async def process_newsletter_message(client, raw_msg, server_id):
 
     text = extract_text(msg)
     if not text and not field_names:
+        # A meta message (an edit or a deletion, say): a history fetch returns
+        # it as an entry without content. Nothing to post, so not even log in.
         log("   [DEBUG] the message is completely empty "
-            "(probably a deleted post or a reaction update).")
-    elif not text:
+            "(probably a deleted post or a reaction update) - skipped.")
+        return []
+    if not text:
         preview = str(msg)[:300].replace("\n", " | ")
         log(f"   [DEBUG] Kein Text extrahierbar, Roh-Vorschau: {preview}")
 
@@ -1385,16 +1386,13 @@ async def on_qr(_, data_qr):
     segno.make_qr(data_qr).terminal(compact=True)
 
 
-# Channel posts arrive as live events. Polling get_newsletter_messages regularly
-# is TABOO during normal operation: if the channel holds a message without
-# content, neonize's Go layer panics while serialising it ("required field ...
-# Message not set") and takes the whole process with it. The trigger is an
-# INVISIBLE meta message (not shown in the channel, but occupying a server ID
-# of its own) - the edit or deletion of a post, say, possibly album grouping
-# too. What exactly it is could not be settled: the message cannot be
-# inspected with neonize, every fetch dies on it. On the event path this does
-# not happen: whatsmeow filters such messages out
-# selbst aus ("doesn't have byte content").
+# Channel posts arrive as live events; normal operation does not poll
+# get_newsletter_messages. A channel also holds INVISIBLE meta messages (not
+# shown in the channel, but occupying a server ID of their own) - the edit or
+# deletion of a post, say. On the event path whatsmeow filters them out by
+# itself ("doesn't have byte content"); a fetch returns them as entries
+# without content, which process_newsletter_message() skips. (Up to neonize
+# 0.4.3 such an entry crashed the Go layer - fixed in neonize#210/#211.)
 channel_user = None  # the user part of the channel JID, set in main()
 incoming_events: asyncio.Queue = asyncio.Queue()
 
@@ -1672,16 +1670,13 @@ async def main():
     #          ignores the watermark and does not change it, then ends).
     # CATCHUP: fetch missed posts (respecting and maintaining the watermark)
     #          and keep listening normally afterwards.
-    # CAREFUL, known neonize bug: if one of the last N messages is a meta
-    # message without content (invisible in the channel, an edit or a deletion
-    # for instance), the Go layer panics hard. So exactly N are fetched - and
-    # live operation does not use this call at all, it listens for events.
+    # The last N server IDs include invisible meta messages without content
+    # (an edit or a deletion, for instance). They come back as empty entries
+    # and are skipped, so N can yield fewer posts than asked for.
     if REPLAY_COUNT > 0 or CATCHUP_COUNT > 0:
         mode = "REPLAY" if REPLAY_COUNT > 0 else "CATCHUP"
         count = REPLAY_COUNT or CATCHUP_COUNT
         log(f"{mode}-Modus: Verarbeite die letzten {count} Kanal-Post(s)...")
-        log(f"(Stürzt das Script hier hart ab ('panic ... Message not set'), liegt eine "
-            f"unsichtbare Meta-Nachricht im Fenster - mit kleinerem N erneut versuchen.)")
         messages = await with_retries(
             f"{mode}-Abruf",
             lambda: client.get_newsletter_messages(

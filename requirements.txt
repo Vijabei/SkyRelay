@@ -17,20 +17,30 @@ requests>=2.32.3
 #                 (405)" - die mitgelieferte whatsmeow-Fassung vom 09.07.
 #                 meldet sich als Client 2.3000.1042386815 an
 #   0.5.2         whatsmeow vom 21.09. (Client 2.3000.1047769893); die
-#                 Schnittstellen, die der Ticker nutzt, sind unverändert
+#                 Schnittstellen, die der Ticker nutzt, sind unverändert.
+#                 Behebt nebenbei zwei Fehler, die wir upstream gemeldet
+#                 hatten: kein Go-Absturz mehr bei inhaltslosen
+#                 Kanalnachrichten (neonize#210/#211), und Sprachnachrichten
+#                 aus Kanälen laden ohne "invalid media hmac" (whatsmeow#1229)
 #   0.6.1-0.10.0  (02./03.11.2026) DIESELBE whatsmeow vom 21.09. - gegen eine
-#                 erneute 405 hilft keine davon. Schnittstellen unverändert,
-#                 dazu nur Funktionen, die der Ticker nicht braucht. Welche
-#                 whatsmeow eine neue Fassung mitbringt, prüft der Wächter
-#                 (skyrelay-heartbeat.py --status).
+#                 erneute 405 hilft keine davon
+#   0.11.0-0.12.4 (20.11.2026) whatsmeow vom 16.11. (Client
+#                 2.3000.1054751086), alle fünf dieselbe. Schnittstellen,
+#                 die der Ticker nutzt, unverändert; neu sind nur Ereignisse
+#                 und Funktionen, die er nicht braucht. Bringt cryptography
+#                 und pycryptodome als Abhängigkeiten mit.
+# Welche whatsmeow eine neue Fassung mitbringt, prüft der Wächter
+# (skyrelay-heartbeat.py --status).
 # WhatsApp weist alte Client-Versionen nach einigen Monaten ab. Kommt die 405
 # wieder, hilft nur eine neonize-Fassung mit neuerer whatsmeow-Anbindung.
-# Vor einem Wechsel die Sitzungsdatei sichern: Das Datenbankschema ändert sich,
-# ein Rückschritt erfordert unter Umständen eine neue Kopplung.
-neonize==0.5.2
+# Vor einem Wechsel die Sitzungsdatei sichern: Das Datenbankschema ändert sich.
+# 0.12.4 hebt es von v15 auf v16 ("compatible with v8+"), 0.5.2 sollte die
+# Datei also weiter lesen können - im Zweifel hilft eine neue Kopplung.
+neonize==0.12.4
 # protobuf NIEMALS unter die Gencode-Version der neonize-Wheels downgraden,
-# sonst scheitert schon der Import mit einem VersionError.
-protobuf>=7.34.1
+# sonst scheitert schon der Import mit einem VersionError. neonize selbst
+# verlangt nur >=6.32.1, seine Wheels sind aber mit 7.36.0 gebaut.
+protobuf>=7.36.0
 segno>=1.6.1
 
 # --- Zeichenzaehlung (empfohlen, aber nicht zwingend) ---

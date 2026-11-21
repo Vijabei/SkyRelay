@@ -364,7 +364,8 @@ def latest_versions(state, now):
 # A new neonize is only worth anything against "Client outdated (405)" if it
 # brings a newer whatsmeow along: whatsmeow decides which client version
 # WhatsApp is shown. The version number of neonize says nothing about that -
-# 0.6.1 to 0.10.0 all carry the very whatsmeow of 0.5.2 (21.09.2026). Go
+# 0.6.1 to 0.10.0 all carry the very whatsmeow of 0.5.2 (21.09.2026), and
+# 0.11.0 to 0.12.4 all the one of 16.11.2026. Go
 # writes its dependencies into the binary, so the answer is in the wheel, and
 # reading it costs one download of about 20 MB per new neonize version.
 WHATSMEOW_MARK = re.compile(rb"dep\tgo\.mau\.fi/whatsmeow\t(v[0-9A-Za-z.+\-]+)")
