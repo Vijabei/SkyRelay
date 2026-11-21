@@ -17,6 +17,12 @@ die Pull Requests auf GitHub.
 - **`skyrelay-testlauf.py`** sucht standardmäßig ab der neuesten Nachricht; `--before` braucht es nicht mehr.
 - **Das Protokoll des Tickers ist jetzt durchgehend englisch**, wie das von Feed und Wächter. Rund 45 Zeilen waren noch deutsch, etwa `Würde posten`, `Video geladen`, `Kanal-Nachricht mit ServerID` oder `Fehler beim Reposten`. Wer im Protokoll nach den alten Texten sucht, findet jetzt `Would post`, `Video downloaded`, `Channel message with server ID` und `Reposting failed`. Beiträge und Bio-Statuszeile bleiben, wie sie konfiguriert sind.
 - **Die Roh-Vorschau im Protokoll nur noch für Unbekanntes.** Ein Bild, Video, Sticker oder eine Sprachnachricht ohne Bildtext schrieb die ganze Nachricht als Bytes ins Protokoll, mit Prüfsummen und `mediaKey`. Jetzt kommt die Vorschau nur noch, wenn eine Nachricht weder Text noch eine bekannte Medienart hat, etwa bei einer Umfrage.
+- **Einrichtungsassistent auf Englisch ohne deutsche Reste.** Mit `language = en` blieben gut 20 Texte deutsch, weil sie nicht durch die Übersetzung liefen: Überschriften wie „Zusammenfassung“ und „Ohne Spielplan“, Fragen wie „Statuszeile verwenden?“, Meldungen wie `✗ Abruf fehlgeschlagen` und `✓ Geschrieben`, die Abschlussübersicht, die Beispiel-Handles und `[J/n]` (jetzt `[Y/n]`).
+- **Die vorgeschlagenen Ligen erscheinen in der eingestellten Sprache.** Die Liste wurde schon beim Import übersetzt, bevor die Sprache feststand, und blieb dadurch immer deutsch, obwohl die Übersetzungen im Katalog standen.
+
+### Neu
+
+- **`tools/check_language.py`** findet, was an der Übersetzung vorbeiläuft: deutschen Text in Code, Kommentaren und Protokoll (A), Bedientexte des Assistenten ohne `_()` (B) und `_()`, das schon beim Import läuft (C). Rückgabewert 0, solange nichts gefunden wird. Absichtlich Deutsches wird mit `# lang: de` markiert. Im Ticker vor [#44](https://github.com/Vijabei/SkyRelay/pull/44) meldet es 43 Stellen, im Assistenten vor diesen Änderungen 79. Das Werkzeug ist englisch, wie künftig alle Skripte.
 
 ### Entfernt
 
@@ -27,7 +33,8 @@ die Pull Requests auf GitHub.
 
 - READMEs und CheatSheets: keine Warnung mehr vor dem Absturz beim Wiederholen und Nachholen, Festlegung jetzt 0.12.4, und nach einem missglückten Wechsel zuerst die gesicherte Sitzungsdatei zurückspielen.
 - `UPGRADE-TEST.md` ist jetzt die Prüfliste für diesen Wechsel. Das Ergebnis vom 08.08. bleibt darin erhalten.
-- **Branches** (`CONTRIBUTING.md`): `develop` ist der Entwicklungszweig, Pull Requests gehen dorthin. `beta` ist jetzt `develop` plus der instaloader-Fix, und darauf läuft der Pi; was sich bewährt hat, geht von `develop` nach `main`.
+- **Branches** (`CONTRIBUTING.md`): `develop` ist der Entwicklungszweig, Pull Requests gehen dorthin. `beta` ist der Workaround-Zweig: `develop` plus Workarounds für Abhängigkeiten, deren Fix noch nicht veröffentlicht ist, derzeit instaloader. Darauf läuft der Pi; was sich bewährt hat, geht von `develop` nach `main`. Ein neuer Workaround ist ein weiterer Commit auf `beta`, kein neuer Branch.
+- Kommentare und Docstrings im Assistenten sind englisch.
 
 ### Hinweise zum Update
 
