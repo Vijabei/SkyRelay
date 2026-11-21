@@ -15,6 +15,8 @@ requests on GitHub.
   - The session's database schema goes from v15 to v16. Back up `skyrelay_session.sqlite3` before switching. According to whatsmeow, 0.5.2 can still read the new schema.
 - **Replay and catch-up skip empty messages straight away.** An edited or deleted channel post leaves an invisible message without content behind. Since neonize 0.5.2 a history fetch returns it as an empty entry instead of crashing (neonize#210/#211). The ticker now skips it before logging in to Bluesky, so `SKYRELAY_REPLAY=N` can play through fewer than `N` posts.
 - **`skyrelay-testlauf.py`** searches from the newest message by default; `--before` is no longer needed.
+- **The ticker's log is English throughout now**, like those of the feed and the heartbeat. About 45 lines were still German, such as `Würde posten`, `Video geladen`, `Kanal-Nachricht mit ServerID` or `Fehler beim Reposten`. Searching the log for them now finds `Would post`, `Video downloaded`, `Channel message with server ID` and `Reposting failed`. Posts and the bio's status line stay as configured.
+- **The raw preview in the log only for the unknown.** An image, video, sticker or voice message without a caption wrote the whole message into the log as bytes, checksums and `mediaKey` included. Now the preview comes only when a message has neither text nor a known kind of medium, a poll for instance.
 
 ### Removed
 
@@ -25,6 +27,7 @@ requests on GitHub.
 
 - READMEs and cheat sheets: no more warning about the crash in replay and catch-up, the pin is now 0.12.4, and after a failed switch restore the backed-up session file first.
 - `UPGRADE-TEST.md` is now the checklist for this switch. The result of 8 August is kept in it.
+- **Branches** (`CONTRIBUTING.md`): `develop` is the development branch, and pull requests go there. `beta` is now `develop` plus the instaloader fix and is what the Pi runs; what has proved itself goes from `develop` to `main`.
 
 ### Notes on updating
 
