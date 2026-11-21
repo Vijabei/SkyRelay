@@ -38,7 +38,7 @@ from skyrelay_i18n import _, _f, N_
 MIN_BREITE = 96
 MIN_HOEHE = 28
 
-# Der Farbton, wenn die Konfiguration keinen nennt oder einen unbekannten.
+# The theme when the configuration names none, or one that is unknown.
 VORGABE_THEMA = "flexoki"
 
 
@@ -98,7 +98,7 @@ def bereiche():
                 [
                     Feld("bluesky", "handle", _("Handle des Ticker-Kontos"),
                          _("Vollständig und ohne @, z.B. mein-bot.bsky.social"),
-                         platzhalter="mein-bot.bsky.social"),
+                         platzhalter=_("mein-bot.bsky.social")),
                     Feld("feed", "bluesky_handle", _("Eigenes Konto für den Feed"),
                          _("Nur ausfüllen, wenn der Instagram-Feed unter einem "
                            "anderen Konto posten soll. Leer = dasselbe Konto "
@@ -172,7 +172,7 @@ def bereiche():
                          _("Instagram zeigt Profile nur angemeldeten Konten. "
                            "Nimm dafür ein Zweitkonto, nicht dein eigenes – "
                            "häufiges Abrufen kann ein Konto sperren."),
-                         platzhalter="mein_zweitkonto"),
+                         platzhalter=_("mein_zweitkonto")),
                     Feld("feed", "posts_to_check", _("Wie viele Beiträge prüfen"),
                          _("Bei jedem Lauf werden so viele der neuesten "
                            "Beiträge angesehen. Höher heißt: eine Lücke nach "
@@ -215,11 +215,11 @@ def bereiche():
                     Feld("post", "source_label", _("Beschriftung (Ticker)"),
                          _("Steht neben dem Quell-Link der WhatsApp-Beiträge. "
                            "Leer lassen = keine Quelle im Beitrag."),
-                         platzhalter="WhatsApp-Kanal des Vereins"),
+                         platzhalter="WhatsApp-Kanal des Vereins"),  # lang: de (post content)
                     Feld("feed", "source_label", _("Beschriftung (Feed)"),
                          _("Dasselbe für die Instagram-Beiträge – ein "
                            "WhatsApp-Kanal passt dort nicht."),
-                         platzhalter="Beitrag auf Instagram"),
+                         platzhalter="Beitrag auf Instagram"),  # lang: de (post content)
                     Feld("post", "standing_hashtag", _("Dauer-Hashtag"),
                          _("Steht unter jedem Beitrag, ohne #. Leer = keiner."),
                          platzhalter="arminia"),
@@ -260,11 +260,11 @@ def bereiche():
                          art="schalter"),
                     Feld("profile", "line_on", _("Text während des Betriebs"),
                          _("Erscheint, solange der Ticker lauscht."),
-                         platzhalter="🟢 Bot ist an – {info} {hashtag}"),
+                         platzhalter="🟢 Bot ist an – {info} {hashtag}"),  # lang: de (bio)
                     Feld("profile", "line_off", _("Text nach dem Beenden"),
                          _("Erscheint zwischen den Spieltagen und nennt die "
                            "nächste Partie."),
-                         platzhalter="🔴 Bot ist aus – nächstes Spiel {hashtag}"),
+                         platzhalter="🔴 Bot ist aus – nächstes Spiel {hashtag}"),  # lang: de (bio)
                     Feld("schedule", "day_end", _("Feierabend des Tickers"),
                          _("Bis wann an einem Spieltag gelauscht wird; danach "
                            "beendet sich der Bot selbst."),
@@ -290,7 +290,7 @@ def bereiche():
                            "bei Bluesky nicht. Der Bot schickt dir eine "
                            "Direktnachricht; damit sie ankommt, folgst du ihm "
                            "mit deinem Konto."),
-                         platzhalter="ich.bsky.social"),
+                         platzhalter=_("ich.bsky.social")),
                     Feld("heartbeat", "bluesky_sender", _("Absender"),
                          _("Welches Bot-Konto schreibt. Leer = das Ticker-Konto; "
                            "das Feed-Konto geht genauso.\n"
@@ -372,11 +372,11 @@ Screen { layout: vertical; background: $surface; }
 
 #rahmen { height: 1fr; }
 
-/* "height: 1fr" ist hier nicht Geschmack, sondern noetig: ohne das misst
-   sich die Liste an ihrem Inhalt und wird sieben Zeilen hoch - eine je
-   Eintrag. Ein Polster an den Eintraegen selbst geht in diese Rechnung nicht
-   ein, gezeichnet wird aber damit; was dann nicht mehr hineinpasst, bleibt
-   schlicht leer. Genau so verschwanden die Menuepunkte. */
+/* "height: 1fr" is not taste here but needed: without it the list measures
+   itself by its content and becomes seven lines high - one per entry.
+   Padding on the entries themselves does not enter that sum, but it is
+   drawn with; what no longer fits simply stays empty. That is exactly how
+   the menu items disappeared. */
 #navigation {
     width: 34;
     height: 1fr;
@@ -391,10 +391,10 @@ Screen { layout: vertical; background: $surface; }
     align-horizontal: center;
 }
 
-/* Eine Zeile ist ab etwa 90 Zeichen schwer zu lesen - das Auge findet den
-   Anfang der naechsten nicht mehr. Der Satz waechst deshalb nicht mit dem
-   Fenster; die Spalte steht stattdessen in der Mitte, sonst klafft auf einem
-   breiten Terminal rechts ein Loch von hundert Spalten. */
+/* From about 90 characters on a line is hard to read - the eye no longer
+   finds the start of the next one. So the text does not grow with the
+   window; the column stands in the middle instead, or a wide terminal
+   would show a gap of a hundred columns on the right. */
 #spalte {
     width: 1fr;
     max-width: 96;
@@ -415,9 +415,9 @@ Screen { layout: vertical; background: $surface; }
     margin-bottom: 1;
 }
 
-/* Ohne "height: auto" teilen sich die Feldbehaelter die verfuegbare Hoehe
-   untereinander auf. Dann bleibt von jedem Feld nur die Beschriftung stehen -
-   Eingabe und Erklaerung werden auf null Zeilen gequetscht. */
+/* Without "height: auto" the field containers share the available height
+   among themselves. Then only the label of each field is left - input and
+   explanation are squeezed to zero lines. */
 .feld { height: auto; padding: 0 0 2 0; }
 
 .feldname { height: auto; text-style: bold; padding-bottom: 1; }
@@ -430,8 +430,8 @@ Screen { layout: vertical; background: $surface; }
 }
 
 .feld Input, .feld Select {
-    /* Mitwachsen, aber nicht ueber die Spalte hinaus: bei 96 Spalten ist die
-       Spalte schmaler als ein festes Feld und das Feld liefe heraus. */
+    /* Grow along, but not beyond the column: at 96 columns the column is
+       narrower than a fixed field, and the field would run out of it. */
     width: 1fr;
     max-width: 68;
     border: round $panel;
@@ -561,8 +561,8 @@ class Auswahl(ModalScreen[str]):
         treffer = [(k, b) for k, b in self.eintraege if suche in str(b).lower()]
         for schluessel, beschriftung in treffer:
             liste.add_option(Option(str(beschriftung), id=str(schluessel)))
-        # Immer etwas markieren, damit die Eingabetaste aus dem Suchfeld
-        # heraus schon etwas zu uebernehmen hat.
+        # Always highlight something, so that Enter in the search field
+        # already has something to take.
         if treffer:
             liste.highlighted = 0
         if self.filtern:
@@ -571,19 +571,19 @@ class Auswahl(ModalScreen[str]):
                    gesamt=len(self.eintraege)))
 
     def _markiertes(self):
-        """Der gerade markierte Eintrag - oder None."""
+        """The entry highlighted right now - or None."""
         liste = self.query_one("#liste", OptionList)
         if liste.option_count and liste.highlighted is not None:
             return liste.get_option_at_index(liste.highlighted).id
         return None
 
     def on_key(self, ereignis):
-        """Pfeiltasten und Eingabe wirken auch, waehrend man noch tippt.
+        """Arrow keys and Enter work while one is still typing.
 
-        Ohne das liegt der Fokus im Suchfeld und die Liste daneben bekommt
-        keine Taste ab: Man tippt drei Buchstaben, sieht den gesuchten Eintrag
-        markiert vor sich und kommt nicht an ihn heran, ausser mit Tabulator.
-        Das ist genau der Griff, den niemand errät."""
+        Without this the focus sits in the search field and the list next to
+        it gets no key at all: one types three letters, sees the wanted entry
+        highlighted and cannot reach it, except with Tab. That is exactly the
+        move nobody guesses."""
         if not self.filtern or self.focused is not self.query_one("#suche"):
             return
         liste = self.query_one("#liste", OptionList)
@@ -600,7 +600,7 @@ class Auswahl(ModalScreen[str]):
 
     @on(Input.Submitted, "#suche")
     def aus_der_suche(self):
-        """Eingabe im Suchfeld nimmt den markierten Eintrag."""
+        """Enter in the search field takes the highlighted entry."""
         markiert = self._markiertes()
         if markiert is not None:
             self.dismiss(markiert)
@@ -860,9 +860,9 @@ class Assistent(App):
             return
 
         self.push_screen(Warten(_f("Melde mich als {handle} an …", handle=handle)))
-        # Ein mit @work(thread=True) versehener Aufruf liefert einen
-        # Worker, kein Ergebnis - erst wait() gibt das zurück, was die
-        # Funktion im Faden berechnet hat.
+        # A call decorated with @work(thread=True) returns a worker, not a
+        # result - only wait() hands back what the function computed in its
+        # thread.
         ergebnis = await self._anmelden(handle, passwort).wait()
         self.pop_screen()
         await self.push_screen_wait(Hinweis(_("Anmeldung"), ergebnis))
@@ -1203,9 +1203,9 @@ class Assistent(App):
         jetzt = self.theme
         moeglich = sorted(self.available_themes)
 
-        # Wenn das Terminal nur wenige Farben meldet, sieht JEDES Thema grau
-        # aus. Das gehoert genau hierhin gesagt - hier faellt es auf, und
-        # hier wuerde man sonst weiter Themen durchprobieren.
+        # When the terminal reports few colours, EVERY theme looks grey. That
+        # belongs said right here - this is where it shows, and where one
+        # would otherwise keep trying themes.
         hinweis = _("Wähle einen aus – er wirkt sofort. Abbrechen stellt den "
                     "vorherigen wieder her.")
         system = self.console.color_system
