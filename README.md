@@ -583,7 +583,8 @@ checking first (see [UPGRADE-TEST.md](UPGRADE-TEST.md)).
 For neonize what counts is not the version number but the **whatsmeow** it
 brings along: whatsmeow decides which client version WhatsApp sees. neonize
 0.6.1 to 0.10.0, for instance, carry exactly the whatsmeow of 0.5.2
-(21.09.2026), so switching does not help against a refusal. The heartbeat
+(21.09.2026), and 0.11.0 to 0.12.4 all the one of 16.11.2026: switching
+between versions of the same group does not help against a refusal. The heartbeat
 therefore downloads each new neonize version once (about 20 MB), reads which
 whatsmeow it carries, and only reports one that really brings something newer.
 `--status` shows the comparison.
@@ -676,37 +677,27 @@ six hours. That way it does not use up the bot account's logins.
 | `skyrelay-testlauf.py` | plays real channel messages through the ticker pipeline without publishing |
 | `CHEATSHEET-matchday.md` | every environment variable, mode, file and remedy (German: `CHEATSHEET-matchday.de.md`) |
 | `CHANGELOG.md` | what has changed, newest first (German: `CHANGELOG.de.md`) |
-| `ISSUE-DRAFT-neonize-newsletter-panic.md` | a prepared bug report for **neonize**: the crash while fetching history |
-| `ISSUE-DRAFT-whatsmeow-newsletter-audio-hmac.md` | a prepared bug report for **whatsmeow**: voice messages cannot be downloaded |
+| `UPGRADE-TEST.md` | what to check before moving to a new neonize, and how the last move went |
 
 ## Known limitations
 
-* **`neonize` is pinned to `0.5.2`.** WhatsApp turned `0.4.3.post0` (checked in
-  full on 08.08.2026, see [UPGRADE-TEST.md](UPGRADE-TEST.md)) away on 07.11.2026
-  with `Client outdated (405)`: neonize bundles whatsmeow, and with it the client
-  version it reports. 0.5.2 brings whatsmeow from 21.09.; the interfaces the
-  ticker uses are unchanged. Back the session file up before switching — the
-  database schema changes.
+* **`neonize` is pinned to `0.12.4`.** neonize bundles whatsmeow, and with it
+  the client version it reports to WhatsApp — and WhatsApp turns old client
+  versions away after a few months with `Client outdated (405)`, as it did with
+  `0.4.3.post0` on 07.11.2026. 0.12.4 brings whatsmeow from 16.11.2026; the
+  interfaces the ticker uses are the same as in 0.5.2. Back the session file up
+  before switching — the database schema changes (see
+  [UPGRADE-TEST.md](UPGRADE-TEST.md)).
 * **Ctrl+C can occasionally be caught by the Go part** (from 0.4.x on): the
   program then ends with `Quit` without cleaning up, and the profile status line
   is left saying "Bot ist an". This was seen once; normally the cleanup runs
   properly. Reset it with `SKYRELAY_PROFILE=off` if need be. Of no consequence
   under cron — there the ticker ends properly at the end of the day.
-* **A crash on channel posts without content:** when the channel deletes a post,
-  an empty message is left behind, and the underlying Go part crashes on it. This
-  affects **only** the catch-up modes, not normal operation — that one listens
-  for events and is not touched by it.
-  How much it affects you depends on the channel: if such a message lies far
-  back, a smaller value is enough. If it lies **directly behind the newest
-  post**, `SKYRELAY_REPLAY` is unusable — fetching two messages already crashes
-  and only `1` gets through. (In the channel mirrored here that was the case on
-  19.08.2026.) To check against real material, `skyrelay-testlauf.py` pages
-  backwards past the broken spot from an explicit starting point:
-
-  ```
-  venv/bin/python3 skyrelay-testlauf.py --latest
-  venv/bin/python3 skyrelay-testlauf.py --before <serverID> --type audio,sticker
-  ```
+* **Replay and catch-up can yield fewer posts than asked for.** When the channel
+  edits or deletes a post, an invisible message without content is left behind
+  under a server ID of its own. `SKYRELAY_REPLAY=5` fetches the last five server
+  IDs, skips such empty ones and so may play through fewer than five posts.
+  (Up to neonize 0.4.3 such a message crashed the program.)
 * **`instaloader` is pinned to 4.16.** Instagram keeps changing how profiles and
   posts are queried, and only a few versions fit at any one time. Since early
   October 2026 Instagram answers the query of older versions with
@@ -715,12 +706,6 @@ six hours. That way it does not use up the bot account's logins.
   4.16 sends the same query as the Instagram website. Before switching, check
   with `SKYRELAY_DRY_RUN=1` that the new version still finds the posts.
 * **Polls** are skipped: Bluesky has no such format.
-* **Voice messages need a detour to download.** Channel media sit unencrypted
-  behind `directPath` — images and videos therefore carry no `mediaKey` at all.
-  Voice messages drag one along, whereupon whatsmeow tries to decrypt and fails
-  with `invalid media hmac`. On exactly that error SkyRelay downloads a second
-  time without the key. Measured on 19.08.2026: **none** of 5 voice messages
-  downloaded the regular way, **all five** did without the key, byte for byte.
 * **Animated stickers** lose their movement — the first frame is carried over,
   because Bluesky plays no animations.
 * **Voice messages** appear as video and therefore have no sensible image
