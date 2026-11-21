@@ -1,16 +1,27 @@
-# Beta: Instagram-Feed mit dem Fix aus instaloader#2795
+# Beta: Workarounds für unveröffentlichte Fixes
 
 *[English](BETA.md) · **Deutsch***
 
-Dieser Branch ist `develop`, der Entwicklungszweig (siehe
-[CONTRIBUTING.md](CONTRIBUTING.md#branches)), plus eine einzige Abweichung: Der
-Instagram-Feed nutzt instaloader nicht von PyPI, sondern den Stand aus dem noch
-offenen Pull Request
+Dieser Branch ist `develop`, der Entwicklungszweig, plus Workarounds für
+Abhängigkeiten, deren Fix noch nicht veröffentlicht ist (siehe
+[CONTRIBUTING.md](CONTRIBUTING.md#branches)). Auf ihm läuft der Pi. Jeder
+Workaround hat hier einen Abschnitt; ist keiner mehr übrig, wird der Branch
+gelöscht, und der Pi läuft direkt auf `develop`.
+
+Weil `beta` auf `develop` aufbaut, bringt er auch Neues mit, bevor es in `main`
+ankommt.
+
+Derzeit ist es ein Workaround.
+
+## instaloader: Instagram-Feed mit dem Fix aus instaloader#2795
+
+Der Instagram-Feed nutzt instaloader nicht von PyPI, sondern den Stand aus dem
+noch offenen Pull Request
 [instaloader/instaloader#2795](https://github.com/instaloader/instaloader/pull/2795).
 Fest auf den Commit `3e4d5ac0ec545a771a3a4b0b82cb313f32acb29f` (06.11.2026), damit
 sich nichts ungeprüft mitändert.
 
-## Warum
+### Warum
 
 Seit dem 02.11.2026 antwortet Instagram eingeloggten Sitzungen auf `graphql/query`
 mit `400 Bad Request – feedback_required`, auch mit instaloader 4.16 und einer
@@ -23,7 +34,7 @@ fremde Server spricht er nicht an.
 
 Auf dem Pi geprüft am 08.11.2026: Mit dem Fix findet der Feed die Beiträge wieder.
 
-## Umsteigen
+### Umsteigen
 
 ```bash
 cd ~/SkyRelay
@@ -55,7 +66,7 @@ dir nicht, und es geht zurück auf `main`.
 Beiträge, die während der Sperre erschienen sind, holt der Feed nur nach, soweit
 sie unter den neuesten `[feed] posts_to_check` liegen.
 
-## Zurück auf `main`
+### Zurück auf `main`
 
 ```bash
 git checkout main
@@ -64,12 +75,9 @@ git checkout main
 
 `update.sh` setzt instaloader dabei von selbst auf die Fassung von PyPI zurück.
 
-## Wann zurück
+### Wann zurück
 
 Sobald instaloader eine neuere Fassung veröffentlicht, meldet der Wächter sie.
-Dann hebt `main` die Festlegung in `requirements.txt` an, und der Weg zurück ist
-der normale. Dieser Branch wird danach gelöscht, und der Pi läuft direkt auf
-`develop`.
-
-Weil `beta` auf `develop` aufbaut, bringt er auch Neues mit, bevor es in `main`
-ankommt.
+Dann hebt `develop` die Festlegung in `requirements.txt` an, und dieser
+Workaround und sein Abschnitt fallen aus `beta` heraus. War es der letzte, wird
+der Branch gelöscht, und der Pi läuft direkt auf `develop`.

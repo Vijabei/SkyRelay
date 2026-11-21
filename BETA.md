@@ -1,16 +1,27 @@
-# Beta: the Instagram feed with the fix from instaloader#2795
+# Beta: workarounds for unreleased fixes
 
 ***English** · [Deutsch](BETA.de.md)*
 
-This branch is `develop`, the development branch (see
-[CONTRIBUTING.md](CONTRIBUTING.md#branches)), with a single difference: the
-Instagram feed does not take instaloader from PyPI but from the still open pull
-request
+This branch is `develop`, the development branch, plus workarounds for
+dependencies whose fix is not released yet (see
+[CONTRIBUTING.md](CONTRIBUTING.md#branches)). The Pi runs it. Each workaround
+has a section here; once none is left, the branch is deleted and the Pi runs
+`develop` directly.
+
+Since `beta` follows `develop`, it also carries new work before that work
+reaches `main`.
+
+There is one workaround at the moment.
+
+## instaloader: the Instagram feed with the fix from instaloader#2795
+
+The Instagram feed does not take instaloader from PyPI but from the still open
+pull request
 [instaloader/instaloader#2795](https://github.com/instaloader/instaloader/pull/2795),
 pinned to commit `3e4d5ac0ec545a771a3a4b0b82cb313f32acb29f` (6 November 2026), so
 that nothing changes along with it unchecked.
 
-## Why
+### Why
 
 Since 2 November 2026 Instagram answers logged-in sessions on `graphql/query`
 with `400 Bad Request – feedback_required`, with instaloader 4.16 too, and with a
@@ -23,7 +34,7 @@ no other servers.
 
 Checked on the Pi on 8 November 2026: with the fix the feed finds the posts again.
 
-## Switching
+### Switching
 
 ```bash
 cd ~/SkyRelay
@@ -55,7 +66,7 @@ help in your case, and it is back to `main`.
 Posts that appeared during the block are only caught up on as far as they are
 among the newest `[feed] posts_to_check`.
 
-## Back to `main`
+### Back to `main`
 
 ```bash
 git checkout main
@@ -64,11 +75,9 @@ git checkout main
 
 `update.sh` puts instaloader back to the version from PyPI by itself.
 
-## When to go back
+### When to go back
 
-As soon as instaloader publishes a newer version, the heartbeat reports it. `main`
-then raises the pin in `requirements.txt`, and going back is the usual way. This
-branch is deleted after that, and the Pi runs `develop` directly.
-
-Note that `beta` follows `develop`, so it also carries new work before that
-work reaches `main`.
+As soon as instaloader publishes a newer version, the heartbeat reports it.
+`develop` then raises the pin in `requirements.txt`, and this workaround and its
+section drop out of `beta`. If it was the last one, the branch is deleted and
+the Pi runs `develop` directly.
