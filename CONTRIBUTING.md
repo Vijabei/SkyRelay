@@ -107,6 +107,26 @@ venv/bin/python -m py_compile skyrelay-matchday.py skyrelay-feed.py skyrelay_com
 * Änderungen am Ticker möglichst mit `SKYRELAY_DRY_RUN=1` testen, dann wird
   nichts veröffentlicht.
 
+## Branches
+
+| Branch | Wofür |
+|---|---|
+| `main` | der veröffentlichte Stand. Wer SkyRelay einsetzt, bleibt hier. Hierher kommt nur, was sich auf `develop` bewährt hat. |
+| `develop` | die Entwicklung. **Pull Requests gehen nach `develop`**, nicht nach `main`. |
+| `beta` | vorübergehend: `develop` plus der instaloader-Fix aus [instaloader#2795](https://github.com/instaloader/instaloader/pull/2795). Auf diesem Stand läuft der Pi, weil der Feed ohne den Fix nicht anmelden kann. |
+
+Der Weg einer Änderung:
+
+1. Eigener Branch, Pull Request nach `develop`.
+2. `develop` nach `beta` mergen, auf dem Pi `git pull && ./update.sh` und dort
+   erproben.
+3. Hat sich der Stand bewährt, `develop` per Pull Request nach `main`.
+
+`beta` wird nie zurück nach `develop` oder `main` gemergt: Der instaloader-Fix
+ist ein unveröffentlichter Stand und gehört nicht in `main`. Sobald instaloader
+eine neuere Fassung veröffentlicht, wird `beta` gelöscht, und der Pi läuft
+direkt auf `develop`.
+
 ## Lizenz und Rechte an Beiträgen
 
 Das Projekt steht unter der [PolyForm Noncommercial License 1.0.0](LICENSE):

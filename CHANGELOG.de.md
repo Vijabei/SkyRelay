@@ -15,6 +15,8 @@ die Pull Requests auf GitHub.
   - Das Datenbankschema der Sitzung geht von v15 auf v16. Vor dem Wechsel `skyrelay_session.sqlite3` sichern. Laut whatsmeow kann 0.5.2 das neue Schema weiter lesen.
 - **Wiederholen und Nachholen überspringen leere Nachrichten sofort.** Ein bearbeiteter oder gelöschter Kanalbeitrag hinterlässt eine unsichtbare Nachricht ohne Inhalt. Seit neonize 0.5.2 liefert ein Verlaufsabruf sie als leeren Eintrag, statt abzustürzen (neonize#210/#211). Der Ticker überspringt ihn jetzt, bevor er sich bei Bluesky anmeldet; `SKYRELAY_REPLAY=N` kann deshalb weniger als `N` Beiträge durchspielen.
 - **`skyrelay-testlauf.py`** sucht standardmäßig ab der neuesten Nachricht; `--before` braucht es nicht mehr.
+- **Das Protokoll des Tickers ist jetzt durchgehend englisch**, wie das von Feed und Wächter. Rund 45 Zeilen waren noch deutsch, etwa `Würde posten`, `Video geladen`, `Kanal-Nachricht mit ServerID` oder `Fehler beim Reposten`. Wer im Protokoll nach den alten Texten sucht, findet jetzt `Would post`, `Video downloaded`, `Channel message with server ID` und `Reposting failed`. Beiträge und Bio-Statuszeile bleiben, wie sie konfiguriert sind.
+- **Die Roh-Vorschau im Protokoll nur noch für Unbekanntes.** Ein Bild, Video, Sticker oder eine Sprachnachricht ohne Bildtext schrieb die ganze Nachricht als Bytes ins Protokoll, mit Prüfsummen und `mediaKey`. Jetzt kommt die Vorschau nur noch, wenn eine Nachricht weder Text noch eine bekannte Medienart hat, etwa bei einer Umfrage.
 
 ### Entfernt
 
@@ -25,6 +27,7 @@ die Pull Requests auf GitHub.
 
 - READMEs und CheatSheets: keine Warnung mehr vor dem Absturz beim Wiederholen und Nachholen, Festlegung jetzt 0.12.4, und nach einem missglückten Wechsel zuerst die gesicherte Sitzungsdatei zurückspielen.
 - `UPGRADE-TEST.md` ist jetzt die Prüfliste für diesen Wechsel. Das Ergebnis vom 08.08. bleibt darin erhalten.
+- **Branches** (`CONTRIBUTING.md`): `develop` ist der Entwicklungszweig, Pull Requests gehen dorthin. `beta` ist jetzt `develop` plus der instaloader-Fix, und darauf läuft der Pi; was sich bewährt hat, geht von `develop` nach `main`.
 
 ### Hinweise zum Update
 
