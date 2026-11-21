@@ -2,8 +2,10 @@
 
 ***English** · [Deutsch](BETA.de.md)*
 
-This branch is `main` with a single difference: the Instagram feed does not take
-instaloader from PyPI but from the still open pull request
+This branch is `develop`, the development branch (see
+[CONTRIBUTING.md](CONTRIBUTING.md#branches)), with a single difference: the
+Instagram feed does not take instaloader from PyPI but from the still open pull
+request
 [instaloader/instaloader#2795](https://github.com/instaloader/instaloader/pull/2795),
 pinned to commit `3e4d5ac0ec545a771a3a4b0b82cb313f32acb29f` (6 November 2026), so
 that nothing changes along with it unchecked.
@@ -66,4 +68,7 @@ git checkout main
 
 As soon as instaloader publishes a newer version, the heartbeat reports it. `main`
 then raises the pin in `requirements.txt`, and going back is the usual way. This
-branch is deleted after that.
+branch is deleted after that, and the Pi runs `develop` directly.
+
+Note that `beta` follows `develop`, so it also carries new work before that
+work reaches `main`.

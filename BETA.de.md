@@ -2,8 +2,10 @@
 
 *[English](BETA.md) · **Deutsch***
 
-Dieser Branch ist `main` plus eine einzige Abweichung: Der Instagram-Feed nutzt
-instaloader nicht von PyPI, sondern den Stand aus dem noch offenen Pull Request
+Dieser Branch ist `develop`, der Entwicklungszweig (siehe
+[CONTRIBUTING.md](CONTRIBUTING.md#branches)), plus eine einzige Abweichung: Der
+Instagram-Feed nutzt instaloader nicht von PyPI, sondern den Stand aus dem noch
+offenen Pull Request
 [instaloader/instaloader#2795](https://github.com/instaloader/instaloader/pull/2795).
 Fest auf den Commit `3e4d5ac0ec545a771a3a4b0b82cb313f32acb29f` (06.11.2026), damit
 sich nichts ungeprüft mitändert.
@@ -66,4 +68,8 @@ git checkout main
 
 Sobald instaloader eine neuere Fassung veröffentlicht, meldet der Wächter sie.
 Dann hebt `main` die Festlegung in `requirements.txt` an, und der Weg zurück ist
-der normale. Dieser Branch wird danach gelöscht.
+der normale. Dieser Branch wird danach gelöscht, und der Pi läuft direkt auf
+`develop`.
+
+Weil `beta` auf `develop` aufbaut, bringt er auch Neues mit, bevor es in `main`
+ankommt.
